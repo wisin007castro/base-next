@@ -1,8 +1,12 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --color-brand: #f3f3f3;
+  --color-brand-opacity: #fafafa;
 }
 
 @theme inline {
@@ -16,6 +20,8 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --color-brand: #0f1224;
+    --color-brand-opacity: #181c32;
   }
 }
 
