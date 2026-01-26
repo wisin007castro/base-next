@@ -1,23 +1,23 @@
 'use client'
 import React, { useContext } from 'react'
-import { FaBars, FaXmark } from 'react-icons/fa6'
+import { FaAnglesRight } from 'react-icons/fa6'
 import { MenuContext } from '../context/MenuContext'
 
-const MainHeader = () => {
-  const { toggleMenu } = useContext(MenuContext)
+const Header = () => {
+  const { toggleMenu, open } = useContext(MenuContext)
 
   return (
-    <header className='bg-white dark:bg-brandOpacity border-b border-gray-200 dark:border-gray-700'>
+    <header className='bg-cyan-600 dark:bg-brandOpacity border-b border-gray-200 dark:border-gray-700'>
       <div className='w-full'>
         <div className='flex items-stretch justify-between h-14'>
           {/* Mobile Toggle Menu */}
           <div className='flex lg:hidden items-center ps-3 me-1'>
             <button
               onClick={toggleMenu}
-              className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition'
+              className='p-2 hover:text-gray-100 dark:hover:bg-gray-700 rounded transition'
               title='Show aside menu'
             >
-              <FaBars className='text-gray-700 dark:text-gray-300 cursor-pointer w-5 h-5' />
+              <FaAnglesRight className='text-gray-700 dark:text-gray-300 cursor-pointer w-5 h-5' />
             </button>
           </div>
 
@@ -46,4 +46,4 @@ const MainHeader = () => {
   )
 }
 
-export default MainHeader
+export default Header
