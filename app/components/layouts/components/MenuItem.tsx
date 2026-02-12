@@ -1,16 +1,21 @@
 'use client'
 import React, { useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { FaAngleRight } from 'react-icons/fa'
-import { MenuItem } from '@/app/constants/menu'
+import { OptionMenu } from '@/app/constants/menu'
 
 interface MenuItemProps {
-  item: MenuItem
+  item: OptionMenu
 }
 
 const MenuItem = ({ item }: MenuItemProps) => {
   const [expanded, setExpanded] = useState(false)
+  const pathname = usePathname()
   const Icon = item.icon
+
+  // Determinar si es la página actual
+  const isActive = item.href === pathname
 
   if (item.submenu && item.expandable) {
     return (
@@ -52,8 +57,8 @@ const MenuItem = ({ item }: MenuItemProps) => {
 
   return (
     <Link href={item.href}>
-      <div className='flex items-center px-4 py-3 cursor-pointer rounded-lg transition group hover:bg-brand'>
-        {Icon && <Icon className='w-5 h-5 mr-3 group-hover:text-sky-600 text-bold' />}
+      <div className={`flex items-center px-4 py-3 cursor-pointer rounded-lg transition group ${isActive ? 'bg-brand text-white' : 'hover:bg-brand'}`}>
+        {Icon && <Icon className={`w-5 h-5 mr-3 text-bold ${isActive ? 'text-sky-600' : 'group-hover:text-sky-600'}`} />}
         <span className='font-medium'>{item.label}</span>
       </div>
     </Link>

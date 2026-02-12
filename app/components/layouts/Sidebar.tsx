@@ -1,7 +1,7 @@
 'use client'
 import React, { useContext } from 'react'
 import { MenuContext } from '../context/MenuContext'
-import { menuItems } from '@/app/constants/menu'
+import { optionMenus } from '@/app/constants/menu'
 import MenuItem from './components/MenuItem'
 
 const Sidebar = () => {
@@ -42,7 +42,7 @@ const Sidebar = () => {
         {/* Aside Menu */}
         <div className='flex-1 overflow-y-auto px-4 py-5'>
           <div className='space-y-2'>
-            {menuItems.map((item) => (
+            {optionMenus.map((item) => (
               <MenuItem key={item.id} item={item} />
             ))}
           </div>

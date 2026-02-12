@@ -3,16 +3,16 @@ import { GrProjects } from 'react-icons/gr'
 import { GoGear } from 'react-icons/go'
 import { MdOutlineWebAsset, MdWebStories } from "react-icons/md";
 
-export interface MenuItem {
+export interface OptionMenu {
   id: string
   label: string
   href?: string
   icon?: React.ComponentType<{ className?: string }>
-  submenu?: MenuItem[]
+  submenu?: OptionMenu[]
   expandable?: boolean
 }
 
-export const menuItems: MenuItem[] = [
+export const optionMenus: OptionMenu[] = [
   {
     id: 'home',
     label: 'Home',
@@ -41,7 +41,7 @@ export const menuItems: MenuItem[] = [
   },
   {
     id: 'paginas',
-    label: 'Páginas',
+    label: 'Proyectos',
     href: '/',
     icon: AiOutlineHome,
   },
