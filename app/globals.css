@@ -25,6 +25,14 @@
   }
 }
 
+/* Class-based dark mode (used by ThemeContext toggling `document.documentElement.classList`) */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --color-brand: #0f1224;
+  --color-brand-opacity: #181c32;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

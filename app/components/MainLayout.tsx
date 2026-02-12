@@ -10,7 +10,7 @@ const MainLayout = ({ children }) => {
   const { open } = useContext(MenuContext)
 
   return (
-    <div className='bg-gray-100 dark:bg-gray-900 w-screen min-h-screen flex flex-col'>
+    <div className='bg-gray-100 dark:bg-gray-900 w-full min-h-screen flex flex-col overflow-x-hidden'>
       <div className='flex flex-1'>
         <Sidebar />
 

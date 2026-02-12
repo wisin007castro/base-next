@@ -1,10 +1,13 @@
 'use client'
 import React, { useContext } from 'react'
 import { FaAnglesRight } from 'react-icons/fa6'
+import { BsSun, BsMoon } from "react-icons/bs";
 import { MenuContext } from '../context/MenuContext'
+import { useTheme } from 'next-themes'
 
 const Header = () => {
-  const { toggleMenu, open } = useContext(MenuContext)
+  const { toggleMenu } = useContext(MenuContext)
+  const { theme, setTheme } = useTheme()
 
   return (
     <header className='bg-cyan-600 dark:bg-brandOpacity border-b border-gray-200 dark:border-gray-700'>
@@ -37,8 +40,19 @@ const Header = () => {
 
             {/* Right Section */}
             <div className='flex items-center gap-4 px-4'>
-              {/* Add your right side content here (notifications, user menu, etc.) */}
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className='p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center'
+                title='Toggle theme'
+              >
+                {theme === 'dark' ? (
+                  <BsSun className='w-5 h-5 text-yellow-400' />
+                ) : (
+                  <BsMoon className='w-5 h-5 text-gray-400' />
+                )}
+              </button>
             </div>
+            <div className='flex items-center pr-4'>User Icon</div>
           </div>
         </div>
       </div>
