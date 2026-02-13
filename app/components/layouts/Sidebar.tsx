@@ -18,9 +18,8 @@ const Sidebar = () => {
       )}
 
       <aside className={`
-        bg-cyan-600 text-black
+        bg-cyan-700 text-black
         dark:bg-brandOpacity dark:text-white
-        border-r border-gray-700
         overflow-y-auto overflow-x-hidden
         transition-all duration-300 ease-in-out
         ${open ? "w-60 visible" : "w-0 invisible"}
@@ -31,12 +30,10 @@ const Sidebar = () => {
         z-40
       `}>
         {/* Aside Logo */}
-        <div className='flex-shrink-0 px-6 py-4 border-b border-gray-700'>
-          <div className='flex items-center justify-between'>
-            <a href="/" className='text-xl font-bold text-brand hover:text-brand/80 transition'>
-              Logo Marca
-            </a>
-          </div>
+        <div className='flex-shrink-0 px-4 border-b border-gray-700 bg-cyan-900'>
+          <a href="/" className='text-xl font-bold h-14 grid grid-cols-1 content-center hover:text-brand/80 transition'>
+            Logo Marca
+          </a>
         </div>
 
         {/* Aside Menu */}
