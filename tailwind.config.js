@@ -10,7 +10,7 @@ module.exports = {
     extend: {
       colors: {
         brand: 'var(--color-brand)',
-        brandOpacity: 'var(--color-brand-opacity)',
+        'brand-opacity': 'var(--color-brand-opacity)',
       },
     },
   },

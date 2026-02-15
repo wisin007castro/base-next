@@ -22,7 +22,7 @@ const MenuItem = ({ item }: MenuItemProps) => {
       <div className='space-y-1'>
         <div
           onClick={() => setExpanded(!expanded)}
-          className='flex items-center px-4 py-3 cursor-pointer rounded-lg transition group hover:bg-brand'
+          className='flex items-center px-4 py-3 cursor-pointer rounded-lg transition group hover:bg-brand-opacity'
         >
           {Icon && <Icon className='w-5 h-5 mr-3 group-hover:text-sky-600' />}
           <span className='font-medium flex-1'>{item.label}</span>
@@ -38,7 +38,7 @@ const MenuItem = ({ item }: MenuItemProps) => {
               const SubIcon = subitem.icon
               return (
                 <Link key={subitem.id} href={subitem.href || '#'}>
-                  <div className='flex items-center px-4 py-3 cursor-pointer rounded-lg transition group hover:bg-brand'>
+                  <div className='flex items-center px-4 py-3 cursor-pointer rounded-lg transition group hover:bg-brand-opacity'>
                     {SubIcon && <SubIcon className='w-4 h-4 mr-3 group-hover:text-sky-600' />}
                     <span className='font-medium text-sm'>{subitem.label}</span>
                   </div>
@@ -57,7 +57,7 @@ const MenuItem = ({ item }: MenuItemProps) => {
 
   return (
     <Link href={item.href}>
-      <div className={`flex items-center px-4 py-3 cursor-pointer rounded-lg transition group ${isActive ? 'bg-brand text-white' : 'hover:bg-brand'}`}>
+      <div className={`flex items-center px-4 py-3 cursor-pointer rounded-lg transition group ${isActive ? 'bg-brand-opacity' : 'hover:bg-brand-opacity'}`}>
         {Icon && <Icon className={`w-5 h-5 mr-3 text-bold ${isActive ? 'text-sky-600' : 'group-hover:text-sky-600'}`} />}
         <span className='font-medium'>{item.label}</span>
       </div>

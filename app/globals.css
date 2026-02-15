@@ -5,8 +5,9 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --color-brand: #f3f3f3;
-  --color-brand-opacity: #fafafa;
+  --color-brand: oklch(38.77% 0.09082 241.284);
+  --color-brand-opacity: oklch(33.63% 0.0761 240.38 / 0.89);
+  --sidebar-background: oklch(44.3% 0.11 240.79);
 }
 
 @theme inline {
@@ -18,11 +19,16 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --color-brand: #0f1224;
-    --color-brand-opacity: #181c32;
+    --background: #ffffff;
+    --foreground: #171717;
+    --color-brand: oklch(38.77% 0.09082 241.284);
+    --color-brand-opacity: oklch(33.63% 0.0761 240.38 / 0.89);
+
   }
+}
+
+.bg-sidebar {
+  background-color: var(--sidebar-background);
 }
 
 /* Class-based dark mode (used by ThemeContext toggling `document.documentElement.classList`) */
@@ -31,7 +37,14 @@
   --foreground: #ededed;
   --color-brand: #0f1224;
   --color-brand-opacity: #181c32;
+
+  .bg-sidebar {
+    background-color: var(--color-brand);
+  }
+
 }
+
+
 
 body {
   background: var(--background);
