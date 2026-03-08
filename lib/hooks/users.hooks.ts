@@ -83,3 +83,14 @@ export function useResendVerification() {
     mutationFn: (id: number) => usersApi.resendVerification(id),
   })
 }
+
+export function useVerifyUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => usersApi.verify(id),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: userKeys.lists() })
+      qc.invalidateQueries({ queryKey: userKeys.detail(id) })
+    },
+  })
+}

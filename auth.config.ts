@@ -12,11 +12,25 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user
-      const protectedPaths = ['/usuarios']
-      const isProtected = protectedPaths.some((p) =>
-        nextUrl.pathname.startsWith(p),
-      )
-      if (isProtected && !isLoggedIn) return false
+      const userRoles  = ((auth?.user as { roles?: string[] })?.roles) ?? []
+      const isAdmin    = userRoles.includes('admin')
+
+      const adminPaths = ['/usuarios', '/roles', '/permisos']
+      const userPaths  = ['/perfil']
+
+      const isAdminPath = adminPaths.some((p) => nextUrl.pathname.startsWith(p))
+      const isUserPath  = userPaths.some((p)  => nextUrl.pathname.startsWith(p))
+
+      // Sin sesión → login
+      if ((isAdminPath || isUserPath) && !isLoggedIn) {
+        return Response.redirect(new URL('/login', nextUrl))
+      }
+
+      // Con sesión pero sin rol admin → home
+      if (isAdminPath && !isAdmin) {
+        return Response.redirect(new URL('/', nextUrl))
+      }
+
       return true
     },
     jwt({ token, user }) {

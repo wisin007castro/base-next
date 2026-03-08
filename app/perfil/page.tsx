@@ -1,14 +1,7 @@
 'use client'
-import { use, useState } from 'react'
-import { useUser, useUpdateUser } from '@/lib/hooks/users.hooks'
-import { useRoles } from '@/lib/hooks/roles.hooks'
-import type { User, UpdateUserDto, DocumentType, Gender } from '@/lib/types/user.types'
+import { useEffect, useState } from 'react'
+import type { User, DocumentType, Gender } from '@/lib/types/user.types'
 
-interface Props { params: Promise<{ id: string }> }
-
-// ---------------------------------------------------------------------------
-// Shared UI helpers
-// ---------------------------------------------------------------------------
 const inputClass =
   'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 ' +
   'focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 ' +
@@ -31,27 +24,34 @@ function Alert({ type, message }: { type: 'success' | 'error'; message: string }
   const classes = type === 'success'
     ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
     : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-  return <div className={`rounded-lg px-4 py-3 text-sm ${classes}`}>{message}</div>
+  return (
+    <div className={`rounded-lg px-4 py-3 text-sm ${classes}`}>{message}</div>
+  )
+}
+
+async function patchMe(body: Record<string, unknown>) {
+  const res = await fetch('/api/me', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.message ?? 'Error al guardar')
+  }
+  return res.json() as Promise<User>
 }
 
 // ---------------------------------------------------------------------------
 // Sección: Datos de cuenta
 // ---------------------------------------------------------------------------
-function AccountSection({ user, userId }: { user: User; userId: number }) {
-  const { data: allRoles, isLoading: rolesLoading } = useRoles()
-  const update = useUpdateUser(userId)
-
-  const [username, setUsername]         = useState(user.username)
-  const [email, setEmail]               = useState(user.email)
-  const [isActive, setIsActive]         = useState(user.is_active)
-  const [roleIds, setRoleIds]           = useState<number[]>(user.roles?.map(r => r.id) ?? [])
-  const [password, setPassword]         = useState('')
+function AccountSection({ user }: { user: User }) {
+  const [username, setUsername]       = useState(user.username)
+  const [email, setEmail]             = useState(user.email)
+  const [password, setPassword]       = useState('')
   const [passwordConf, setPasswordConf] = useState('')
-  const [status, setStatus]             = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
-
-  function toggleRole(id: number) {
-    setRoleIds(prev => prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id])
-  }
+  const [saving, setSaving]           = useState(false)
+  const [status, setStatus]           = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -59,21 +59,24 @@ function AccountSection({ user, userId }: { user: User; userId: number }) {
       setStatus({ type: 'error', msg: 'Las contraseñas no coinciden' })
       return
     }
+    setSaving(true)
     setStatus(null)
-    const dto: UpdateUserDto = { username, email, is_active: isActive, role_ids: roleIds }
-    if (password) { dto.password = password; dto.password_confirmation = passwordConf }
+    const body: Record<string, unknown> = { username, email }
+    if (password) body.password = password
     try {
-      await update.mutateAsync(dto)
+      await patchMe(body)
       setStatus({ type: 'success', msg: 'Datos de cuenta actualizados' })
       setPassword('')
       setPasswordConf('')
     } catch (err: unknown) {
       setStatus({ type: 'error', msg: err instanceof Error ? err.message : 'Error al guardar' })
+    } finally {
+      setSaving(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className={sectionClass}>
         <p className={sectionTitleClass}>Datos de cuenta</p>
         {status && <Alert type={status.type} message={status.msg} />}
@@ -84,49 +87,20 @@ function AccountSection({ user, userId }: { user: User; userId: number }) {
           <Field label="Correo electrónico *">
             <input className={inputClass} type="email" value={email} onChange={e => setEmail(e.target.value)} required />
           </Field>
-          <Field label="Estado">
-            <select className={selectClass} value={isActive ? 'true' : 'false'} onChange={e => setIsActive(e.target.value === 'true')}>
-              <option value="true">Activo</option>
-              <option value="false">Inactivo</option>
-            </select>
-          </Field>
-          <Field label="Nueva contraseña (opcional)">
-            <input className={inputClass} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
+          <Field label="Nueva contraseña">
+            <input className={inputClass} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Dejar vacío para no cambiar" />
           </Field>
           <Field label="Confirmar contraseña">
             <input className={inputClass} type="password" value={passwordConf} onChange={e => setPasswordConf(e.target.value)} placeholder="••••••••" required={!!password} />
           </Field>
         </div>
-
-        {/* Roles */}
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Roles</label>
-          {rolesLoading ? (
-            <p className="text-xs text-gray-400">Cargando roles...</p>
-          ) : (
-            <div className="flex flex-wrap gap-4">
-              {allRoles?.map(role => (
-                <label key={role.id} className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
-                    checked={roleIds.includes(role.id)}
-                    onChange={() => toggleRole(role.id)}
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">{role.name}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-
         <div className="flex justify-end pt-1">
           <button
             type="submit"
-            disabled={update.isPending}
+            disabled={saving}
             className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60 transition-colors"
           >
-            {update.isPending ? 'Guardando...' : 'Actualizar cuenta'}
+            {saving ? 'Guardando...' : 'Actualizar cuenta'}
           </button>
         </div>
       </div>
@@ -137,8 +111,7 @@ function AccountSection({ user, userId }: { user: User; userId: number }) {
 // ---------------------------------------------------------------------------
 // Sección: Datos personales, contacto y dirección
 // ---------------------------------------------------------------------------
-function PersonalSection({ user, userId }: { user: User; userId: number }) {
-  const update = useUpdateUser(userId)
+function PersonalSection({ user }: { user: User }) {
   const p = user.profile
 
   const [nombre, setNombre]                   = useState(p?.nombre ?? '')
@@ -155,13 +128,16 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
   const [ciudad, setCiudad]                   = useState(p?.ciudad ?? '')
   const [direccion, setDireccion]             = useState(p?.direccion ?? '')
   const [codigoPostal, setCodigoPostal]       = useState(p?.codigo_postal ?? '')
-  const [status, setStatus]                   = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+
+  const [saving, setSaving] = useState(false)
+  const [status, setStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setSaving(true)
     setStatus(null)
     try {
-      await update.mutateAsync({
+      await patchMe({
         profile: {
           nombre, primer_apellido: primerApellido, segundo_apellido: segundoApellido || null,
           tipo_documento: tipoDocumento, numero_documento: numeroDocumento,
@@ -174,6 +150,8 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
       setStatus({ type: 'success', msg: 'Datos personales actualizados' })
     } catch (err: unknown) {
       setStatus({ type: 'error', msg: err instanceof Error ? err.message : 'Error al guardar' })
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -258,10 +236,10 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
       <div className="flex justify-end">
         <button
           type="submit"
-          disabled={update.isPending}
+          disabled={saving}
           className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60 transition-colors"
         >
-          {update.isPending ? 'Guardando...' : 'Actualizar datos personales'}
+          {saving ? 'Guardando...' : 'Actualizar datos personales'}
         </button>
       </div>
     </form>
@@ -271,35 +249,34 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
 // ---------------------------------------------------------------------------
 // Página
 // ---------------------------------------------------------------------------
-export default function EditarUsuarioPage({ params }: Props) {
-  const { id } = use(params)
-  const userId = Number(id)
+export default function PerfilPage() {
+  const [user, setUser]       = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const { data: user, isLoading, isError } = useUser(userId)
+  useEffect(() => {
+    fetch('/api/me', { headers: { Accept: 'application/json' } })
+      .then(r => r.json())
+      .then((u: User) => setUser(u))
+      .finally(() => setLoading(false))
+  }, [])
 
-  if (isLoading) {
-    return <div className="py-16 text-center text-sm text-gray-500 dark:text-gray-400">Cargando usuario...</div>
+  if (loading) {
+    return <div className="py-16 text-center text-sm text-gray-500 dark:text-gray-400">Cargando perfil...</div>
   }
 
-  if (isError || !user) {
-    return (
-      <div className="rounded-lg bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-600 dark:text-red-400">
-        No se pudo cargar el usuario.
-      </div>
-    )
+  if (!user) {
+    return <div className="rounded-lg bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-600">No se pudo cargar el perfil.</div>
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
+    <div className="space-y-8 max-w-3xl">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Editar usuario</h1>
-        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-          {user.username} · {user.email}
-        </p>
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Mi perfil</h1>
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Gestiona tu información personal y de cuenta</p>
       </div>
 
-      <AccountSection user={user} userId={userId} />
-      <PersonalSection user={user} userId={userId} />
+      <AccountSection user={user} />
+      <PersonalSection user={user} />
     </div>
   )
 }
