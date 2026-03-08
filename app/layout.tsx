@@ -32,13 +32,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <NextThemesProvider attribute="class" defaultTheme="system" enableSystem>
-          <MenuContextProvider>
-            <MainLayout>
-              <TanStackProvider>
+          <TanStackProvider>
+            <MenuContextProvider>
+              <MainLayout>
                 {children}
-              </TanStackProvider>
-            </MainLayout>
-          </MenuContextProvider>
+              </MainLayout>
+            </MenuContextProvider>
+          </TanStackProvider>
         </NextThemesProvider>
       </body>
     </html>

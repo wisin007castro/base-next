@@ -2,6 +2,7 @@ import { AiOutlineHome } from 'react-icons/ai'
 import { GrProjects } from 'react-icons/gr'
 import { GoGear } from 'react-icons/go'
 import { MdOutlineWebAsset, MdWebStories } from "react-icons/md";
+import { HiOutlineUsers } from 'react-icons/hi';
 
 export interface OptionMenu {
   id: string
@@ -36,6 +37,26 @@ export const optionMenus: OptionMenu[] = [
         label: 'Internos',
         href: '/proyectos/internos',
         icon: MdWebStories,
+      },
+    ],
+  },
+  {
+    id: 'usuarios',
+    label: 'Usuarios',
+    icon: HiOutlineUsers,
+    expandable: true,
+    submenu: [
+      {
+        id: 'usuarios-lista',
+        label: 'Listado',
+        href: '/usuarios',
+        icon: HiOutlineUsers,
+      },
+      {
+        id: 'usuarios-nuevo',
+        label: 'Nuevo usuario',
+        href: '/usuarios/nuevo',
+        icon: AiOutlineHome,
       },
     ],
   },
