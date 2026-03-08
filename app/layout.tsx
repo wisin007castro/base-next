@@ -5,6 +5,7 @@ import MainLayout from "./components/MainLayout";
 import MenuContextProvider from "./components/context/MenuContext";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { TanStackProvider } from "./components/providers/TanStackProvider";
+import { AuthProvider } from "./components/providers/AuthProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,15 +32,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <NextThemesProvider attribute="class" defaultTheme="system" enableSystem>
-          <TanStackProvider>
-            <MenuContextProvider>
-              <MainLayout>
-                {children}
-              </MainLayout>
-            </MenuContextProvider>
-          </TanStackProvider>
-        </NextThemesProvider>
+        <AuthProvider>
+          <NextThemesProvider attribute="class" defaultTheme="system" enableSystem>
+            <TanStackProvider>
+              <MenuContextProvider>
+                <MainLayout>
+                  {children}
+                </MainLayout>
+              </MenuContextProvider>
+            </TanStackProvider>
+          </NextThemesProvider>
+        </AuthProvider>
       </body>
     </html>
   );
