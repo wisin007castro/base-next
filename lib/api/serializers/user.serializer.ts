@@ -49,6 +49,8 @@ export function serializeProfile(p: DbProfile): UserProfile {
     ciudad:              p.ciudad,
     direccion:           p.direccion,
     codigo_postal:       p.codigoPostal,
+    avatar_key:          p.avatarKey,
+    avatar_url:          p.avatarUrl,
     created_at:          p.createdAt,
     updated_at:          p.updatedAt,
   }

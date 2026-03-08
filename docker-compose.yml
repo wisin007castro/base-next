@@ -1,0 +1,76 @@
+services:
+
+  # ─────────────────────────────────────────────────────────
+  # PostgreSQL  (disponible si migrás de SQLite a Postgres)
+  # ─────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16.1
+    env_file:
+      - .env
+    ports:
+      - '${DOCKER_DATABASE_PORT}:5432'
+    environment:
+      POSTGRES_DB:       ${DOCKER_DATABASE_NAME}
+      POSTGRES_USER:     ${DOCKER_DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DOCKER_DATABASE_PASSWORD}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DOCKER_DATABASE_USERNAME}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────────────────
+  # MinIO — S3-compatible local storage
+  # ─────────────────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    ports:
+      - '${DOCKER_MINIO_API_PORT}:9000'  # S3 API
+      - '${DOCKER_MINIO_UI_PORT}:9001'   # Consola web
+    environment:
+      MINIO_ROOT_USER:     ${DOCKER_MINIO_USERNAME}
+      MINIO_ROOT_PASSWORD: ${DOCKER_MINIO_PASSWORD}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ':9001'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────────────────
+  # MinIO Init — crea el bucket y lo hace público al arrancar
+  # ─────────────────────────────────────────────────────────
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file:
+      - .env
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 $${DOCKER_MINIO_USERNAME} $${DOCKER_MINIO_PASSWORD} &&
+        mc mb --ignore-existing local/$${STORAGE_BUCKET} &&
+        mc anonymous set public local/$${STORAGE_BUCKET} &&
+        echo '✔ Bucket $${STORAGE_BUCKET} listo'
+      "
+    restart: on-failure
+
+  # ─────────────────────────────────────────────────────────
+  # MailDev — servidor SMTP + bandeja de entrada para desarrollo
+  # ─────────────────────────────────────────────────────────
+  maildev:
+    image: maildev/maildev:2.2.1
+    ports:
+      - '${DOCKER_MAILDEV_SMTP_PORT:-1025}:1025'  # SMTP
+      - '${DOCKER_MAILDEV_UI_PORT:-1080}:1080'    # Bandeja web
+    healthcheck:
+      test: ['CMD-SHELL', 'wget --spider --no-verbose --tries=1 -T 3 http://localhost:1080/healthz']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  minio_data:

@@ -3,6 +3,7 @@ import { use, useState } from 'react'
 import { useUser, useUpdateUser } from '@/lib/hooks/users.hooks'
 import { useRoles } from '@/lib/hooks/roles.hooks'
 import type { User, UpdateUserDto, DocumentType, Gender } from '@/lib/types/user.types'
+import AvatarUpload from '@/app/components/users/AvatarUpload'
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -296,6 +297,13 @@ export default function EditarUsuarioPage({ params }: Props) {
         <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
           {user.username} · {user.email}
         </p>
+      </div>
+
+      <div className="flex justify-center">
+        <AvatarUpload
+          currentUrl={user.profile?.avatar_url}
+          uploadUrl={`/api/upload/avatar/${userId}`}
+        />
       </div>
 
       <AccountSection user={user} userId={userId} />
