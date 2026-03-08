@@ -26,6 +26,8 @@ export interface UserProfile {
   ciudad: string | null
   direccion: string | null
   codigo_postal: string | null
+  avatar_key: string | null
+  avatar_url: string | null
   // Timestamps
   created_at: string
   updated_at: string

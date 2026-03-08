@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import type { User, DocumentType, Gender } from '@/lib/types/user.types'
+import AvatarUpload from '@/app/components/users/AvatarUpload'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 ' +
@@ -273,6 +274,14 @@ export default function PerfilPage() {
       <div>
         <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Mi perfil</h1>
         <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Gestiona tu información personal y de cuenta</p>
+      </div>
+
+      <div className="flex justify-center">
+        <AvatarUpload
+          currentUrl={user.profile?.avatar_url}
+          uploadUrl="/api/upload/avatar"
+          onUploaded={(url) => setUser(u => u ? { ...u, profile: u.profile ? { ...u.profile, avatar_url: url } : u.profile } : u)}
+        />
       </div>
 
       <AccountSection user={user} />

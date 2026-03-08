@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { serializeUser } from '@/lib/api/serializers/user.serializer'
+import { sendVerificationEmail } from '@/lib/mail/mail.service'
 
 // POST /api/users/:id/verify — verificación manual por el administrador
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -19,6 +20,9 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     where: eq(users.id, Number(id)),
     with: { profile: true, userRoles: { with: { role: true } } },
   })
+
+  // Notificar al usuario por correo (error no bloqueante)
+  sendVerificationEmail(updated!.email, updated!.username).catch(console.error)
 
   return NextResponse.json(serializeUser(updated!))
 }
