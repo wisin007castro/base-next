@@ -21,8 +21,16 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     with: { profile: true, userRoles: { with: { role: true } } },
   })
 
-  // Notificar al usuario por correo (error no bloqueante)
-  sendVerificationEmail(updated!.email, updated!.username).catch(console.error)
+  // Notificar al usuario por correo
+  let mailSent = false
+  try {
+    await sendVerificationEmail(updated!.email, updated!.username)
+    mailSent = true
+    console.log('[mail] Correo de verificación enviado a', updated!.email)
+  } catch (err: unknown) {
+    const error = err instanceof Error ? err : new Error(String(err))
+    console.error('[mail] Error al enviar correo de verificación:', error.message)
+  }
 
-  return NextResponse.json(serializeUser(updated!))
+  return NextResponse.json({ ...serializeUser(updated!), mail_sent: mailSent })
 }

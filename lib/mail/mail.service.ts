@@ -2,6 +2,26 @@ import { transporter } from './mail.client'
 
 const FROM = process.env.MAIL_FROM ?? 'noreply@localhost'
 
+export async function sendVerificationLinkEmail(to: string, username: string, token: string) {
+  const url = `${process.env.NEXTAUTH_URL}/verify-email?token=${token}`
+  await transporter.sendMail({
+    from:    FROM,
+    to,
+    subject: 'Verifica tu correo electrónico',
+    html: `
+      <h2>Hola, ${username}</h2>
+      <p>Un administrador te ha enviado un enlace para verificar tu cuenta.</p>
+      <p>
+        <a href="${url}" style="display:inline-block;padding:10px 20px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:6px">
+          Verificar mi cuenta
+        </a>
+      </p>
+      <p style="color:#888;font-size:12px">El enlace expira en 24 horas.</p>
+      <p style="color:#888;font-size:12px">O copiá este enlace: ${url}</p>
+    `,
+  })
+}
+
 export async function sendVerificationEmail(to: string, username: string) {
   await transporter.sendMail({
     from:    FROM,
