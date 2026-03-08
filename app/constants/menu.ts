@@ -3,6 +3,7 @@ import { GrProjects } from 'react-icons/gr'
 import { GoGear } from 'react-icons/go'
 import { MdOutlineWebAsset, MdWebStories } from "react-icons/md";
 import { HiOutlineUsers } from 'react-icons/hi';
+import { RiShieldKeyholeLine, RiLockPasswordLine } from 'react-icons/ri';
 
 export interface OptionMenu {
   id: string
@@ -11,6 +12,7 @@ export interface OptionMenu {
   icon?: React.ComponentType<{ className?: string }>
   submenu?: OptionMenu[]
   expandable?: boolean
+  allowedRoles?: string[] // si se define, solo usuarios con alguno de esos roles lo ven
 }
 
 export const optionMenus: OptionMenu[] = [
@@ -41,29 +43,36 @@ export const optionMenus: OptionMenu[] = [
     ],
   },
   {
-    id: 'usuarios',
-    label: 'Usuarios',
-    icon: HiOutlineUsers,
-    expandable: true,
-    submenu: [
-      {
-        id: 'usuarios-lista',
-        label: 'Listado',
-        href: '/usuarios',
-        icon: HiOutlineUsers,
-      },
-      {
-        id: 'usuarios-nuevo',
-        label: 'Nuevo usuario',
-        href: '/usuarios/nuevo',
-        icon: AiOutlineHome,
-      },
-    ],
-  },
-  {
     id: 'paginas',
     label: 'Páginas',
     href: '/paginas',
     icon: AiOutlineHome,
+  },
+  {
+    id: 'administracion',
+    label: 'Administración',
+    icon: GoGear,
+    expandable: true,
+    allowedRoles: ['admin'],
+    submenu: [
+      {
+        id: 'usuarios-lista',
+        label: 'Usuarios',
+        href: '/usuarios',
+        icon: HiOutlineUsers,
+      },
+      {
+        id: 'roles',
+        label: 'Roles',
+        href: '/roles',
+        icon: RiShieldKeyholeLine,
+      },
+      {
+        id: 'permisos',
+        label: 'Permisos',
+        href: '/permisos',
+        icon: RiLockPasswordLine,
+      },
+    ],
   },
 ]

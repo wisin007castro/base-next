@@ -1,9 +1,9 @@
 'use client'
 import Link from 'next/link'
-import { FiEdit2, FiTrash2, FiRotateCcw, FiMail } from 'react-icons/fi'
+import { FiEdit2, FiTrash2, FiRotateCcw, FiMail, FiCheckCircle } from 'react-icons/fi'
 import type { User } from '@/lib/types/user.types'
 import { UserStatusBadge, UserVerifiedBadge, UserRolesBadges } from './UserStatusBadge'
-import { useRemoveUser, useRestoreUser, useResendVerification, useToggleActive } from '@/lib/hooks/users.hooks'
+import { useRemoveUser, useRestoreUser, useResendVerification, useToggleActive, useVerifyUser } from '@/lib/hooks/users.hooks'
 
 interface Props {
   users: User[]
@@ -15,6 +15,7 @@ export function UsersTable({ users, withTrashed = false }: Props) {
   const restore = useRestoreUser()
   const resend = useResendVerification()
   const toggle = useToggleActive()
+  const verify = useVerifyUser()
 
   if (users.length === 0) {
     return (
@@ -82,14 +83,24 @@ export function UsersTable({ users, withTrashed = false }: Props) {
                   ) : (
                     <>
                       {!user.email_verified_at && (
-                        <button
-                          onClick={() => resend.mutate(user.id)}
-                          disabled={resend.isPending}
-                          title="Reenviar verificación"
-                          className="rounded p-1.5 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 transition-colors"
-                        >
-                          <FiMail className="w-4 h-4" />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => verify.mutate(user.id)}
+                            disabled={verify.isPending}
+                            title="Verificar manualmente"
+                            className="rounded p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors"
+                          >
+                            <FiCheckCircle className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => resend.mutate(user.id)}
+                            disabled={resend.isPending}
+                            title="Reenviar verificación por email"
+                            className="rounded p-1.5 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 transition-colors"
+                          >
+                            <FiMail className="w-4 h-4" />
+                          </button>
+                        </>
                       )}
                       <Link
                         href={`/usuarios/${user.id}/editar`}

@@ -82,4 +82,8 @@ export const usersApi = {
   /** Activar / desactivar usuario */
   toggleActive: (id: number) =>
     request<User>(`/users/${id}/toggle-active`, { method: 'POST' }),
+
+  /** Verificar correo manualmente (sin envío de email) */
+  verify: (id: number) =>
+    request<User>(`/users/${id}/verify`, { method: 'POST' }),
 }

@@ -13,3 +13,9 @@ export const roleKeys = {
   lists: () => [...roleKeys.all, 'list'] as const,
   detail: (id: number) => [...roleKeys.all, 'detail', id] as const,
 }
+
+export const permissionKeys = {
+  all: ['permissions'] as const,
+  lists: () => [...permissionKeys.all, 'list'] as const,
+  detail: (id: number) => [...permissionKeys.all, 'detail', id] as const,
+}
