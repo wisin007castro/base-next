@@ -3,6 +3,7 @@ import React, { useContext } from 'react'
 import { MenuContext } from '../context/MenuContext'
 import { optionMenus } from '@/app/constants/menu'
 import MenuItem from './components/MenuItem'
+import Link from 'next/link'
 
 const Sidebar = () => {
   const { open, toggleMenu } = useContext(MenuContext)
@@ -31,9 +32,9 @@ const Sidebar = () => {
       `}>
         {/* Aside Logo */}
         <div className='flex-shrink-0 px-4 border-b border-gray-700 bg-slate-700'>
-          <a href="/" className='text-xl font-bold h-14 grid grid-cols-1 content-center hover:text-brand/80 transition'>
+          <Link href={'/'} className='text-xl font-bold h-14 grid grid-cols-1 content-center hover:text-brand/80 transition'>
             Logo Marca
-          </a>
+          </Link>
         </div>
 
         {/* Aside Menu */}

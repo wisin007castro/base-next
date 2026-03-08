@@ -17,7 +17,7 @@ const MainLayout = ({ children }) => {
         {/* Main Content */}
         <div className={`flex flex-col flex-1 transition-all duration-300 ease-in-out ${open ? "lg:ml-0 ml-60" : "ml-0"}`}>
           <Header />
-          <main className='flex-1 overflow-auto'>
+          <main className='flex-1 overflow-auto p-2 md:p-4 lg:p-6'>
             {children}
           </main>
         </div>

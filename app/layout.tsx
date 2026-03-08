@@ -4,6 +4,7 @@ import "./globals.css";
 import MainLayout from "./components/MainLayout";
 import MenuContextProvider from "./components/context/MenuContext";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { TanStackProvider } from "./components/providers/TanStackProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,7 +34,9 @@ export default function RootLayout({
         <NextThemesProvider attribute="class" defaultTheme="system" enableSystem>
           <MenuContextProvider>
             <MainLayout>
-              {children}
+              <TanStackProvider>
+                {children}
+              </TanStackProvider>
             </MainLayout>
           </MenuContextProvider>
         </NextThemesProvider>
