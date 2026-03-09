@@ -280,7 +280,7 @@ export default function PerfilPage() {
         <AvatarUpload
           currentUrl={user.profile?.avatar_url}
           uploadUrl="/api/upload/avatar"
-          onUploaded={(url) => setUser(u => u ? { ...u, profile: u.profile ? { ...u.profile, avatar_url: url } : u.profile } : u)}
+          onUploaded={(result) => setUser(u => u ? { ...u, profile: u.profile ? { ...u.profile, avatar_url: result.avatar_url, avatar_thumb_url: result.avatar_thumb_url } : u.profile } : u)}
         />
       </div>
 

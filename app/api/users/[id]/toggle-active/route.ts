@@ -3,9 +3,13 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { serializeUser } from '@/lib/api/serializers/user.serializer'
+import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
 
 // POST /api/users/:id/toggle-active
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const guard = await requireAdmin()
+  if (isGuardError(guard)) return guard
+
   const { id }  = await params
   const userId  = Number(id)
   const now     = new Date().toISOString()

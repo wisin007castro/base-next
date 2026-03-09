@@ -8,7 +8,7 @@ import { UsersTable } from '@/app/components/users/UsersTable'
 import type { UserFilters } from '@/lib/types/user.types'
 
 export default function UsuariosPage() {
-  const [filters, setFilters] = useState<UserFilters>({ page: 1, per_page: 15 })
+  const [filters, setFilters] = useState<UserFilters>({ page: 1, per_page: 5 })
   const [search, setSearch] = useState('')
 
   const { data, isLoading, isError } = useUsers(filters)
@@ -88,33 +88,48 @@ export default function UsuariosPage() {
           Error al cargar los usuarios. Verifica la conexión con la API.
         </div>
       )}
-      {data && <UsersTable users={data.data} withTrashed={filters.with_trashed} />}
+      {data && <UsersTable users={data.data} withTrashed={filters.with_trashed} startIndex={data.from} />}
 
       {/* Paginación */}
-      {data && data.last_page > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-          <span>
-            Mostrando {data.from}–{data.to} de {data.total}
-          </span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setFilters(f => ({ ...f, page: (f.page ?? 1) - 1 }))}
-              disabled={(filters.page ?? 1) <= 1}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800 disabled:opacity-40 transition-colors"
+      {data && (
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-2">
+            <span>Mostrar</span>
+            <select
+              value={filters.per_page ?? 5}
+              onChange={e => setFilters(f => ({ ...f, per_page: Number(e.target.value), page: 1 }))}
+              className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             >
-              Anterior
-            </button>
-            <span className="rounded-lg border border-sky-500 bg-sky-50 dark:bg-sky-900/20 px-3 py-1.5 text-sky-600">
-              {filters.page ?? 1} / {data.last_page}
-            </span>
-            <button
-              onClick={() => setFilters(f => ({ ...f, page: (f.page ?? 1) + 1 }))}
-              disabled={(filters.page ?? 1) >= data.last_page}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800 disabled:opacity-40 transition-colors"
-            >
-              Siguiente
-            </button>
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={15}>15</option>
+              <option value={50}>50</option>
+            </select>
+            <span>por página · {data.total} en total</span>
           </div>
+
+          {data.last_page > 1 && (
+            <div className="flex items-center gap-2">
+              <span>Mostrando {data.from}–{data.to}</span>
+              <button
+                onClick={() => setFilters(f => ({ ...f, page: (f.page ?? 1) - 1 }))}
+                disabled={(filters.page ?? 1) <= 1}
+                className="rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800 disabled:opacity-40 transition-colors"
+              >
+                Anterior
+              </button>
+              <span className="rounded-lg border border-sky-500 bg-sky-50 dark:bg-sky-900/20 px-3 py-1.5 text-sky-600">
+                {filters.page ?? 1} / {data.last_page}
+              </span>
+              <button
+                onClick={() => setFilters(f => ({ ...f, page: (f.page ?? 1) + 1 }))}
+                disabled={(filters.page ?? 1) >= data.last_page}
+                className="rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800 disabled:opacity-40 transition-colors"
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

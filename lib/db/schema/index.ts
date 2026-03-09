@@ -42,6 +42,8 @@ export const userProfiles = sqliteTable('user_profiles', {
   codigoPostal:        text('codigo_postal'),
   avatarKey:           text('avatar_key'),
   avatarUrl:           text('avatar_url'),
+  avatarThumbKey:      text('avatar_thumb_key'),
+  avatarThumbUrl:      text('avatar_thumb_url'),
   createdAt:           text('created_at').notNull().default(ts()),
   updatedAt:           text('updated_at').notNull().default(ts()),
 })

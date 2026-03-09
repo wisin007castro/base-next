@@ -5,6 +5,8 @@ import { db } from '@/lib/db'
 import { users, userProfiles } from '@/lib/db/schema'
 import { serializeUser } from '@/lib/api/serializers/user.serializer'
 import { syncRoles } from '@/lib/auth/rbac'
+import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
+import { updateUserSchema } from '@/lib/api/schemas/user.schema'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -12,6 +14,9 @@ const withRoles = { profile: true, userRoles: { with: { role: true } } } as cons
 
 // GET /api/users/:id
 export async function GET(_req: NextRequest, { params }: Params) {
+  const guard = await requireAdmin()
+  if (isGuardError(guard)) return guard
+
   const { id } = await params
   const user = await db.query.users.findFirst({ where: eq(users.id, Number(id)), with: withRoles })
   if (!user) return NextResponse.json({ message: 'Usuario no encontrado' }, { status: 404 })
@@ -20,10 +25,22 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 // PATCH /api/users/:id
 export async function PATCH(req: NextRequest, { params }: Params) {
+  const guard = await requireAdmin()
+  if (isGuardError(guard)) return guard
+
   const { id }  = await params
-  const body    = await req.json()
-  const now     = new Date().toISOString()
-  const userId  = Number(id)
+  const raw     = await req.json()
+  const parsed  = updateUserSchema.safeParse(raw)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { message: 'Datos inválidos', errors: parsed.error.flatten() },
+      { status: 422 },
+    )
+  }
+
+  const now    = new Date().toISOString()
+  const userId = Number(id)
+  const body   = parsed.data
 
   const userValues: Record<string, unknown> = { updatedAt: now }
   if (body.username  !== undefined) userValues.username = body.username
@@ -47,7 +64,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       direccion: 'direccion', codigo_postal: 'codigoPostal',
     }
     Object.entries(map).forEach(([src, dst]) => {
-      if (p[src] !== undefined) profileValues[dst] = p[src]
+      if ((p as Record<string, unknown>)[src] !== undefined)
+        profileValues[dst] = (p as Record<string, unknown>)[src]
     })
 
     const existing = await db.query.userProfiles.findFirst({ where: eq(userProfiles.userId, userId) })
@@ -64,6 +82,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 // DELETE /api/users/:id  → soft delete
 export async function DELETE(_req: NextRequest, { params }: Params) {
+  const guard = await requireAdmin()
+  if (isGuardError(guard)) return guard
+
   const { id } = await params
   const now    = new Date().toISOString()
   await db.update(users).set({ deletedAt: now, updatedAt: now }).where(eq(users.id, Number(id)))

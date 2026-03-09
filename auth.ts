@@ -6,6 +6,7 @@ import { authConfig } from './auth.config'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { getUserRoles, getUserPermissions } from '@/lib/auth/rbac'
+import { rateLimit } from '@/lib/api/rate-limiter'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -18,9 +19,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
+        // Rate limiting: 5 intentos por email cada 15 minutos
+        const email = credentials.email as string
+        const { allowed } = rateLimit(`login:${email}`, 5, 15 * 60 * 1000)
+        if (!allowed) return null
+
         const user = await db.query.users.findFirst({
           where: and(
-            eq(users.email, credentials.email as string),
+            eq(users.email, email),
             eq(users.isActive, true),
             isNull(users.deletedAt),
           ),

@@ -3,17 +3,24 @@ import { useRef, useState } from 'react'
 import Image from 'next/image'
 import { FiUpload, FiUser } from 'react-icons/fi'
 
+interface UploadResult {
+  avatar_url:       string
+  avatar_key:       string
+  avatar_thumb_url: string
+  avatar_thumb_key: string
+}
+
 interface Props {
   currentUrl?: string | null
-  uploadUrl: string   // e.g. '/api/upload/avatar' or '/api/upload/avatar/5'
-  onUploaded?: (avatarUrl: string) => void
+  uploadUrl: string
+  onUploaded?: (result: UploadResult) => void
 }
 
 export default function AvatarUpload({ currentUrl, uploadUrl, onUploaded }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [preview, setPreview] = useState<string | null>(currentUrl ?? null)
+  const [preview, setPreview]   = useState<string | null>(currentUrl ?? null)
   const [uploading, setUploading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError]       = useState<string | null>(null)
 
   async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -29,8 +36,10 @@ export default function AvatarUpload({ currentUrl, uploadUrl, onUploaded }: Prop
         const data = await res.json().catch(() => ({}))
         throw new Error(data.message ?? 'Error al subir imagen')
       }
-      const data = await res.json()
-      onUploaded?.(data.avatar_url)
+      const data: UploadResult = await res.json()
+      // Mostrar la versión full como preview local
+      setPreview(data.avatar_url)
+      onUploaded?.(data)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al subir imagen')
       setPreview(currentUrl ?? null)
