@@ -1,4 +1,4 @@
-import { eq, inArray } from 'drizzle-orm'
+import { eq, and, inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { roles, permissions, userRoles, userPermissions, rolePermissions } from '@/lib/db/schema'
 
@@ -81,7 +81,7 @@ export async function assignRole(userId: number, roleId: number) {
 export async function removeRole(userId: number, roleId: number) {
   await db
     .delete(userRoles)
-    .where(eq(userRoles.userId, userId))
+    .where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId)))
 }
 
 export async function syncRoles(userId: number, roleIds: number[]) {
@@ -98,5 +98,5 @@ export async function givePermissionTo(userId: number, permissionId: number) {
 export async function revokePermission(userId: number, permissionId: number) {
   await db
     .delete(userPermissions)
-    .where(eq(userPermissions.userId, userId))
+    .where(and(eq(userPermissions.userId, userId), eq(userPermissions.permissionId, permissionId)))
 }

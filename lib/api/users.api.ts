@@ -19,8 +19,19 @@ async function request<T>(endpoint: string, init?: RequestInit): Promise<T> {
   })
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: res.statusText }))
-    throw new Error(error.message ?? 'Error en la petición')
+    const error = await res.json().catch(() => ({ message: res.statusText })) as {
+      message?: string
+      errors?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] }
+    }
+    const fieldDetails = error.errors?.fieldErrors
+      ? '\nCampos inválidos: ' + Object.entries(error.errors.fieldErrors)
+          .map(([k, v]) => `${k}: ${v.join(', ')}`)
+          .join(' | ')
+      : ''
+    const formDetails = error.errors?.formErrors?.length
+      ? '\n' + error.errors.formErrors.join(', ')
+      : ''
+    throw new Error((error.message ?? 'Error en la petición') + fieldDetails + formDetails)
   }
 
   return res.json() as Promise<T>

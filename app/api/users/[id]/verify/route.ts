@@ -4,9 +4,13 @@ import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { serializeUser } from '@/lib/api/serializers/user.serializer'
 import { sendVerificationEmail } from '@/lib/mail/mail.service'
+import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
 
 // POST /api/users/:id/verify — verificación manual por el administrador
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const guard = await requireAdmin()
+  if (isGuardError(guard)) return guard
+
   const { id } = await params
   const user = await db.query.users.findFirst({ where: eq(users.id, Number(id)) })
 
@@ -21,7 +25,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     with: { profile: true, userRoles: { with: { role: true } } },
   })
 
-  // Notificar al usuario por correo
   let mailSent = false
   try {
     await sendVerificationEmail(updated!.email, updated!.username)

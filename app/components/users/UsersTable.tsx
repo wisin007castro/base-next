@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
-import { FiEdit2, FiTrash2, FiRotateCcw, FiMail, FiCheckCircle } from 'react-icons/fi'
+import Image from 'next/image'
+import { FiEdit2, FiTrash2, FiRotateCcw, FiMail, FiCheckCircle, FiUser } from 'react-icons/fi'
 import type { User } from '@/lib/types/user.types'
 import { UserStatusBadge, UserVerifiedBadge, UserRolesBadges } from './UserStatusBadge'
 import { useRemoveUser, useRestoreUser, useResendVerification, useToggleActive, useVerifyUser } from '@/lib/hooks/users.hooks'
@@ -8,9 +9,22 @@ import { useRemoveUser, useRestoreUser, useResendVerification, useToggleActive, 
 interface Props {
   users: User[]
   withTrashed?: boolean
+  startIndex?: number
 }
 
-export function UsersTable({ users, withTrashed = false }: Props) {
+function UserAvatar({ user }: { user: User }) {
+  const thumbUrl = user.profile?.avatar_thumb_url
+  return (
+    <div className="relative w-8 h-8 rounded-full shrink-0 overflow-hidden bg-sky-600 flex items-center justify-center text-white">
+      {thumbUrl
+        ? <Image src={thumbUrl} alt={user.username} fill className="object-cover" unoptimized />
+        : <FiUser className="w-4 h-4" />
+      }
+    </div>
+  )
+}
+
+export function UsersTable({ users, withTrashed = false, startIndex = 1 }: Props) {
   const remove = useRemoveUser()
   const restore = useRestoreUser()
   const resend = useResendVerification()
@@ -41,12 +55,17 @@ export function UsersTable({ users, withTrashed = false }: Props) {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-900">
-          {users.map((user) => (
+          {users.map((user, index) => (
             <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-              <td className="px-4 py-3 text-gray-400">{user.id}</td>
+              <td className="px-4 py-3 text-gray-400">{startIndex + index}</td>
               <td className="px-4 py-3">
-                <div className="font-medium text-gray-900 dark:text-gray-100">{user.username}</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">{user.email}</div>
+                <Link href={`/usuarios/${user.id}/editar`} className="flex items-center gap-2.5 group">
+                  <UserAvatar user={user} />
+                  <div className="min-w-0">
+                    <div className="font-medium text-gray-900 dark:text-gray-100 truncate group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">{user.username}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate group-hover:text-sky-500 dark:group-hover:text-sky-500 transition-colors">{user.email}</div>
+                  </div>
+                </Link>
               </td>
               <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
                 {user.profile

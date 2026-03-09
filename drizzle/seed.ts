@@ -98,10 +98,76 @@ async function seed() {
     { userId: usuario.id,   nombre: 'Pedro',  primerApellido: 'Sánchez',  segundoApellido: 'Ruiz',   tipoDocumento: 'dni', numeroDocumento: '87654321B', fechaNacimiento: '2000-03-22', genero: 'masculino', telefono: null,             pais: 'España', departamento: 'Valencia',  ciudad: 'Valencia',  direccion: null,                  codigoPostal: null,    createdAt: now, updatedAt: now },
   ])
 
+  // -------------------------------------------------------------------
+  // 1 000 usuarios de prueba (sin foto) — en lotes para SQLite
+  // -------------------------------------------------------------------
+  const BATCH    = 100
+  const TOTAL    = 1000
+  const nombres  = ['Ana','Luis','María','Carlos','Sofía','Jorge','Elena','Pablo','Isabel','Diego','Lucía','Andrés','Marta','Sergio','Paula','Tomás','Nuria','Raúl','Beatriz','Iván','Silvia','Rubén','Patricia','Álvaro','Cristina','Marcos','Adriana','Hugo','Rosa','Héctor']
+  const apellidos= ['García','Martínez','López','Sánchez','González','Pérez','Rodríguez','Fernández','Torres','Ramírez','Flores','Herrera','Moreno','Jiménez','Ruiz','Álvarez','Castro','Romero','Vega','Ortiz','Mendoza','Ríos','Delgado','Fuentes','Molina']
+  const ciudades = ['Madrid','Barcelona','Valencia','Sevilla','Zaragoza','Málaga','Murcia','Palma','Bilbao','Valladolid','Alicante','Córdoba','Vigo','Gijón','Hospitalet']
+  const docs     = ['dni','pasaporte','cedula','nie'] as const
+  const generos  = ['masculino','femenino','otro','prefiero_no_decir'] as const
+  const roles    = [adminRole, modRole, userRole]
+
+  let created = 0
+  for (let batch = 0; batch < TOTAL / BATCH; batch++) {
+    const userValues = []
+    for (let i = 0; i < BATCH; i++) {
+      const n = batch * BATCH + i + 1
+      userValues.push({
+        username:       `test${n}`,
+        email:          `test${n}@test.com`,
+        password,
+        isActive:       n % 10 !== 0,                         // 10% inactivos
+        emailVerifiedAt: n % 5 === 0 ? null : now,            // 20% sin verificar
+        createdAt: now,
+        updatedAt: now,
+      })
+    }
+
+    const insertedUsers = await db.insert(schema.users).values(userValues).returning()
+
+    // Perfiles en lotes de 50 (SQLite param limit)
+    const profileValues = insertedUsers.map((u, i) => {
+      const n = batch * BATCH + i + 1
+      return {
+        userId:          u.id,
+        nombre:          nombres[n % nombres.length],
+        primerApellido:  apellidos[n % apellidos.length],
+        segundoApellido: n % 3 === 0 ? apellidos[(n + 5) % apellidos.length] : null,
+        tipoDocumento:   docs[n % docs.length],
+        numeroDocumento: `TEST${String(n).padStart(7, '0')}`,
+        fechaNacimiento: `${1970 + (n % 35)}-${String((n % 12) + 1).padStart(2, '0')}-${String((n % 28) + 1).padStart(2, '0')}`,
+        genero:          generos[n % generos.length],
+        telefono:        n % 4 === 0 ? null : `+34 6${String(n).padStart(8, '0').slice(0, 8)}`,
+        pais:            'España',
+        ciudad:          ciudades[n % ciudades.length],
+        createdAt:       now,
+        updatedAt:       now,
+      }
+    })
+    for (let j = 0; j < profileValues.length; j += 50) {
+      await db.insert(schema.userProfiles).values(profileValues.slice(j, j + 50))
+    }
+
+    // Roles — rotar entre los 3 roles
+    const roleValues = insertedUsers.map((u, i) => ({
+      userId: u.id,
+      roleId: roles[(batch * BATCH + i) % roles.length].id,
+    }))
+    await db.insert(schema.userRoles).values(roleValues)
+
+    created += insertedUsers.length
+    process.stdout.write(`\r   Progreso: ${created}/${TOTAL} usuarios`)
+  }
+  console.log()
+
   console.log('✅ Seed completado:')
   console.log('   Roles:       admin, moderador, usuario')
   console.log('   Permisos:   ', permDefs.map(p => p.name).join(', '))
   console.log('   Usuarios:    admin@ejemplo.com | moderador@ejemplo.com | usuario@ejemplo.com')
+  console.log(`   Test users:  test1@test.com … test${TOTAL}@test.com`)
   console.log('   Contraseña:  password123')
 }
 

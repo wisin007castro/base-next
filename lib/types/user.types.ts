@@ -28,6 +28,8 @@ export interface UserProfile {
   codigo_postal: string | null
   avatar_key: string | null
   avatar_url: string | null
+  avatar_thumb_key: string | null
+  avatar_thumb_url: string | null
   // Timestamps
   created_at: string
   updated_at: string

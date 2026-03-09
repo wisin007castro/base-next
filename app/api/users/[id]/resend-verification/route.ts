@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
-import { auth } from '@/auth'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { generateVerificationToken } from '@/lib/auth/tokens'
 import { sendVerificationLinkEmail } from '@/lib/mail/mail.service'
+import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
 
-// POST /api/users/:id/resend-verification — admin envía email con enlace de verificación
+// POST /api/users/:id/resend-verification
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ message: 'No autenticado' }, { status: 401 })
-
-  const token = session.user as { roles?: string[] }
-  const isAdmin = token.roles?.includes('admin') ?? false
-  if (!isAdmin) return NextResponse.json({ message: 'Sin permisos' }, { status: 403 })
+  const guard = await requireAdmin()
+  if (isGuardError(guard)) return guard
 
   const { id } = await params
   const user = await db.query.users.findFirst({ where: eq(users.id, Number(id)) })

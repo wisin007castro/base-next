@@ -3,9 +3,14 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { roles, rolePermissions } from '@/lib/db/schema'
 import { serializeRole } from '@/lib/api/serializers/user.serializer'
+import { requireAuth, requireAdmin, isGuardError } from '@/lib/api/api-guard'
+import { createRoleSchema } from '@/lib/api/schemas/role.schema'
 
-// GET /api/roles
+// GET /api/roles — cualquier usuario autenticado puede listar roles (para selects)
 export async function GET() {
+  const guard = await requireAuth()
+  if (isGuardError(guard)) return guard
+
   const rows = await db.query.roles.findMany({
     with: { rolePermissions: { with: { permission: true } } },
     orderBy: roles.name,
@@ -13,12 +18,18 @@ export async function GET() {
   return NextResponse.json(rows.map(serializeRole))
 }
 
-// POST /api/roles
+// POST /api/roles — solo admin
 export async function POST(req: NextRequest) {
-  const { name, description, guard_name, permission_ids } = await req.json()
+  const guard = await requireAdmin()
+  if (isGuardError(guard)) return guard
 
-  if (!name) return NextResponse.json({ message: 'El nombre es obligatorio' }, { status: 422 })
+  const raw    = await req.json()
+  const parsed = createRoleSchema.safeParse(raw)
+  if (!parsed.success) {
+    return NextResponse.json({ message: 'Datos inválidos', errors: parsed.error.flatten() }, { status: 422 })
+  }
 
+  const { name, description, guard_name, permission_ids } = parsed.data
   const now = new Date().toISOString()
   const [role] = await db
     .insert(roles)

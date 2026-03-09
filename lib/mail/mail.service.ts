@@ -3,7 +3,7 @@ import { transporter } from './mail.client'
 const FROM = process.env.MAIL_FROM ?? 'noreply@localhost'
 
 export async function sendVerificationLinkEmail(to: string, username: string, token: string) {
-  const url = `${process.env.NEXTAUTH_URL}/verify-email?token=${token}`
+  const url = `${process.env.NEXTAUTH_URL}/api/verify-email?token=${token}`
   await transporter.sendMail({
     from:    FROM,
     to,

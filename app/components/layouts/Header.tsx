@@ -1,16 +1,36 @@
 'use client'
 import React, { useContext, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { FaAnglesRight, FaAnglesLeft } from 'react-icons/fa6'
 import { BsSun, BsMoon } from 'react-icons/bs'
 import { FiLogOut, FiLogIn, FiUser, FiChevronDown } from 'react-icons/fi'
 import { useSession, signOut } from 'next-auth/react'
 import { MenuContext } from '../context/MenuContext'
 import { useTheme } from 'next-themes'
+import type { User } from '@/lib/types/user.types'
+
+function Avatar({ thumbUrl, initials, size = 8 }: { thumbUrl?: string | null; initials: string; size?: number }) {
+  const cls = `w-${size} h-${size} rounded-full shrink-0`
+  if (thumbUrl) {
+    return (
+      <div className={`${cls} relative overflow-hidden`}>
+        <Image src={thumbUrl} alt="Avatar" fill className="object-cover" unoptimized />
+      </div>
+    )
+  }
+  const textSize = size <= 8 ? 'text-xs' : 'text-sm'
+  return (
+    <div className={`${cls} bg-sky-600 flex items-center justify-center text-white font-bold ${textSize}`}>
+      {initials}
+    </div>
+  )
+}
 
 function UserMenu() {
   const { data: session, status } = useSession()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen]     = useState(false)
+  const [me, setMe]         = useState<User | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
   // Cerrar al hacer click fuera
@@ -21,6 +41,12 @@ function UserMenu() {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  // Obtener perfil del usuario para el avatar thumb
+  useEffect(() => {
+    if (status !== 'authenticated') return
+    fetch('/api/me').then(r => r.ok ? r.json() : null).then(data => data && setMe(data)).catch(() => null)
+  }, [status])
 
   if (status === 'loading') {
     return <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse" />
@@ -38,9 +64,10 @@ function UserMenu() {
     )
   }
 
-  const name = session.user?.name ?? 'Usuario'
-  const email = session.user?.email ?? ''
-  const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  const name     = session.user?.name ?? 'Usuario'
+  const email    = session.user?.email ?? ''
+  const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
+  const thumbUrl = me?.profile?.avatar_thumb_url
 
   return (
     <div ref={ref} className="relative">
@@ -48,10 +75,7 @@ function UserMenu() {
         onClick={() => setOpen(o => !o)}
         className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
       >
-        {/* Avatar */}
-        <div className="w-8 h-8 rounded-full bg-sky-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-          {initials}
-        </div>
+        <Avatar thumbUrl={thumbUrl} initials={initials} size={8} />
         <span className="hidden sm:block text-sm font-medium text-gray-800 dark:text-gray-100 max-w-32 truncate">
           {name}
         </span>
@@ -62,9 +86,7 @@ function UserMenu() {
         <div className="absolute right-0 top-full mt-2 w-60 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50">
           {/* Datos del usuario */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-            <div className="w-10 h-10 rounded-full bg-sky-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
-              {initials}
-            </div>
+            <Avatar thumbUrl={thumbUrl} initials={initials} size={10} />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{name}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{email}</p>
