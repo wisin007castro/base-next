@@ -21,7 +21,7 @@ function Avatar({ thumbUrl, initials, size = 8 }: { thumbUrl?: string | null; in
   }
   const textSize = size <= 8 ? 'text-xs' : 'text-sm'
   return (
-    <div className={`${cls} bg-sky-600 flex items-center justify-center text-white font-bold ${textSize}`}>
+    <div className={`${cls} bg-accent flex items-center justify-center text-white font-bold ${textSize}`}>
       {initials}
     </div>
   )
@@ -33,7 +33,6 @@ function UserMenu() {
   const [me, setMe]         = useState<User | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
-  // Cerrar al hacer click fuera
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
@@ -42,21 +41,20 @@ function UserMenu() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  // Obtener perfil del usuario para el avatar thumb
   useEffect(() => {
     if (status !== 'authenticated') return
     fetch('/api/me').then(r => r.ok ? r.json() : null).then(data => data && setMe(data)).catch(() => null)
   }, [status])
 
   if (status === 'loading') {
-    return <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse" />
+    return <div className="w-8 h-8 rounded-full bg-ink-4/40 animate-pulse" />
   }
 
   if (!session) {
     return (
       <Link
         href="/login"
-        className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-sky-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+        className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-accent hover:bg-[var(--line-1)] transition-colors"
       >
         <FiLogIn className="w-4 h-4" />
         Iniciar sesión
@@ -73,39 +71,39 @@ function UserMenu() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+        className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--line-1)] transition-colors"
       >
         <Avatar thumbUrl={thumbUrl} initials={initials} size={8} />
-        <span className="hidden sm:block text-sm font-medium text-gray-800 dark:text-gray-100 max-w-32 truncate">
+        <span className="hidden sm:block text-sm font-medium text-ink-1 max-w-32 truncate">
           {name}
         </span>
-        <FiChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <FiChevronDown className={`w-3.5 h-3.5 text-ink-3 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-60 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50">
-          {/* Datos del usuario */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+        <div className="absolute right-0 top-full mt-2 w-60 rounded-lg border border-[var(--line-2)] bg-surface shadow-sm z-50">
+          {/* User info */}
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--line-1)]">
             <Avatar thumbUrl={thumbUrl} initials={initials} size={10} />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{name}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{email}</p>
+              <p className="text-sm font-semibold text-ink-1 truncate">{name}</p>
+              <p className="text-xs text-ink-3 truncate">{email}</p>
             </div>
           </div>
 
-          {/* Acciones */}
+          {/* Actions */}
           <div className="p-1.5">
             <Link
               href="/perfil"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+              className="flex items-center gap-2.5 w-full rounded-md px-3 py-2 text-sm text-ink-2 hover:bg-[var(--line-1)] hover:text-ink-1 transition-colors"
             >
               <FiUser className="w-4 h-4" />
               Mi perfil
             </Link>
             <button
               onClick={() => signOut({ callbackUrl: '/login' })}
-              className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+              className="flex items-center gap-2.5 w-full rounded-md px-3 py-2 text-sm text-risk hover:bg-[var(--risk-bg)] transition-colors"
             >
               <FiLogOut className="w-4 h-4" />
               Cerrar sesión
@@ -125,38 +123,38 @@ const Header = () => {
   useEffect(() => { setMounted(true) }, [])
 
   return (
-    <header className='bg-brand border-b border-gray-200 dark:border-gray-700'>
+    <header className='bg-surface border-b border-[var(--line-2)]'>
       <div className='w-full'>
         <div className='flex items-stretch justify-between h-14'>
-          {/* Mobile Toggle Menu */}
+          {/* Mobile toggle */}
           <div className='flex lg:hidden items-center ps-3 me-1'>
             <button
               onClick={toggleMenu}
-              className='p-2 hover:text-gray-100 dark:hover:bg-gray-700 rounded transition'
+              className='p-2 text-ink-3 hover:text-ink-1 hover:bg-[var(--line-1)] rounded-md transition-colors'
               title='Mostrar menú'
             >
               {open ? <FaAnglesLeft className='w-5 h-5' /> : <FaAnglesRight className='w-5 h-5' />}
             </button>
           </div>
 
-          {/* Mobile Logo */}
+          {/* Mobile brand */}
           <div className='flex items-center flex-grow lg:flex-grow-0'>
-            <div className='text-lg font-bold px-4'>Brand</div>
+            <div className='text-sm font-semibold tracking-widest uppercase px-4 text-ink-1'>Brand</div>
           </div>
 
-          {/* Center spacer */}
+          {/* Spacer */}
           <div className='flex-grow' />
 
-          {/* Right Section */}
-          <div className='flex items-center gap-2 px-4'>
+          {/* Right controls */}
+          <div className='flex items-center gap-1 px-4'>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className='p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition'
+              className='p-2 rounded-md text-ink-3 hover:text-ink-1 hover:bg-[var(--line-1)] transition-colors'
               title='Toggle theme'
             >
               {mounted && (theme === 'dark'
-                ? <BsSun className='w-5 h-5 text-yellow-400' />
-                : <BsMoon className='w-5 h-5 text-sky-200' />
+                ? <BsSun className='w-4 h-4' />
+                : <BsMoon className='w-4 h-4' />
               )}
             </button>
 

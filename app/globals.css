@@ -2,52 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   DESIGN TOKENS — access control admin panel
+   Naming: domain-appropriate, not generic template names
+   ============================================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --color-brand: oklch(38.77% 0.09082 241.284);
-  --color-brand-opacity: oklch(33.63% 0.0761 240.38 / 0.89);
-  --sidebar-background: oklch(44.3% 0.11 240.79);
+  /* Surfaces — light mode: blue-slate world, same hue family as the navy dark mode */
+  --canvas:         #ebf1f8;   /* Blue-slate page background — character over generic gray */
+  --surface:        #ffffff;   /* Cards, panels, header — crisp white lifts off canvas */
+  --surface-raised: #f4f9ff;   /* Elevated: dropdowns, modals — faint blue-white */
+  --surface-inset:  #dfe8f4;   /* Inset: input backgrounds — recede below surface */
+
+  /* Sidebar — always dark regardless of mode */
+  --sidebar-bg:      #1e293b;   /* Slate-800 — command panel anchor */
+  --sidebar-border:  rgba(255, 255, 255, 0.08);
+
+  /* Text hierarchy — 4 levels */
+  --ink-1:  #0f172a;   /* Primary — slate-900 */
+  --ink-2:  #475569;   /* Secondary — slate-600 */
+  --ink-3:  #94a3b8;   /* Tertiary — slate-400 */
+  --ink-4:  #b0bfd4;   /* Muted — blue-tinted placeholder */
+
+  /* Borders — 3 levels of separation */
+  --line-1: rgba(15, 23, 42, 0.06);   /* Whisper — barely visible division */
+  --line-2: rgba(15, 23, 42, 0.11);   /* Default — standard boundary */
+  --line-3: rgba(15, 23, 42, 0.22);   /* Emphasis — focused element */
+
+  /* Accent — sky-blue: unificado con los botones de acción del sistema (sky-600) */
+  --accent:        #0284c7;
+  --accent-hover:  #0369a1;
+  --accent-subtle: rgba(2, 132, 199, 0.10);
+  --accent-fg:     #ffffff;
+
+  /* Legacy compat — used via tailwind 'brand' token */
+  --color-brand:         var(--accent);
+  --color-brand-opacity: var(--accent-subtle);
+
+  /* Semantic */
+  --ok:      #16a34a;
+  --ok-bg:   rgba(22, 163, 74, 0.10);
+  --warn:    #b45309;
+  --warn-bg: rgba(180, 83, 9, 0.10);
+  --risk:    #dc2626;
+  --risk-bg: rgba(220, 38, 38, 0.10);
+}
+
+.dark {
+  /* Surfaces — navy dark palette
+     Hue visible: azul profundo como océano nocturno, no negro-gris neutro.
+     La escala sube de saturación/valor conforme se eleva, siempre dentro del mundo navy. */
+  --canvas:         #060c1a;   /* Abismo — el fondo más profundo */
+  --surface:        #0c1528;   /* Navy — header, cards, shell */
+  --surface-raised: #112038;   /* Navy iluminado — dropdowns, modals, elevados */
+  --surface-inset:  #040912;   /* Más profundo que canvas — inputs receden */
+
+  /* Sidebar navy — el anchor más oscuro del panel de comando */
+  --sidebar-bg:     #050b18;
+  --sidebar-border: rgba(100, 140, 210, 0.08);
+
+  /* Text hierarchy — los niveles de tinta sobre navy.
+     El secundario (#8ba6c8) tiene tinte azul intencionalmente:
+     en gris se vería frío, sobre navy pertenece. */
+  --ink-1: #e2e8f0;   /* Primary — slate-200, ligeramente cálido sobre azul profundo */
+  --ink-2: #8ba6c8;   /* Secondary — azul-gris, nativo del mundo navy */
+  --ink-3: #4d7099;   /* Tertiary — azul más apagado */
+  --ink-4: #1e3855;   /* Muted — casi invisible, profundo */
+
+  /* Borders — canal azul en el rgba para que las líneas sean parte del mundo,
+     no niebla blanca genérica flotando sobre navy. */
+  --line-1: rgba(100, 140, 210, 0.06);   /* Susurro — división apenas perceptible */
+  --line-2: rgba(100, 140, 210, 0.11);   /* Default — borde estándar */
+  --line-3: rgba(100, 140, 210, 0.20);   /* Énfasis — elemento activo/foco */
+
+  /* Accent — sky-blue sobre navy: mismo hue que los botones de acción, más claro para dark */
+  --accent:        #38bdf8;
+  --accent-hover:  #7dd3fc;
+  --accent-subtle: rgba(56, 189, 248, 0.14);
+  --accent-fg:     #0c1528;
+
+  --color-brand:         var(--accent);
+  --color-brand-opacity: var(--accent-subtle);
+
+  /* Semantic — colores que coexisten con navy sin gritonear.
+     Verde esmeralda (vs verde puro) — tinte azul-verde que armoniza.
+     Ámbar cálido — contraste máximo frente al frío navy.
+     Rojo desaturado — alerta sin estridencia. */
+  --ok:      #34d399;            /* Emerald-400 — harmonía azul-verde sobre navy */
+  --ok-bg:   rgba(52, 211, 153, 0.12);
+  --warn:    #fbbf24;            /* Amber-400 — contraste cálido sobre frío navy */
+  --warn-bg: rgba(251, 191, 36, 0.11);
+  --risk:    #f87171;            /* Red-400 desaturado — no chilla */
+  --risk-bg: rgba(248, 113, 113, 0.12);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--canvas);
+  --color-foreground: var(--ink-1);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #ffffff;
-    --foreground: #171717;
-    --color-brand: oklch(38.77% 0.09082 241.284);
-    --color-brand-opacity: oklch(33.63% 0.0761 240.38 / 0.89);
-
-  }
-}
-
-.bg-sidebar {
-  background-color: var(--sidebar-background);
-}
-
-/* Class-based dark mode (used by ThemeContext toggling `document.documentElement.classList`) */
-.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --color-brand: #0f1224;
-  --color-brand-opacity: #181c32;
-
-  .bg-sidebar {
-    background-color: var(--color-brand);
-  }
-
-}
-
-
-
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink-1);
+  font-family: var(--font-sans), system-ui, sans-serif;
 }

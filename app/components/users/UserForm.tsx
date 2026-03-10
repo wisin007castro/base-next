@@ -2,20 +2,21 @@
 import { useState } from 'react'
 import { FiEye, FiEyeOff } from 'react-icons/fi'
 import type { CreateUserDto, UpdateUserDto, User, DocumentType, Gender } from '@/lib/types/user.types'
+import { ApiError } from '@/lib/api/users.api'
 import { useRoles } from '@/lib/hooks/roles.hooks'
 
 type Mode = 'create' | 'edit'
 
 interface CreateProps {
   mode: 'create'
-  onSubmit: (data: CreateUserDto) => void
+  onSubmit: (data: CreateUserDto) => Promise<void> | void
   isLoading?: boolean
 }
 
 interface EditProps {
   mode: 'edit'
   user: User
-  onSubmit: (data: UpdateUserDto) => void
+  onSubmit: (data: UpdateUserDto) => Promise<void> | void
   isLoading?: boolean
 }
 
@@ -25,26 +26,26 @@ type Props = CreateProps | EditProps
 // Helpers de UI
 // ---------------------------------------------------------------------------
 const baseInput =
-  'w-full rounded-lg bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 ' +
-  'focus:outline-none focus:ring-1 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500'
+  'w-full rounded-lg bg-surface-inset px-3 py-2 text-sm text-ink-1 placeholder:text-ink-4 ' +
+  'focus:outline-none focus:ring-1'
 
 const inputClass =
-  baseInput + ' border border-gray-300 focus:border-sky-500 focus:ring-sky-500 dark:border-gray-600'
+  baseInput + ' border border-[var(--line-2)] focus:border-[var(--line-3)] focus:ring-[var(--accent)]/20'
 
 const inputError =
-  baseInput + ' border border-red-400 focus:border-red-400 focus:ring-red-400 dark:border-red-500'
+  baseInput + ' border border-risk/60 focus:border-risk focus:ring-risk/20'
 
 const ci = (err?: string) => err ? inputError : inputClass
 const selectClass = inputClass
-const sectionClass = 'rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-4'
-const sectionTitleClass = 'text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4'
+const sectionClass = 'rounded-xl border border-[var(--line-2)] bg-surface p-4 space-y-4'
+const sectionTitleClass = 'text-sm font-semibold text-ink-2 mb-4'
 
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
+      <label className="mb-1 block text-sm font-medium text-ink-2">{label}</label>
       {children}
-      {error && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{error}</p>}
+      {error && <p className="mt-1 text-xs text-risk">{error}</p>}
     </div>
   )
 }
@@ -150,7 +151,7 @@ export function UserForm(props: Props) {
     return e
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const errs = validate()
     if (Object.keys(errs).length > 0) {
@@ -168,12 +169,22 @@ export function UserForm(props: Props) {
       ciudad: ciudad || null, direccion: direccion || null, codigo_postal: codigoPostal || null,
     }
 
-    if (mode === 'create') {
-      onSubmit({ username, email, password, password_confirmation: passwordConf, role_ids: roleIds, is_active: isActive, profile })
-    } else {
-      const dto: UpdateUserDto = { username, email, role_ids: roleIds, is_active: isActive, profile }
-      if (password) { dto.password = password; dto.password_confirmation = passwordConf }
-      onSubmit(dto)
+    try {
+      if (mode === 'create') {
+        await onSubmit({ username, email, password, password_confirmation: passwordConf, role_ids: roleIds, is_active: isActive, profile })
+      } else {
+        const dto: UpdateUserDto = { username, email, role_ids: roleIds, is_active: isActive, profile }
+        if (password) { dto.password = password; dto.password_confirmation = passwordConf }
+        await onSubmit(dto)
+      }
+    } catch (err) {
+      if (err instanceof ApiError && Object.keys(err.fieldErrors).length > 0) {
+        const mapped: Record<string, string> = {}
+        for (const [field, messages] of Object.entries(err.fieldErrors)) {
+          if (messages && messages.length > 0) mapped[field] = messages[0]
+        }
+        setErrors(mapped)
+      }
     }
   }
 
@@ -226,7 +237,7 @@ export function UserForm(props: Props) {
                 type="button"
                 tabIndex={-1}
                 onClick={() => setShowPassword(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink-2 transition-colors"
               >
                 {showPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
               </button>
@@ -246,7 +257,7 @@ export function UserForm(props: Props) {
                 type="button"
                 tabIndex={-1}
                 onClick={() => setShowPasswordConf(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink-2 transition-colors"
               >
                 {showPasswordConf ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
               </button>
@@ -256,20 +267,20 @@ export function UserForm(props: Props) {
 
         {/* Roles */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Roles</label>
+          <label className="mb-2 block text-sm font-medium text-ink-2">Roles</label>
           {rolesLoading ? (
-            <p className="text-xs text-gray-400">Cargando roles...</p>
+            <p className="text-xs text-ink-3">Cargando roles...</p>
           ) : (
             <div className="flex flex-wrap gap-4">
               {roles?.map(role => (
                 <label key={role.id} className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
-                    className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                    className="rounded border-[var(--line-3)] text-accent focus:ring-[var(--accent)]/30"
                     checked={roleIds.includes(role.id)}
                     onChange={() => toggleRole(role.id)}
                   />
-                  <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">{role.name}</span>
+                  <span className="text-sm text-ink-2 capitalize">{role.name}</span>
                 </label>
               ))}
             </div>
@@ -395,14 +406,14 @@ export function UserForm(props: Props) {
         <button
           type="button"
           onClick={() => window.history.back()}
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
+          className="rounded-lg border border-[var(--line-2)] px-4 py-2 text-sm font-medium text-ink-2 hover:bg-[var(--line-1)] transition-colors"
         >
           Cancelar
         </button>
         <button
           type="submit"
           disabled={isLoading}
-          className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60 transition-colors"
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-[var(--accent-fg)] hover:bg-[var(--accent-hover)] disabled:opacity-60 transition-colors"
         >
           {isLoading ? 'Guardando...' : mode === 'create' ? 'Crear usuario' : 'Guardar cambios'}
         </button>

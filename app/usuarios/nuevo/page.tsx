@@ -23,7 +23,7 @@ export default function NuevoUsuarioPage() {
       </div>
 
       {create.isError && (
-        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+        <div className="rounded-lg bg-[var(--risk-bg)] px-4 py-3 text-sm text-risk">
           {(create.error as Error)?.message ?? 'Error al crear el usuario.'}
         </div>
       )}

@@ -27,7 +27,7 @@ export const userProfiles = sqliteTable('user_profiles', {
   id:                  integer('id').primaryKey({ autoIncrement: true }),
   userId:              integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   nombre:              text('nombre').notNull(),
-  primerApellido:      text('primer_apellido').notNull(),
+  primerApellido:      text('primer_apellido'),
   segundoApellido:     text('segundo_apellido'),
   tipoDocumento:       text('tipo_documento').notNull(),
   numeroDocumento:     text('numero_documento').notNull(),
