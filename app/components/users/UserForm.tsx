@@ -27,10 +27,10 @@ type Props = CreateProps | EditProps
 // ---------------------------------------------------------------------------
 const baseInput =
   'w-full rounded-lg bg-surface-inset px-3 py-2 text-sm text-ink-1 placeholder:text-ink-4 ' +
-  'focus:outline-none focus:ring-1'
+  'focus:outline-none focus:ring-2'
 
 const inputClass =
-  baseInput + ' border border-[var(--line-2)] focus:border-[var(--line-3)] focus:ring-[var(--accent)]/20'
+  baseInput + ' border border-accent/30 focus:border-accent focus:ring-accent/20'
 
 const inputError =
   baseInput + ' border border-risk/60 focus:border-risk focus:ring-risk/20'
@@ -38,12 +38,12 @@ const inputError =
 const ci = (err?: string) => err ? inputError : inputClass
 const selectClass = inputClass
 const sectionClass = 'rounded-xl border border-[var(--line-2)] bg-surface p-4 space-y-4'
-const sectionTitleClass = 'text-sm font-semibold text-ink-2 mb-4'
+const sectionTitleClass = 'text-xs font-semibold uppercase tracking-wider text-accent border-b border-[var(--line-2)] pb-2 mb-4'
 
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium text-ink-2">{label}</label>
+      <label className="mb-1 block text-sm font-medium text-accent/80">{label}</label>
       {children}
       {error && <p className="mt-1 text-xs text-risk">{error}</p>}
     </div>

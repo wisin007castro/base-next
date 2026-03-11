@@ -11,7 +11,7 @@ interface MenuItemProps {
 
 // Signature active state: left-edge 2px indigo indicator + subtle fill
 // Inactive: --ink-2 navy value (#8ba6c8) — blue-tinted, nativo del mundo navy del sidebar
-const activeClass = 'rounded-r-md bg-white/[0.08] border-l-2 border-sky-400 pl-[14px] pr-4 py-2.5 text-white'
+const activeClass = 'rounded-r-md bg-white/[0.08] border-l-2 border-[var(--accent)] pl-[14px] pr-4 py-2.5 text-white'
 const inactiveClass = 'rounded-md hover:bg-white/[0.05] px-4 py-2.5 text-[#8ba6c8] hover:text-[#c8daea]'
 
 const MenuItem = ({ item }: MenuItemProps) => {
@@ -34,7 +34,7 @@ const MenuItem = ({ item }: MenuItemProps) => {
         >
           {Icon && (
             <Icon className={`w-4 h-4 mr-3 shrink-0 ${
-              hasActiveChild ? 'text-sky-400' : 'group-hover:text-[#c8daea]'
+              hasActiveChild ? 'text-[var(--accent)]' : 'group-hover:text-[#c8daea]'
             }`} />
           )}
           <span className='font-medium text-sm flex-1'>{item.label}</span>
@@ -55,7 +55,7 @@ const MenuItem = ({ item }: MenuItemProps) => {
                   }`}>
                     {SubIcon && (
                       <SubIcon className={`w-4 h-4 mr-3 shrink-0 ${
-                        isSubActive ? 'text-sky-400' : 'group-hover:text-[#c8daea]'
+                        isSubActive ? 'text-[var(--accent)]' : 'group-hover:text-[#c8daea]'
                       }`} />
                     )}
                     <span className='font-medium text-sm'>{subitem.label}</span>
@@ -78,7 +78,7 @@ const MenuItem = ({ item }: MenuItemProps) => {
       }`}>
         {Icon && (
           <Icon className={`w-4 h-4 mr-3 shrink-0 ${
-            isActive ? 'text-sky-400' : 'group-hover:text-[#c8daea]'
+            isActive ? 'text-[var(--accent)]' : 'group-hover:text-[#c8daea]'
           }`} />
         )}
         <span className='font-medium text-sm'>{item.label}</span>

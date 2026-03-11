@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { FiEdit2, FiTrash2, FiRotateCcw, FiMail, FiCheckCircle, FiUser } from 'react-icons/fi'
@@ -13,11 +14,12 @@ interface Props {
 }
 
 function UserAvatar({ user }: { user: User }) {
+  const [imgError, setImgError] = useState(false)
   const thumbUrl = user.profile?.avatar_thumb_url
   return (
     <div className="relative w-8 h-8 rounded-full shrink-0 overflow-hidden bg-accent flex items-center justify-center text-[var(--accent-fg)]">
-      {thumbUrl
-        ? <Image src={thumbUrl} alt={user.username} fill className="object-cover" unoptimized />
+      {thumbUrl && !imgError
+        ? <Image src={thumbUrl} alt={user.username} fill className="object-cover" unoptimized onError={() => setImgError(true)} />
         : <FiUser className="w-4 h-4" />
       }
     </div>
@@ -42,7 +44,7 @@ export function UsersTable({ users, withTrashed = false, startIndex = 1 }: Props
   return (
     <div className="overflow-x-auto rounded-xl border border-[var(--line-2)] bg-surface">
       <table className="w-full text-sm">
-        <thead className="bg-surface-inset text-left text-xs font-medium uppercase tracking-wider text-ink-3 border-b border-[var(--line-2)]">
+        <thead className="bg-[var(--accent-subtle)] text-left text-xs font-semibold uppercase tracking-wider text-accent border-b border-accent/20">
           <tr>
             <th className="px-4 py-3">#</th>
             <th className="px-4 py-3">Usuario</th>
@@ -56,7 +58,7 @@ export function UsersTable({ users, withTrashed = false, startIndex = 1 }: Props
         </thead>
         <tbody className="divide-y divide-[var(--line-1)]">
           {users.map((user, index) => (
-            <tr key={user.id} className="hover:bg-[var(--accent-subtle)] transition-colors">
+            <tr key={user.id} className="hover:bg-accent/[0.07] transition-colors">
               <td className="px-4 py-3 text-ink-3">{startIndex + index}</td>
               <td className="px-4 py-3">
                 <Link href={`/usuarios/${user.id}/editar`} className="flex items-center gap-2.5 group">

@@ -18,7 +18,7 @@ export default function UsuariosPage() {
     setFilters(f => ({ ...f, search, page: 1 }))
   }
 
-  const controlClass = 'rounded-lg border border-[var(--line-2)] bg-surface-inset px-3 py-2 text-sm text-ink-1'
+  const controlClass = 'rounded-lg border border-accent/30 bg-surface-inset px-3 py-2 text-sm text-ink-1 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20'
 
   return (
     <div className="space-y-6">
@@ -41,7 +41,7 @@ export default function UsuariosPage() {
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-3">
-        <div className="flex flex-1 min-w-56 items-center gap-2 rounded-lg border border-[var(--line-2)] bg-surface-inset px-3 py-2">
+        <div className="flex flex-1 min-w-56 items-center gap-2 rounded-lg border border-accent/30 bg-surface-inset px-3 py-2 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
           <FiSearch className="w-4 h-4 text-ink-3 shrink-0" />
           <input
             className="flex-1 bg-transparent text-sm text-ink-1 placeholder:text-ink-4 outline-none"

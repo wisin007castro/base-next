@@ -52,7 +52,7 @@ export function UserVerifiedBadge({ verifiedAt }: VerifiedBadgeProps) {
 
 // Role badge colors: authority tiers — admin (highest) → usuario (base)
 const roleColors: Record<string, string> = {
-  admin:     'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  admin:     'bg-[var(--ok-bg)] text-ok',
   moderador: 'bg-[var(--warn-bg)] text-warn',
   usuario:   'bg-[var(--accent-subtle)] text-accent',
 }

@@ -9,13 +9,17 @@
 
 :root {
   /* Surfaces — light mode: blue-slate world, same hue family as the navy dark mode */
-  --canvas:         #ebf1f8;   /* Blue-slate page background — character over generic gray */
-  --surface:        #ffffff;   /* Cards, panels, header — crisp white lifts off canvas */
+  --canvas:         #ebf1f8;   /* Blue-slate page background */
+  --surface:        #ffffff;   /* Cards, panels — crisp white lifts off canvas */
   --surface-raised: #f4f9ff;   /* Elevated: dropdowns, modals — faint blue-white */
   --surface-inset:  #dfe8f4;   /* Inset: input backgrounds — recede below surface */
 
-  /* Sidebar — always dark regardless of mode */
-  --sidebar-bg:      #1e293b;   /* Slate-800 — command panel anchor */
+  /* Header — navy medio, parte del chrome junto al sidebar
+     sidebar (#142640) → header (#1a3a5c) → canvas (#ebf1f8): gradiente de autoridad a contenido */
+  --header-bg: #1a3a5c;
+
+  /* Sidebar — navy oscuro, más azul que el slate genérico */
+  --sidebar-bg:      #142640;   /* Navy oscuro — command panel, más blue que slate-800 */
   --sidebar-border:  rgba(255, 255, 255, 0.08);
 
   /* Text hierarchy — 4 levels */
@@ -57,6 +61,9 @@
   --surface-raised: #112038;   /* Navy iluminado — dropdowns, modals, elevados */
   --surface-inset:  #040912;   /* Más profundo que canvas — inputs receden */
 
+  /* Header dark — mismo nivel que surface, el chrome se unifica con el shell navy */
+  --header-bg: #0c1528;
+
   /* Sidebar navy — el anchor más oscuro del panel de comando */
   --sidebar-bg:     #050b18;
   --sidebar-border: rgba(100, 140, 210, 0.08);
@@ -94,6 +101,17 @@
   --warn-bg: rgba(251, 191, 36, 0.11);
   --risk:    #f87171;            /* Red-400 desaturado — no chilla */
   --risk-bg: rgba(248, 113, 113, 0.12);
+}
+
+/* Admin role — dark mode only (Filament-style)
+   Aplicado via data-admin="true" en el layout wrapper.
+   El accent toma amber: todos los botones primarios, el indicador del sidebar
+   y los iconos activos cambian de sky a amber para el admin en dark. */
+.dark [data-admin="true"] {
+  --accent:        #fbbf24;            /* Amber-400 — autoridad del admin */
+  --accent-hover:  #f59e0b;            /* Amber-500 on hover */
+  --accent-subtle: rgba(251, 191, 36, 0.14);
+  --accent-fg:     #0c1528;            /* Navy sobre amber — contraste oscuro */
 }
 
 @theme inline {

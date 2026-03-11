@@ -19,7 +19,8 @@ module.exports = {
         'surface-raised':'var(--surface-raised)',
         'surface-inset': 'var(--surface-inset)',
 
-        // Sidebar
+        // Chrome
+        header:          'var(--header-bg)',
         sidebar:         'var(--sidebar-bg)',
 
         // Text hierarchy

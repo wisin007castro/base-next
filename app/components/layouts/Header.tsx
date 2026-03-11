@@ -10,18 +10,20 @@ import { MenuContext } from '../context/MenuContext'
 import { useTheme } from 'next-themes'
 import type { User } from '@/lib/types/user.types'
 
+// Header is always dark (navy in light mode, deep-navy in dark) — white text throughout
 function Avatar({ thumbUrl, initials, size = 8 }: { thumbUrl?: string | null; initials: string; size?: number }) {
+  const [imgError, setImgError] = useState(false)
   const cls = `w-${size} h-${size} rounded-full shrink-0`
-  if (thumbUrl) {
+  const textSize = size <= 8 ? 'text-xs' : 'text-sm'
+  if (thumbUrl && !imgError) {
     return (
       <div className={`${cls} relative overflow-hidden`}>
-        <Image src={thumbUrl} alt="Avatar" fill className="object-cover" unoptimized />
+        <Image src={thumbUrl} alt="Avatar" fill className="object-cover" unoptimized onError={() => setImgError(true)} />
       </div>
     )
   }
-  const textSize = size <= 8 ? 'text-xs' : 'text-sm'
   return (
-    <div className={`${cls} bg-accent flex items-center justify-center text-white font-bold ${textSize}`}>
+    <div className={`${cls} bg-accent flex items-center justify-center text-[var(--accent-fg)] font-bold ${textSize}`}>
       {initials}
     </div>
   )
@@ -47,14 +49,14 @@ function UserMenu() {
   }, [status])
 
   if (status === 'loading') {
-    return <div className="w-8 h-8 rounded-full bg-ink-4/40 animate-pulse" />
+    return <div className="w-8 h-8 rounded-full bg-white/20 animate-pulse" />
   }
 
   if (!session) {
     return (
       <Link
         href="/login"
-        className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-accent hover:bg-[var(--line-1)] transition-colors"
+        className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-white/80 hover:text-white hover:bg-white/[0.08] transition-colors"
       >
         <FiLogIn className="w-4 h-4" />
         Iniciar sesión
@@ -71,18 +73,18 @@ function UserMenu() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--line-1)] transition-colors"
+        className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-white/[0.08] transition-colors"
       >
         <Avatar thumbUrl={thumbUrl} initials={initials} size={8} />
-        <span className="hidden sm:block text-sm font-medium text-ink-1 max-w-32 truncate">
+        <span className="hidden sm:block text-sm font-medium text-white max-w-32 truncate">
           {name}
         </span>
-        <FiChevronDown className={`w-3.5 h-3.5 text-ink-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <FiChevronDown className={`w-3.5 h-3.5 text-white/50 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
+      {/* Dropdown — floats above header, uses content surface tokens */}
       {open && (
         <div className="absolute right-0 top-full mt-2 w-60 rounded-lg border border-[var(--line-2)] bg-surface shadow-sm z-50">
-          {/* User info */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--line-1)]">
             <Avatar thumbUrl={thumbUrl} initials={initials} size={10} />
             <div className="min-w-0">
@@ -91,7 +93,6 @@ function UserMenu() {
             </div>
           </div>
 
-          {/* Actions */}
           <div className="p-1.5">
             <Link
               href="/perfil"
@@ -123,33 +124,32 @@ const Header = () => {
   useEffect(() => { setMounted(true) }, [])
 
   return (
-    <header className='bg-surface border-b border-[var(--line-2)]'>
+    <header className='bg-header border-b border-white/10'>
       <div className='w-full'>
         <div className='flex items-stretch justify-between h-14'>
           {/* Mobile toggle */}
           <div className='flex lg:hidden items-center ps-3 me-1'>
             <button
               onClick={toggleMenu}
-              className='p-2 text-ink-3 hover:text-ink-1 hover:bg-[var(--line-1)] rounded-md transition-colors'
+              className='p-2 text-white/60 hover:text-white hover:bg-white/[0.08] rounded-md transition-colors'
               title='Mostrar menú'
             >
               {open ? <FaAnglesLeft className='w-5 h-5' /> : <FaAnglesRight className='w-5 h-5' />}
             </button>
           </div>
 
-          {/* Mobile brand */}
+          {/* Brand */}
           <div className='flex items-center flex-grow lg:flex-grow-0'>
-            <div className='text-sm font-semibold tracking-widest uppercase px-4 text-ink-1'>Brand</div>
+            <div className='text-sm font-semibold tracking-widest uppercase px-4 text-white'>Brand</div>
           </div>
 
-          {/* Spacer */}
           <div className='flex-grow' />
 
           {/* Right controls */}
           <div className='flex items-center gap-1 px-4'>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className='p-2 rounded-md text-ink-3 hover:text-ink-1 hover:bg-[var(--line-1)] transition-colors'
+              className='p-2 rounded-md text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors'
               title='Toggle theme'
             >
               {mounted && (theme === 'dark'
