@@ -1,16 +1,20 @@
 'use client'
 import React, { useContext } from 'react'
-
-
+import { useSession } from 'next-auth/react'
 import Header from './layouts/Header'
 import Sidebar from './layouts/Sidebar'
 import { MenuContext } from './context/MenuContext'
 
 const MainLayout = ({ children }) => {
   const { open } = useContext(MenuContext)
+  const { data: session } = useSession()
+  const isAdmin = (session?.user as { roles?: string[] })?.roles?.includes('admin')
 
   return (
-    <div className='bg-gray-100 dark:bg-gray-900 w-full min-h-screen flex flex-col overflow-x-hidden'>
+    <div
+      data-admin={isAdmin ? 'true' : undefined}
+      className='bg-canvas w-full min-h-screen flex flex-col overflow-x-hidden'
+    >
       <div className='flex flex-1'>
         <Sidebar />
 

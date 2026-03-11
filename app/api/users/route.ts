@@ -73,6 +73,37 @@ export async function POST(req: NextRequest) {
   }
 
   const { username, email, password, role_ids, is_active, profile } = parsed.data
+
+  // ── Comprobaciones de unicidad ──────────────────────────────────────────────
+  const [emailConflict, usernameConflict] = await Promise.all([
+    db.query.users.findFirst({ where: eq(users.email, email) }),
+    db.query.users.findFirst({ where: eq(users.username, username) }),
+  ])
+  if (emailConflict) {
+    return NextResponse.json(
+      { message: 'Datos inválidos', errors: { fieldErrors: { email: ['Este correo ya está registrado'] }, formErrors: [] } },
+      { status: 422 },
+    )
+  }
+  if (usernameConflict) {
+    return NextResponse.json(
+      { message: 'Datos inválidos', errors: { fieldErrors: { username: ['Este username ya está en uso'] }, formErrors: [] } },
+      { status: 422 },
+    )
+  }
+  if (profile?.numero_documento) {
+    const docConflict = await db.query.userProfiles.findFirst({
+      where: eq(userProfiles.numeroDocumento, profile.numero_documento),
+    })
+    if (docConflict) {
+      return NextResponse.json(
+        { message: 'Datos inválidos', errors: { fieldErrors: { numero_documento: ['Este número de documento ya está registrado'] }, formErrors: [] } },
+        { status: 422 },
+      )
+    }
+  }
+  // ───────────────────────────────────────────────────────────────────────────
+
   const hashed = await bcrypt.hash(password, 12)
   const now    = new Date().toISOString()
 
@@ -85,7 +116,7 @@ export async function POST(req: NextRequest) {
 
   if (profile) {
     await db.insert(userProfiles).values({
-      userId: user.id, nombre: profile.nombre, primerApellido: profile.primer_apellido,
+      userId: user.id, nombre: profile.nombre, primerApellido: profile.primer_apellido ?? null,
       segundoApellido: profile.segundo_apellido ?? null, tipoDocumento: profile.tipo_documento,
       numeroDocumento: profile.numero_documento, fechaNacimiento: profile.fecha_nacimiento,
       genero: profile.genero ?? 'prefiero_no_decir', telefono: profile.telefono ?? null,

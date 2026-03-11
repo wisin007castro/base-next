@@ -10,6 +10,20 @@ import type {
 const API_BASE = '/api'
 
 // -------------------------------------------------------------------
+// ApiError — permite trasladar errores de campo del servidor al form
+// -------------------------------------------------------------------
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly fieldErrors: Record<string, string[]> = {},
+    public readonly formErrors: string[] = [],
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+// -------------------------------------------------------------------
 // Helper
 // -------------------------------------------------------------------
 async function request<T>(endpoint: string, init?: RequestInit): Promise<T> {
@@ -23,15 +37,11 @@ async function request<T>(endpoint: string, init?: RequestInit): Promise<T> {
       message?: string
       errors?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] }
     }
-    const fieldDetails = error.errors?.fieldErrors
-      ? '\nCampos inválidos: ' + Object.entries(error.errors.fieldErrors)
-          .map(([k, v]) => `${k}: ${v.join(', ')}`)
-          .join(' | ')
-      : ''
-    const formDetails = error.errors?.formErrors?.length
-      ? '\n' + error.errors.formErrors.join(', ')
-      : ''
-    throw new Error((error.message ?? 'Error en la petición') + fieldDetails + formDetails)
+    throw new ApiError(
+      error.message ?? 'Error en la petición',
+      error.errors?.fieldErrors ?? {},
+      error.errors?.formErrors ?? [],
+    )
   }
 
   return res.json() as Promise<T>

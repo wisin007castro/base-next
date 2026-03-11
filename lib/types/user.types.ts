@@ -11,7 +11,7 @@ export interface UserProfile {
   id: number
   user_id: number
   nombre: string
-  primer_apellido: string
+  primer_apellido: string | null
   segundo_apellido: string | null
   tipo_documento: DocumentType
   numero_documento: string

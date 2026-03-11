@@ -7,11 +7,21 @@ import { z } from 'zod'
 const emptyStr = <T extends z.ZodTypeAny>(schema: T) =>
   z.preprocess((v) => (v === '' ? undefined : v), schema)
 
+/**
+ * Convierte cadenas vacías o solo espacios a `null`.
+ * Usado para apellidos: permite almacenar null en BD.
+ */
+const nullableStr = (inner: z.ZodString) =>
+  z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? null : v),
+    inner.nullable().optional(),
+  )
+
 // ─── Perfil completo (creación) ────────────────────────────────────────────────
 const profileSchema = z.object({
   nombre:               z.string().min(1).max(100),
-  primer_apellido:      z.string().min(1).max(100),
-  segundo_apellido:     z.string().max(100).nullish(),
+  primer_apellido:      nullableStr(z.string().max(100)),
+  segundo_apellido:     nullableStr(z.string().max(100)),
   tipo_documento:       z.enum(['dni', 'cedula', 'pasaporte', 'nie']),
   numero_documento:     z.string().min(1).max(50),
   fecha_nacimiento:     z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato esperado: YYYY-MM-DD'),
@@ -23,15 +33,16 @@ const profileSchema = z.object({
   ciudad:               z.string().max(100).nullish(),
   direccion:            z.string().max(255).nullish(),
   codigo_postal:        z.string().max(20).nullish(),
-})
+}).refine(
+  data => !!(data.primer_apellido || data.segundo_apellido),
+  { message: 'Se requiere al menos un apellido', path: ['primer_apellido'] },
+)
 
 // ─── Perfil parcial (actualización) ───────────────────────────────────────────
-// Los campos requeridos en creación son opcionales aquí,
-// y los strings vacíos se convierten a undefined (ignorados en el PATCH).
 const profileUpdateSchema = z.object({
   nombre:               emptyStr(z.string().min(1).max(100).optional()),
-  primer_apellido:      emptyStr(z.string().min(1).max(100).optional()),
-  segundo_apellido:     z.string().max(100).nullish(),
+  primer_apellido:      nullableStr(z.string().max(100)),
+  segundo_apellido:     nullableStr(z.string().max(100)),
   tipo_documento:       z.enum(['dni', 'cedula', 'pasaporte', 'nie']).optional(),
   numero_documento:     emptyStr(z.string().min(1).max(50).optional()),
   fecha_nacimiento:     emptyStr(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
@@ -43,7 +54,14 @@ const profileUpdateSchema = z.object({
   ciudad:               z.string().max(100).nullish(),
   direccion:            z.string().max(255).nullish(),
   codigo_postal:        z.string().max(20).nullish(),
-})
+}).refine(
+  data => {
+    // Solo validar si al menos un apellido está presente en el payload
+    if (data.primer_apellido === undefined && data.segundo_apellido === undefined) return true
+    return !!(data.primer_apellido || data.segundo_apellido)
+  },
+  { message: 'Se requiere al menos un apellido', path: ['primer_apellido'] },
+)
 
 // ─── Schemas exportados ────────────────────────────────────────────────────────
 

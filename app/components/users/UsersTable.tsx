@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { FiEdit2, FiTrash2, FiRotateCcw, FiMail, FiCheckCircle, FiUser } from 'react-icons/fi'
@@ -13,11 +14,12 @@ interface Props {
 }
 
 function UserAvatar({ user }: { user: User }) {
+  const [imgError, setImgError] = useState(false)
   const thumbUrl = user.profile?.avatar_thumb_url
   return (
-    <div className="relative w-8 h-8 rounded-full shrink-0 overflow-hidden bg-sky-600 flex items-center justify-center text-white">
-      {thumbUrl
-        ? <Image src={thumbUrl} alt={user.username} fill className="object-cover" unoptimized />
+    <div className="relative w-8 h-8 rounded-full shrink-0 overflow-hidden bg-accent flex items-center justify-center text-[var(--accent-fg)]">
+      {thumbUrl && !imgError
+        ? <Image src={thumbUrl} alt={user.username} fill className="object-cover" unoptimized onError={() => setImgError(true)} />
         : <FiUser className="w-4 h-4" />
       }
     </div>
@@ -33,16 +35,16 @@ export function UsersTable({ users, withTrashed = false, startIndex = 1 }: Props
 
   if (users.length === 0) {
     return (
-      <div className="py-16 text-center text-sm text-gray-500 dark:text-gray-400">
+      <div className="py-16 text-center text-sm text-ink-3">
         No se encontraron usuarios.
       </div>
     )
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+    <div className="overflow-x-auto rounded-xl border border-[var(--line-2)] bg-surface">
       <table className="w-full text-sm">
-        <thead className="bg-gray-50 dark:bg-gray-800 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+        <thead className="bg-[var(--accent-subtle)] text-left text-xs font-semibold uppercase tracking-wider text-accent border-b border-accent/20">
           <tr>
             <th className="px-4 py-3">#</th>
             <th className="px-4 py-3">Usuario</th>
@@ -54,23 +56,23 @@ export function UsersTable({ users, withTrashed = false, startIndex = 1 }: Props
             <th className="px-4 py-3 text-right">Acciones</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-900">
+        <tbody className="divide-y divide-[var(--line-1)]">
           {users.map((user, index) => (
-            <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-              <td className="px-4 py-3 text-gray-400">{startIndex + index}</td>
+            <tr key={user.id} className="hover:bg-accent/[0.07] transition-colors">
+              <td className="px-4 py-3 text-ink-3">{startIndex + index}</td>
               <td className="px-4 py-3">
                 <Link href={`/usuarios/${user.id}/editar`} className="flex items-center gap-2.5 group">
                   <UserAvatar user={user} />
                   <div className="min-w-0">
-                    <div className="font-medium text-gray-900 dark:text-gray-100 truncate group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">{user.username}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate group-hover:text-sky-500 dark:group-hover:text-sky-500 transition-colors">{user.email}</div>
+                    <div className="font-medium text-ink-1 truncate group-hover:text-accent transition-colors">{user.username}</div>
+                    <div className="text-xs text-ink-3 truncate group-hover:text-accent/70 transition-colors">{user.email}</div>
                   </div>
                 </Link>
               </td>
-              <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+              <td className="px-4 py-3 text-ink-2">
                 {user.profile
                   ? `${user.profile.nombre} ${user.profile.primer_apellido}`
-                  : <span className="text-gray-400 italic">Sin perfil</span>
+                  : <span className="text-ink-4 italic">Sin perfil</span>
                 }
               </td>
               <td className="px-4 py-3">
@@ -82,7 +84,7 @@ export function UsersTable({ users, withTrashed = false, startIndex = 1 }: Props
               <td className="px-4 py-3">
                 <UserVerifiedBadge verifiedAt={user.email_verified_at} />
               </td>
-              <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">
+              <td className="px-4 py-3 text-ink-3 text-xs">
                 {user.last_login_at
                   ? new Date(user.last_login_at).toLocaleDateString('es')
                   : '—'
@@ -95,7 +97,7 @@ export function UsersTable({ users, withTrashed = false, startIndex = 1 }: Props
                       onClick={() => restore.mutate(user.id)}
                       disabled={restore.isPending}
                       title="Restaurar"
-                      className="rounded p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors"
+                      className="rounded p-1.5 text-ok hover:bg-[var(--ok-bg)] transition-colors"
                     >
                       <FiRotateCcw className="w-4 h-4" />
                     </button>
@@ -107,7 +109,7 @@ export function UsersTable({ users, withTrashed = false, startIndex = 1 }: Props
                             onClick={() => verify.mutate(user.id)}
                             disabled={verify.isPending}
                             title="Verificar manualmente"
-                            className="rounded p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors"
+                            className="rounded p-1.5 text-ok hover:bg-[var(--ok-bg)] transition-colors"
                           >
                             <FiCheckCircle className="w-4 h-4" />
                           </button>
@@ -115,7 +117,7 @@ export function UsersTable({ users, withTrashed = false, startIndex = 1 }: Props
                             onClick={() => resend.mutate(user.id)}
                             disabled={resend.isPending}
                             title="Reenviar verificación por email"
-                            className="rounded p-1.5 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 transition-colors"
+                            className="rounded p-1.5 text-warn hover:bg-[var(--warn-bg)] transition-colors"
                           >
                             <FiMail className="w-4 h-4" />
                           </button>
@@ -123,7 +125,7 @@ export function UsersTable({ users, withTrashed = false, startIndex = 1 }: Props
                       )}
                       <Link
                         href={`/usuarios/${user.id}/editar`}
-                        className="rounded p-1.5 text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors"
+                        className="rounded p-1.5 text-accent hover:bg-[var(--accent-subtle)] transition-colors"
                         title="Editar"
                       >
                         <FiEdit2 className="w-4 h-4" />
@@ -132,7 +134,7 @@ export function UsersTable({ users, withTrashed = false, startIndex = 1 }: Props
                         onClick={() => remove.mutate(user.id)}
                         disabled={remove.isPending}
                         title="Eliminar"
-                        className="rounded p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                        className="rounded p-1.5 text-risk hover:bg-[var(--risk-bg)] transition-colors"
                       >
                         <FiTrash2 className="w-4 h-4" />
                       </button>

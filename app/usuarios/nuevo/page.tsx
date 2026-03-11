@@ -16,14 +16,14 @@ export default function NuevoUsuarioPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Nuevo usuario</h1>
-        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+        <h1 className="text-xl font-semibold text-ink-1">Nuevo usuario</h1>
+        <p className="mt-0.5 text-sm text-ink-3">
           Completa los datos de cuenta y perfil personal.
         </p>
       </div>
 
       {create.isError && (
-        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+        <div className="rounded-lg bg-[var(--risk-bg)] px-4 py-3 text-sm text-risk">
           {(create.error as Error)?.message ?? 'Error al crear el usuario.'}
         </div>
       )}
