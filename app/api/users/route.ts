@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq, like, isNull, and, count, desc, inArray } from 'drizzle-orm'
+import { eq, like, isNull, and, count, desc, inArray, gte, lte } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { users, userProfiles, userRoles as userRolesTable, roles as rolesTable } from '@/lib/db/schema'
@@ -22,6 +22,10 @@ export async function GET(req: NextRequest) {
   const role        = searchParams.get('role') ?? ''
   const isActive    = searchParams.get('is_active')
   const withTrashed = searchParams.get('with_trashed') === 'true'
+  const createdFrom = searchParams.get('created_from') ?? ''
+  const createdTo   = searchParams.get('created_to') ?? ''
+  const loginFrom   = searchParams.get('login_from') ?? ''
+  const loginTo     = searchParams.get('login_to') ?? ''
 
   const offset = (page - 1) * perPage
 
@@ -39,6 +43,10 @@ export async function GET(req: NextRequest) {
       .where(eq(rolesTable.name, role))
     conditions.push(inArray(users.id, sub))
   }
+  if (createdFrom) conditions.push(gte(users.createdAt, `${createdFrom}T00:00:00.000Z`))
+  if (createdTo)   conditions.push(lte(users.createdAt, `${createdTo}T23:59:59.999Z`))
+  if (loginFrom)   conditions.push(gte(users.lastLoginAt, `${loginFrom}T00:00:00.000Z`))
+  if (loginTo)     conditions.push(lte(users.lastLoginAt, `${loginTo}T23:59:59.999Z`))
 
   const where = conditions.length ? and(...conditions) : undefined
 

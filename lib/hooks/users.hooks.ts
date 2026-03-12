@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersApi } from '@/lib/api/users.api'
 import { userKeys } from '@/lib/constants/query-keys'
 import type { CreateUserDto, UpdateUserDto, UserFilters } from '@/lib/types/user.types'
+import type { Permission } from '@/lib/types/rbac.types'
 
 // -------------------------------------------------------------------
 // Queries
@@ -92,5 +93,32 @@ export function useVerifyUser() {
       qc.invalidateQueries({ queryKey: userKeys.lists() })
       qc.invalidateQueries({ queryKey: userKeys.detail(id) })
     },
+  })
+}
+
+// -------------------------------------------------------------------
+// Permisos directos del usuario
+// -------------------------------------------------------------------
+export function useUserDirectPermissions(userId: number) {
+  return useQuery({
+    queryKey: userKeys.permissions(userId),
+    queryFn: (): Promise<Permission[]> => usersApi.getDirectPermissions(userId),
+    enabled: !!userId,
+  })
+}
+
+export function useGiveDirectPermission(userId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (permissionId: number) => usersApi.givePermission(userId, permissionId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.permissions(userId) }),
+  })
+}
+
+export function useRevokeDirectPermission(userId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (permissionId: number) => usersApi.revokePermission(userId, permissionId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.permissions(userId) }),
   })
 }

@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { FiEye, FiEyeOff } from 'react-icons/fi'
 
 export default function LoginPage() {
@@ -95,6 +96,14 @@ export default function LoginPage() {
           >
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
+          <div className="text-center">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-sky-600 hover:underline dark:text-sky-400"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
         </form>
       </div>
     </div>

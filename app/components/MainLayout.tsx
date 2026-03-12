@@ -5,7 +5,7 @@ import Header from './layouts/Header'
 import Sidebar from './layouts/Sidebar'
 import { MenuContext } from './context/MenuContext'
 
-const MainLayout = ({ children }) => {
+const MainLayout = ({ children }: { children: React.ReactNode }) => {
   const { open } = useContext(MenuContext)
   const { data: session } = useSession()
   const isAdmin = (session?.user as { roles?: string[] })?.roles?.includes('admin')

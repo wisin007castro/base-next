@@ -19,7 +19,7 @@ type RawUser = {
   permissions?: string[]
 }
 
-function buildGuard(session: Awaited<ReturnType<typeof auth>>): GuardSession {
+function buildGuard(session: { user?: RawUser | null } | null): GuardSession {
   const u = session!.user as RawUser
   return {
     user: {
@@ -49,6 +49,18 @@ export async function requireAdmin(): Promise<GuardSession | NextResponse> {
     return NextResponse.json({ message: 'Acceso no autorizado' }, { status: 403 })
   }
   return result
+}
+
+/**
+ * Requiere que exista un token con id, aunque tenga twoFactorPending.
+ * Útil para rutas que se llaman durante el flujo de verificación 2FA.
+ */
+export async function requireAuthPending(): Promise<GuardSession | NextResponse> {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return NextResponse.json({ message: 'No autenticado' }, { status: 401 })
+  }
+  return buildGuard(session)
 }
 
 /** Type guard: comprueba si el resultado es un error de autenticación. */

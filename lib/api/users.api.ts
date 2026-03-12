@@ -5,6 +5,7 @@ import type {
   PaginatedResponse,
   UserFilters,
 } from '@/lib/types/user.types'
+import type { Permission } from '@/lib/types/rbac.types'
 
 // API interna de Next.js — misma app, misma URL
 const API_BASE = '/api'
@@ -107,4 +108,19 @@ export const usersApi = {
   /** Verificar correo manualmente (sin envío de email) */
   verify: (id: number) =>
     request<User>(`/users/${id}/verify`, { method: 'POST' }),
+
+  /** Lista los permisos directos del usuario */
+  getDirectPermissions: (id: number) =>
+    request<Permission[]>(`/users/${id}/permissions`),
+
+  /** Asigna un permiso directo al usuario */
+  givePermission: (id: number, permissionId: number) =>
+    request<void>(`/users/${id}/permissions`, {
+      method: 'POST',
+      body: JSON.stringify({ permission_id: permissionId }),
+    }),
+
+  /** Revoca un permiso directo del usuario */
+  revokePermission: (id: number, permissionId: number) =>
+    request<void>(`/users/${id}/permissions/${permissionId}`, { method: 'DELETE' }),
 }

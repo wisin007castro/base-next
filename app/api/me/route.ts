@@ -32,7 +32,31 @@ export async function PATCH(req: NextRequest) {
   const userValues: Record<string, unknown> = { updatedAt: now }
   if (body.username !== undefined) userValues.username = body.username
   if (body.email    !== undefined) userValues.email    = body.email
-  if (body.password)               userValues.password = await bcrypt.hash(body.password, 12)
+
+  // FEAT 4: cambio de contraseña requiere verificar current_password
+  if (body.password) {
+    if (!body.current_password) {
+      return NextResponse.json(
+        { message: 'Datos inválidos', errors: { fields: { current_password: ['La contraseña actual es requerida'] } } },
+        { status: 422 },
+      )
+    }
+
+    const currentUser = await db.query.users.findFirst({ where: eq(users.id, userId) })
+    if (!currentUser) {
+      return NextResponse.json({ message: 'Usuario no encontrado' }, { status: 404 })
+    }
+
+    const valid = await bcrypt.compare(body.current_password as string, currentUser.password)
+    if (!valid) {
+      return NextResponse.json(
+        { message: 'Datos inválidos', errors: { fields: { current_password: ['La contraseña actual es incorrecta'] } } },
+        { status: 422 },
+      )
+    }
+
+    userValues.password = await bcrypt.hash(body.password, 12)
+  }
 
   await db.update(users).set(userValues).where(eq(users.id, userId))
 
@@ -55,7 +79,8 @@ export async function PATCH(req: NextRequest) {
     if (existing) {
       await db.update(userProfiles).set(profileValues).where(eq(userProfiles.userId, userId))
     } else {
-      await db.insert(userProfiles).values({ userId, ...profileValues as never, createdAt: now })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await db.insert(userProfiles).values({ userId, ...(profileValues as any), createdAt: now })
     }
   }
 

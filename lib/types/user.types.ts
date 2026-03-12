@@ -64,7 +64,7 @@ export type CreateUserDto = {
   password_confirmation: string
   role_ids: number[]
   is_active: boolean
-  profile: Omit<UserProfile, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+  profile: Omit<UserProfile, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'avatar_key' | 'avatar_url' | 'avatar_thumb_key' | 'avatar_thumb_url'>
 }
 
 export type UpdateUserDto = Partial<Omit<CreateUserDto, 'password' | 'password_confirmation'>> & {
@@ -101,4 +101,8 @@ export interface UserFilters {
   page?: number
   per_page?: number
   with_trashed?: boolean
+  created_from?: string
+  created_to?: string
+  login_from?: string
+  login_to?: string
 }

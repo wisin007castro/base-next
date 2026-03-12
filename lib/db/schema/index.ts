@@ -7,17 +7,23 @@ const ts = () => sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`
 // users
 // -------------------------------------------------------------------
 export const users = sqliteTable('users', {
-  id:              integer('id').primaryKey({ autoIncrement: true }),
-  username:        text('username').notNull().unique(),
-  email:           text('email').notNull().unique(),
-  emailVerifiedAt: text('email_verified_at'),
-  password:        text('password').notNull(),
-  isActive:        integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  rememberToken:   text('remember_token'),
-  lastLoginAt:     text('last_login_at'),
-  createdAt:       text('created_at').notNull().default(ts()),
-  updatedAt:       text('updated_at').notNull().default(ts()),
-  deletedAt:       text('deleted_at'),
+  id:                     integer('id').primaryKey({ autoIncrement: true }),
+  username:               text('username').notNull().unique(),
+  email:                  text('email').notNull().unique(),
+  emailVerifiedAt:        text('email_verified_at'),
+  password:               text('password').notNull(),
+  isActive:               integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  rememberToken:          text('remember_token'),
+  lastLoginAt:            text('last_login_at'),
+  // Password reset
+  passwordResetToken:     text('password_reset_token'),
+  passwordResetExpiresAt: text('password_reset_expires_at'),
+  // 2FA / TOTP
+  twoFactorSecret:        text('two_factor_secret'),
+  twoFactorEnabled:       integer('two_factor_enabled', { mode: 'boolean' }).notNull().default(false),
+  createdAt:              text('created_at').notNull().default(ts()),
+  updatedAt:              text('updated_at').notNull().default(ts()),
+  deletedAt:              text('deleted_at'),
 })
 
 // -------------------------------------------------------------------
@@ -97,12 +103,28 @@ export const rolePermissions = sqliteTable('role_permissions', {
 }, (t) => [primaryKey({ columns: [t.roleId, t.permissionId] })])
 
 // -------------------------------------------------------------------
+// user_sessions  — rastrea JWTs activos para gestión de sesiones
+// -------------------------------------------------------------------
+export const userSessions = sqliteTable('user_sessions', {
+  id:          integer('id').primaryKey({ autoIncrement: true }),
+  userId:      integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  jti:         text('jti').notNull().unique(),  // JWT ID (uuid v4)
+  userAgent:   text('user_agent'),
+  ip:          text('ip'),
+  createdAt:   text('created_at').notNull().default(ts()),
+  lastUsedAt:  text('last_used_at').notNull().default(ts()),
+  expiresAt:   text('expires_at').notNull(),
+  revokedAt:   text('revoked_at'),             // null = sesión activa
+})
+
+// -------------------------------------------------------------------
 // Relaciones
 // -------------------------------------------------------------------
 export const usersRelations = relations(users, ({ one, many }) => ({
   profile:         one(userProfiles, { fields: [users.id], references: [userProfiles.userId] }),
   userRoles:       many(userRoles),
   userPermissions: many(userPermissions),
+  sessions:        many(userSessions),
 }))
 
 export const userProfilesRelations = relations(userProfiles, ({ one }) => ({
@@ -132,4 +154,8 @@ export const userPermissionsRelations = relations(userPermissions, ({ one }) => 
 export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
   role:       one(roles,       { fields: [rolePermissions.roleId],       references: [roles.id] }),
   permission: one(permissions, { fields: [rolePermissions.permissionId], references: [permissions.id] }),
+}))
+
+export const userSessionsRelations = relations(userSessions, ({ one }) => ({
+  user: one(users, { fields: [userSessions.userId], references: [users.id] }),
 }))

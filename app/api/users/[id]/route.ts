@@ -72,7 +72,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (existing) {
       await db.update(userProfiles).set(profileValues).where(eq(userProfiles.userId, userId))
     } else {
-      await db.insert(userProfiles).values({ userId, ...profileValues as never, createdAt: now })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await db.insert(userProfiles).values({ userId, ...(profileValues as any), createdAt: now })
     }
   }
 

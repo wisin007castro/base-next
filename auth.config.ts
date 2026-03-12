@@ -14,12 +14,24 @@ export const authConfig: NextAuthConfig = {
       const isLoggedIn = !!auth?.user
       const userRoles  = ((auth?.user as { roles?: string[] })?.roles) ?? []
       const isAdmin    = userRoles.includes('admin')
+      const twoFactorPending = !!(auth?.user as { twoFactorPending?: boolean })?.twoFactorPending
 
       const adminPaths = ['/usuarios', '/roles', '/permisos']
       const userPaths  = ['/perfil']
 
-      const isAdminPath = adminPaths.some((p) => nextUrl.pathname.startsWith(p))
-      const isUserPath  = userPaths.some((p)  => nextUrl.pathname.startsWith(p))
+      const isAdminPath  = adminPaths.some((p) => nextUrl.pathname.startsWith(p))
+      const isUserPath   = userPaths.some((p)  => nextUrl.pathname.startsWith(p))
+      const is2faPath    = nextUrl.pathname.startsWith('/verify-2fa')
+
+      // FEAT 7: si 2FA está pendiente, redirigir a /verify-2fa (excepto si ya está ahí)
+      if (isLoggedIn && twoFactorPending && !is2faPath) {
+        return Response.redirect(new URL('/verify-2fa', nextUrl))
+      }
+
+      // Si 2FA pendiente y está en /verify-2fa, permitir
+      if (isLoggedIn && twoFactorPending && is2faPath) {
+        return true
+      }
 
       // Sin sesión → login
       if ((isAdminPath || isUserPath) && !isLoggedIn) {

@@ -2,8 +2,9 @@
 import { use, useState } from 'react'
 import Link from 'next/link'
 import { FiArrowLeft, FiEye, FiEyeOff } from 'react-icons/fi'
-import { useUser, useUpdateUser } from '@/lib/hooks/users.hooks'
+import { useUser, useUpdateUser, useUserDirectPermissions, useGiveDirectPermission, useRevokeDirectPermission } from '@/lib/hooks/users.hooks'
 import { useRoles } from '@/lib/hooks/roles.hooks'
+import { usePermissions } from '@/lib/hooks/permissions.hooks'
 import type { User, UpdateUserDto, DocumentType, Gender } from '@/lib/types/user.types'
 import { ApiError } from '@/lib/api/users.api'
 import AvatarUpload from '@/app/components/users/AvatarUpload'
@@ -466,6 +467,73 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
 }
 
 // ---------------------------------------------------------------------------
+// Sección: Permisos directos
+// ---------------------------------------------------------------------------
+function DirectPermissionsSection({ userId }: { userId: number }) {
+  const { data: directPerms, isLoading: loadingDirect } = useUserDirectPermissions(userId)
+  const { data: allPerms, isLoading: loadingAll }       = usePermissions()
+  const give   = useGiveDirectPermission(userId)
+  const revoke = useRevokeDirectPermission(userId)
+
+  const directIds = new Set(directPerms?.map(p => p.id) ?? [])
+
+  async function togglePermission(permId: number, hasIt: boolean) {
+    if (hasIt) {
+      await revoke.mutateAsync(permId)
+    } else {
+      await give.mutateAsync(permId)
+    }
+  }
+
+  const isBusy = give.isPending || revoke.isPending
+
+  return (
+    <div className={sectionClass}>
+      <p className={sectionTitleClass}>Permisos directos</p>
+      <p className="text-xs text-ink-3 -mt-2 mb-2">
+        Permisos asignados directamente a este usuario, independientes de sus roles.
+      </p>
+
+      {(loadingDirect || loadingAll) ? (
+        <p className="text-xs text-ink-3">Cargando permisos...</p>
+      ) : !allPerms?.length ? (
+        <p className="text-xs text-ink-3">No hay permisos definidos en el sistema.</p>
+      ) : (
+        <div className="flex flex-wrap gap-4">
+          {allPerms.map(perm => {
+            const hasIt = directIds.has(perm.id)
+            return (
+              <label
+                key={perm.id}
+                className={`flex items-center gap-2 cursor-pointer select-none ${isBusy ? 'opacity-60 pointer-events-none' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  className="rounded border-[var(--line-3)] text-accent focus:ring-[var(--accent)]/30"
+                  checked={hasIt}
+                  onChange={() => togglePermission(perm.id, hasIt)}
+                  disabled={isBusy}
+                />
+                <span className="text-sm text-ink-2">{perm.name}</span>
+                {perm.description && (
+                  <span className="text-xs text-ink-4">— {perm.description}</span>
+                )}
+              </label>
+            )
+          })}
+        </div>
+      )}
+
+      {(give.isError || revoke.isError) && (
+        <p className="mt-2 text-xs text-risk">
+          Error al modificar el permiso. Inténtalo de nuevo.
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Página
 // ---------------------------------------------------------------------------
 export default function EditarUsuarioPage({ params }: Props) {
@@ -513,6 +581,7 @@ export default function EditarUsuarioPage({ params }: Props) {
 
       <AccountSection user={user} userId={userId} />
       <PersonalSection user={user} userId={userId} />
+      <DirectPermissionsSection userId={userId} />
     </div>
   )
 }
