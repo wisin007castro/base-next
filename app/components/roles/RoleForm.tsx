@@ -18,18 +18,15 @@ interface EditProps {
 
 type Props = CreateProps | EditProps
 
-const inputClass =
-  'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 ' +
-  'focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 ' +
-  'dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500'
+const inputClass = 'field-input'
 
-const sectionClass = 'rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-4'
-const sectionTitleClass = 'text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4'
+const sectionClass = 'rounded-xl border border-[var(--line-2)] bg-surface p-4 space-y-4'
+const sectionTitleClass = 'text-xs font-semibold uppercase tracking-wider text-accent border-b border-[var(--line-2)] pb-2 mb-4'
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
+      <label className="field-label">{label}</label>
       {children}
     </div>
   )

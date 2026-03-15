@@ -45,7 +45,7 @@ export const optionMenus: OptionMenu[] = [
   {
     id: 'paginas',
     label: 'Páginas',
-    href: '/paginas',
+    href: '/',
     icon: AiOutlineHome,
   },
   {

@@ -9,10 +9,7 @@ export default function ForgotPasswordPage() {
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState('')
 
-  const inputClass =
-    'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm ' +
-    'focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 ' +
-    'dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100'
+  const inputClass = 'field-input'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -76,7 +73,7 @@ export default function ForgotPasswordPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="field-label">
                   Correo electrónico
                 </label>
                 <input

@@ -18,15 +18,8 @@ function ResetPasswordForm() {
   const [errorMessage, setErrorMessage] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
-  const inputClass =
-    'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm ' +
-    'focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 ' +
-    'dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100'
-
-  const inputError =
-    'w-full rounded-lg border border-red-400 bg-white px-3 py-2 text-sm ' +
-    'focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 ' +
-    'dark:border-red-500 dark:bg-gray-800 dark:text-gray-100'
+  const inputClass = 'field-input'
+  const inputError = 'field-input field-error'
 
   const ci = (err?: string) => (err ? inputError : inputClass)
 
@@ -142,7 +135,7 @@ function ResetPasswordForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label className="field-label">
           Nueva contraseña
         </label>
         <div className="relative">
@@ -170,7 +163,7 @@ function ResetPasswordForm() {
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label className="field-label">
           Confirmar contraseña
         </label>
         <div className="relative">

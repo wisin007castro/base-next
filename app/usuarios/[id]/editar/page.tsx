@@ -16,21 +16,9 @@ interface Props { params: Promise<{ id: string }> }
 // ---------------------------------------------------------------------------
 // Shared UI helpers
 // ---------------------------------------------------------------------------
-const baseInput =
-  'w-full rounded-lg bg-surface-inset px-3 py-2 text-sm text-ink-1 placeholder:text-ink-4 ' +
-  'focus:outline-none focus:ring-2'
-
-const inputClass =
-  baseInput +
-  ' border border-accent/30 focus:border-accent focus:ring-accent/20'
-
-const inputError =
-  baseInput +
-  ' border border-risk/60 focus:border-risk focus:ring-risk/20'
-
-/** Devuelve la clase correcta según si hay error en ese campo */
+const inputClass = 'field-input'
+const inputError = 'field-input field-error'
 const ci = (err?: string) => err ? inputError : inputClass
-
 const selectClass = inputClass
 const sectionClass = 'rounded-xl border border-[var(--line-2)] bg-surface p-4 space-y-4'
 const sectionTitleClass = 'text-xs font-semibold uppercase tracking-wider text-accent border-b border-[var(--line-2)] pb-2 mb-4'
@@ -38,7 +26,7 @@ const sectionTitleClass = 'text-xs font-semibold uppercase tracking-wider text-a
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium text-accent/80">{label}</label>
+      <label className="field-label">{label}</label>
       {children}
     </div>
   )
