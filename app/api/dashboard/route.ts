@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { isNull, isNotNull, eq, gte, and, count } from 'drizzle-orm'
+import { isNull, isNotNull, eq, gte, and, count, desc } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { users, roles, permissions } from '@/lib/db/schema'
 import { requireAuth, isGuardError } from '@/lib/api/api-guard'
@@ -19,6 +19,7 @@ export async function GET() {
     [{ total: newThisWeek }],
     [{ total: totalRoles }],
     [{ total: totalPermissions }],
+    recentUsers,
   ] = await Promise.all([
     // Total usuarios (no eliminados)
     db.select({ total: count() }).from(users).where(isNull(users.deletedAt)),
@@ -40,6 +41,13 @@ export async function GET() {
     db.select({ total: count() }).from(roles),
     // Total permisos
     db.select({ total: count() }).from(permissions),
+    // Últimos 6 usuarios creados (no eliminados)
+    db
+      .select({ id: users.id, username: users.username, createdAt: users.createdAt, isActive: users.isActive })
+      .from(users)
+      .where(isNull(users.deletedAt))
+      .orderBy(desc(users.createdAt))
+      .limit(6),
   ])
 
   return NextResponse.json({
@@ -56,5 +64,6 @@ export async function GET() {
     permissions: {
       total: totalPermissions,
     },
+    recentUsers,
   })
 }

@@ -58,15 +58,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .set({ lastLoginAt: new Date().toISOString() })
           .where(eq(users.id, user.id))
 
-        // FEAT 6: generar jti e insertar sesión
-        const jti       = crypto.randomUUID()
+        // FEAT 6: generar sid (session ID) e insertar sesión
+        const sid       = crypto.randomUUID()
         const userAgent = (request as Request | undefined)
           ?.headers?.get('user-agent') ?? 'unknown'
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
         await db.insert(userSessions).values({
           userId:    user.id,
-          jti,
+          jti:       sid,
           userAgent,
           ip:        'unknown',
           expiresAt,
@@ -79,7 +79,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email:       user.email,
           roles,
           permissions: perms,
-          jti,
+          sid,
         }
       },
     }),
@@ -94,7 +94,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           id?: string
           roles?: string[]
           permissions?: string[]
-          jti?: string
+          sid?: string
           twoFactorPending?: boolean
         }
         token.id = u.id
@@ -105,7 +105,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         } else {
           token.roles       = u.roles       ?? []
           token.permissions = u.permissions ?? []
-          token.jti         = u.jti
+          token.sid         = u.sid
         }
         return token
       }
@@ -119,12 +119,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         ])
 
         // Insertar sesión ahora que está verificado
-        const jti       = crypto.randomUUID()
+        const sid       = crypto.randomUUID()
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
         await db.insert(userSessions).values({
           userId,
-          jti,
+          jti:       sid,
           userAgent: 'unknown',
           ip:        'unknown',
           expiresAt,
@@ -138,16 +138,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         token.roles            = roles
         token.permissions      = perms
-        token.jti              = jti
+        token.sid              = sid
         token.twoFactorPending = undefined
         return token
       }
 
-      // ---- cada request: verificar jti si existe ----
-      if (token.jti) {
-        const jtiStr = token.jti as string
+      // ---- cada request: verificar sid (session ID) si existe ----
+      if (token.sid) {
+        const sidStr = token.sid as string
         const sess = await db.query.userSessions.findFirst({
-          where: eq(userSessions.jti, jtiStr),
+          where: eq(userSessions.jti, sidStr),
         })
 
         // Si la sesión no existe o fue revocada, forzar logout
@@ -158,7 +158,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Actualizar lastUsedAt (fire-and-forget, sin bloquear)
         db.update(userSessions)
           .set({ lastUsedAt: new Date().toISOString() })
-          .where(eq(userSessions.jti, jtiStr))
+          .where(eq(userSessions.jti, sidStr))
           .run()
       }
 

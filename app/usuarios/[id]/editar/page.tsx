@@ -2,11 +2,13 @@
 import { use, useState } from 'react'
 import Link from 'next/link'
 import { FiArrowLeft, FiEye, FiEyeOff } from 'react-icons/fi'
+import { useQueryClient } from '@tanstack/react-query'
 import { useUser, useUpdateUser, useUserDirectPermissions, useGiveDirectPermission, useRevokeDirectPermission } from '@/lib/hooks/users.hooks'
 import { useRoles } from '@/lib/hooks/roles.hooks'
 import { usePermissions } from '@/lib/hooks/permissions.hooks'
 import type { User, UpdateUserDto, DocumentType, Gender } from '@/lib/types/user.types'
 import { ApiError } from '@/lib/api/users.api'
+import { userKeys } from '@/lib/constants/query-keys'
 import AvatarUpload from '@/app/components/users/AvatarUpload'
 
 interface Props { params: Promise<{ id: string }> }
@@ -539,6 +541,7 @@ function DirectPermissionsSection({ userId }: { userId: number }) {
 export default function EditarUsuarioPage({ params }: Props) {
   const { id } = use(params)
   const userId = Number(id)
+  const qc = useQueryClient()
 
   const { data: user, isLoading, isError } = useUser(userId)
 
@@ -576,6 +579,10 @@ export default function EditarUsuarioPage({ params }: Props) {
         <AvatarUpload
           currentUrl={user.profile?.avatar_url}
           uploadUrl={`/api/upload/avatar/${userId}`}
+          onUploaded={() => {
+            qc.invalidateQueries({ queryKey: userKeys.detail(userId) })
+            qc.invalidateQueries({ queryKey: userKeys.lists() })
+          }}
         />
       </div>
 
