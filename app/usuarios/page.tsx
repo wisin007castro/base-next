@@ -232,7 +232,7 @@ export default function UsuariosPage() {
       {data && (
         // Mientras llega la página nueva se muestra la anterior atenuada (keepPreviousData)
         <div className={`transition-opacity ${isPlaceholderData ? 'opacity-60' : ''}`} aria-busy={isPlaceholderData}>
-          <UsersTable users={data.data} withTrashed={filters.with_trashed} startIndex={data.from} />
+          <UsersTable users={data.data} startIndex={data.from} />
         </div>
       )}
 

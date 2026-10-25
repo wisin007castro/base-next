@@ -15,7 +15,6 @@ import {
 
 interface Props {
   users: User[]
-  withTrashed?: boolean
   startIndex?: number
 }
 
@@ -40,7 +39,7 @@ function UserAvatar({ user }: { user: User }) {
   )
 }
 
-export function UsersTable({ users, withTrashed = false, startIndex = 1 }: Props) {
+export function UsersTable({ users, startIndex = 1 }: Props) {
   const remove = useRemoveUser()
   const restore = useRestoreUser()
   const resend = useResendVerification()

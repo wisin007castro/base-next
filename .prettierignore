@@ -1,0 +1,9 @@
+.next
+node_modules
+drizzle/migrations
+dev.db
+package-lock.json
+skills-lock.json
+.claude
+.agents
+.interface-design

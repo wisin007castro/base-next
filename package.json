@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
@@ -14,7 +14,12 @@
     "storage:setup": "tsx scripts/setup-minio.ts",
     "docker:up": "docker compose --env-file .env --env-file .env.local up -d",
     "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f"
+    "docker:logs": "docker compose logs -f",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "lefthook install"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1004.0",
@@ -37,7 +42,9 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
     "@tailwindcss/postcss": "^4",
+    "@tanstack/eslint-plugin-query": "^5.104.5",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
@@ -48,9 +55,12 @@
     "@types/sharp": "^0.31.1",
     "autoprefixer": "^10.4.23",
     "drizzle-kit": "^0.31.9",
-    "eslint": "^8.0.0",
+    "eslint": "^9.39.5",
     "eslint-config-next": "^15.1.6",
+    "lefthook": "^1.13.6",
     "postcss": "^8.5.6",
+    "prettier": "^3.9.10",
+    "prettier-plugin-tailwindcss": "^0.6.14",
     "tailwindcss": "^3.4.19",
     "tsx": "^4.21.0",
     "typescript": "^5"

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq, like, isNull, and, inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { users, userProfiles, userRoles as userRolesTable, roles as rolesTable } from '@/lib/db/schema'
+import { users, userRoles as userRolesTable, roles as rolesTable } from '@/lib/db/schema'
 import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
 
 function escapeCsv(value: string | null | undefined): string {
@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
   if (isGuardError(guard)) return guard
 
   const { searchParams } = req.nextUrl
-  const search   = searchParams.get('search') ?? ''
-  const role     = searchParams.get('role') ?? ''
+  const search = searchParams.get('search') ?? ''
+  const role = searchParams.get('role') ?? ''
   const isActive = searchParams.get('is_active')
 
   const conditions = []
@@ -74,12 +74,10 @@ export async function GET(req: NextRequest) {
 
   for (const row of rows) {
     const nombreCompleto = row.profile
-      ? [row.profile.nombre, row.profile.primerApellido, row.profile.segundoApellido]
-          .filter(Boolean)
-          .join(' ')
+      ? [row.profile.nombre, row.profile.primerApellido, row.profile.segundoApellido].filter(Boolean).join(' ')
       : ''
 
-    const rolesStr = (row.userRoles ?? []).map((ur) => ur.role.name).join('; ')
+    const rolesStr = (row.userRoles ?? []).map(ur => ur.role.name).join('; ')
 
     const fields = [
       escapeCsv(String(row.id)),
