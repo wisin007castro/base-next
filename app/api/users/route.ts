@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq, like, isNull, and, count, desc, inArray, gte, lte } from 'drizzle-orm'
+import { eq, like, isNull, and, or, count, asc, desc, inArray, gte, lte } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { users, userProfiles, userRoles as userRolesTable, roles as rolesTable } from '@/lib/db/schema'
@@ -10,22 +10,41 @@ import { createUserSchema } from '@/lib/api/schemas/user.schema'
 
 const withRoles = { profile: true, userRoles: { with: { role: true } } } as const
 
+/** Columnas por las que se puede ordenar: `?sort=campo` (asc) o `?sort=-campo` (desc) */
+const SORTABLE = {
+  username: users.username,
+  email: users.email,
+  created_at: users.createdAt,
+  last_login_at: users.lastLoginAt,
+} as const
+
+function parseSort(raw: string | null) {
+  const key = (raw ?? '-created_at').replace(/^-/, '') as keyof typeof SORTABLE
+  const column = SORTABLE[key] ?? users.createdAt
+  return raw && !raw.startsWith('-') && SORTABLE[key] ? asc(column) : desc(column)
+}
+
+const toInt = (raw: string | null, fallback: number, max = Infinity) => {
+  const n = Number(raw)
+  return Number.isInteger(n) && n > 0 ? Math.min(n, max) : fallback
+}
+
 // GET /api/users
 export async function GET(req: NextRequest) {
   const guard = await requireAdmin()
   if (isGuardError(guard)) return guard
 
   const { searchParams } = req.nextUrl
-  const page        = Number(searchParams.get('page') ?? 1)
-  const perPage     = Number(searchParams.get('per_page') ?? 15)
-  const search      = searchParams.get('search') ?? ''
-  const role        = searchParams.get('role') ?? ''
-  const isActive    = searchParams.get('is_active')
+  const page = toInt(searchParams.get('page'), 1)
+  const perPage = toInt(searchParams.get('per_page'), 15, 100)
+  const search = searchParams.get('search') ?? ''
+  const role = searchParams.get('role') ?? ''
+  const isActive = searchParams.get('is_active')
   const withTrashed = searchParams.get('with_trashed') === 'true'
   const createdFrom = searchParams.get('created_from') ?? ''
-  const createdTo   = searchParams.get('created_to') ?? ''
-  const loginFrom   = searchParams.get('login_from') ?? ''
-  const loginTo     = searchParams.get('login_to') ?? ''
+  const createdTo = searchParams.get('created_to') ?? ''
+  const loginFrom = searchParams.get('login_from') ?? ''
+  const loginTo = searchParams.get('login_to') ?? ''
 
   const offset = (page - 1) * perPage
 
@@ -34,7 +53,20 @@ export async function GET(req: NextRequest) {
   if (isActive !== null && isActive !== '') {
     conditions.push(eq(users.isActive, isActive === 'true'))
   }
-  if (search) conditions.push(like(users.email, `%${search}%`))
+  if (search) {
+    const term = `%${search}%`
+    const byName = db
+      .select({ userId: userProfiles.userId })
+      .from(userProfiles)
+      .where(
+        or(
+          like(userProfiles.nombre, term),
+          like(userProfiles.primerApellido, term),
+          like(userProfiles.segundoApellido, term),
+        ),
+      )
+    conditions.push(or(like(users.email, term), like(users.username, term), inArray(users.id, byName))!)
+  }
   if (role) {
     const sub = db
       .select({ userId: userRolesTable.userId })
@@ -44,27 +76,33 @@ export async function GET(req: NextRequest) {
     conditions.push(inArray(users.id, sub))
   }
   if (createdFrom) conditions.push(gte(users.createdAt, `${createdFrom}T00:00:00.000Z`))
-  if (createdTo)   conditions.push(lte(users.createdAt, `${createdTo}T23:59:59.999Z`))
-  if (loginFrom)   conditions.push(gte(users.lastLoginAt, `${loginFrom}T00:00:00.000Z`))
-  if (loginTo)     conditions.push(lte(users.lastLoginAt, `${loginTo}T23:59:59.999Z`))
+  if (createdTo) conditions.push(lte(users.createdAt, `${createdTo}T23:59:59.999Z`))
+  if (loginFrom) conditions.push(gte(users.lastLoginAt, `${loginFrom}T00:00:00.000Z`))
+  if (loginTo) conditions.push(lte(users.lastLoginAt, `${loginTo}T23:59:59.999Z`))
 
   const where = conditions.length ? and(...conditions) : undefined
 
   const [rows, [{ total }]] = await Promise.all([
-    db.query.users.findMany({ where, with: withRoles, orderBy: desc(users.createdAt), limit: perPage, offset }),
+    db.query.users.findMany({
+      where,
+      with: withRoles,
+      orderBy: parseSort(searchParams.get('sort')),
+      limit: perPage,
+      offset,
+    }),
     db.select({ total: count() }).from(users).where(where),
   ])
 
   const lastPage = Math.ceil(total / perPage)
 
   return NextResponse.json({
-    data:         rows.map(serializeUser),
+    data: rows.map(serializeUser),
     current_page: page,
-    per_page:     perPage,
+    per_page: perPage,
     total,
-    last_page:    lastPage,
-    from:         offset + 1,
-    to:           Math.min(offset + perPage, total),
+    last_page: lastPage,
+    from: offset + 1,
+    to: Math.min(offset + perPage, total),
     links: { first: null, last: null, prev: null, next: null },
   })
 }
@@ -74,7 +112,7 @@ export async function POST(req: NextRequest) {
   const guard = await requireAdmin()
   if (isGuardError(guard)) return guard
 
-  const raw    = await req.json()
+  const raw = await req.json()
   const parsed = createUserSchema.safeParse(raw)
   if (!parsed.success) {
     return NextResponse.json({ message: 'Datos inválidos', errors: parsed.error.flatten() }, { status: 422 })
@@ -89,13 +127,19 @@ export async function POST(req: NextRequest) {
   ])
   if (emailConflict) {
     return NextResponse.json(
-      { message: 'Datos inválidos', errors: { fieldErrors: { email: ['Este correo ya está registrado'] }, formErrors: [] } },
+      {
+        message: 'Datos inválidos',
+        errors: { fieldErrors: { email: ['Este correo ya está registrado'] }, formErrors: [] },
+      },
       { status: 422 },
     )
   }
   if (usernameConflict) {
     return NextResponse.json(
-      { message: 'Datos inválidos', errors: { fieldErrors: { username: ['Este username ya está en uso'] }, formErrors: [] } },
+      {
+        message: 'Datos inválidos',
+        errors: { fieldErrors: { username: ['Este username ya está en uso'] }, formErrors: [] },
+      },
       { status: 422 },
     )
   }
@@ -105,7 +149,13 @@ export async function POST(req: NextRequest) {
     })
     if (docConflict) {
       return NextResponse.json(
-        { message: 'Datos inválidos', errors: { fieldErrors: { numero_documento: ['Este número de documento ya está registrado'] }, formErrors: [] } },
+        {
+          message: 'Datos inválidos',
+          errors: {
+            fieldErrors: { numero_documento: ['Este número de documento ya está registrado'] },
+            formErrors: [],
+          },
+        },
         { status: 422 },
       )
     }
@@ -113,7 +163,7 @@ export async function POST(req: NextRequest) {
   // ───────────────────────────────────────────────────────────────────────────
 
   const hashed = await bcrypt.hash(password, 12)
-  const now    = new Date().toISOString()
+  const now = new Date().toISOString()
 
   const [user] = await db
     .insert(users)
@@ -124,14 +174,23 @@ export async function POST(req: NextRequest) {
 
   if (profile) {
     await db.insert(userProfiles).values({
-      userId: user.id, nombre: profile.nombre, primerApellido: profile.primer_apellido ?? null,
-      segundoApellido: profile.segundo_apellido ?? null, tipoDocumento: profile.tipo_documento,
-      numeroDocumento: profile.numero_documento, fechaNacimiento: profile.fecha_nacimiento,
-      genero: profile.genero ?? 'prefiero_no_decir', telefono: profile.telefono ?? null,
-      telefonoAlternativo: profile.telefono_alternativo ?? null, pais: profile.pais ?? null,
-      departamento: profile.departamento ?? null, ciudad: profile.ciudad ?? null,
-      direccion: profile.direccion ?? null, codigoPostal: profile.codigo_postal ?? null,
-      createdAt: now, updatedAt: now,
+      userId: user.id,
+      nombre: profile.nombre,
+      primerApellido: profile.primer_apellido ?? null,
+      segundoApellido: profile.segundo_apellido ?? null,
+      tipoDocumento: profile.tipo_documento,
+      numeroDocumento: profile.numero_documento,
+      fechaNacimiento: profile.fecha_nacimiento,
+      genero: profile.genero ?? 'prefiero_no_decir',
+      telefono: profile.telefono ?? null,
+      telefonoAlternativo: profile.telefono_alternativo ?? null,
+      pais: profile.pais ?? null,
+      departamento: profile.departamento ?? null,
+      ciudad: profile.ciudad ?? null,
+      direccion: profile.direccion ?? null,
+      codigoPostal: profile.codigo_postal ?? null,
+      createdAt: now,
+      updatedAt: now,
     })
   }
 

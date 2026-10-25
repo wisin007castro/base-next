@@ -1,53 +1,47 @@
 'use client'
 import Link from 'next/link'
-import { useState } from 'react'
-import { FiPlus, FiSearch, FiChevronDown, FiChevronUp, FiX, FiDownload } from 'react-icons/fi'
-import { useUsers } from '@/lib/hooks/users.hooks'
+import { Suspense, useMemo, useState } from 'react'
+import { FiPlus, FiChevronDown, FiChevronUp, FiDownload } from 'react-icons/fi'
+import { useQueryClient } from '@tanstack/react-query'
+import { useUsers, userQueries } from '@/lib/hooks/users.hooks'
 import { useRoles } from '@/lib/hooks/roles.hooks'
+import { useUrlState } from '@/lib/hooks/use-url-state'
+import { hasAnyFilter, hasDateFilters, toUserFilters, usersSearchSchema } from '@/lib/filters/users.filters'
 import { UsersTable } from '@/app/components/users/UsersTable'
-import type { UserFilters } from '@/lib/types/user.types'
+import {
+  DataTablePagination,
+  DateFilter,
+  FilterBar,
+  SearchFilter,
+  SelectFilter,
+  ToggleFilter,
+} from '@/app/components/data-table'
 
-export default function UsuariosPage() {
-  const [filters, setFilters] = useState<UserFilters>({ page: 1, per_page: 5 })
-  const [search, setSearch] = useState('')
-  const [showDateFilters, setShowDateFilters] = useState(false)
-  const [createdFrom, setCreatedFrom] = useState('')
-  const [createdTo, setCreatedTo] = useState('')
-  const [loginFrom, setLoginFrom] = useState('')
-  const [loginTo, setLoginTo] = useState('')
+const statusOptions = [
+  { value: 'true', label: 'Activos' },
+  { value: 'false', label: 'Inactivos' },
+]
+
+/** Exporta con los mismos filtros activos (sin paginación) */
+function exportUrl(filters: ReturnType<typeof toUserFilters>) {
+  const params = new URLSearchParams()
+  for (const key of ['search', 'role', 'is_active', 'created_from', 'created_to', 'login_from', 'login_to'] as const) {
+    const value = filters[key]
+    if (value !== undefined) params.set(key, String(value))
+  }
+  const qs = params.toString()
+  return `/api/users/export${qs ? `?${qs}` : ''}`
+}
+
+function UsuariosContent() {
+  const qc = useQueryClient()
+  const [search, setSearch, resetSearch] = useUrlState(usersSearchSchema)
+  // Memo: `search` solo cambia cuando cambia la URL, así la query key y los efectos son estables
+  const filters = useMemo(() => toUserFilters(search), [search])
+  const [showDateFilters, setShowDateFilters] = useState(() => hasDateFilters(search))
 
   const { data, isLoading, isError, isPlaceholderData } = useUsers(filters)
   const { data: roles } = useRoles()
-
-  function applySearch() {
-    setFilters(f => ({ ...f, search, page: 1 }))
-  }
-
-  function applyDateFilter(field: keyof UserFilters, value: string) {
-    setFilters(f => ({ ...f, [field]: value || undefined, page: 1 }))
-  }
-
-  function clearDateFilters() {
-    setCreatedFrom('')
-    setCreatedTo('')
-    setLoginFrom('')
-    setLoginTo('')
-    setFilters(f => {
-      const next = { ...f, page: 1 }
-      delete next.created_from
-      delete next.created_to
-      delete next.login_from
-      delete next.login_to
-      return next
-    })
-  }
-
-  const hasActiveDateFilters = !!(filters.created_from || filters.created_to || filters.login_from || filters.login_to)
-
-  const controlClass =
-    'rounded-lg border border-accent/30 bg-surface-inset px-3 py-2 text-sm text-ink-1 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20'
-  const dateInputClass =
-    'w-full rounded-lg border border-accent/30 bg-surface-inset px-3 py-2 text-sm text-ink-1 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20'
 
   return (
     <div className="space-y-6">
@@ -60,25 +54,16 @@ export default function UsuariosPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              const params = new URLSearchParams()
-              if (filters.search) params.set('search', filters.search)
-              if (filters.role) params.set('role', filters.role)
-              if (filters.is_active !== undefined) params.set('is_active', String(filters.is_active))
-              if (filters.created_from) params.set('created_from', filters.created_from)
-              if (filters.created_to) params.set('created_to', filters.created_to)
-              if (filters.login_from) params.set('login_from', filters.login_from)
-              if (filters.login_to) params.set('login_to', filters.login_to)
-              const url = `/api/users/export${params.toString() ? `?${params.toString()}` : ''}`
-              window.open(url, '_blank')
-            }}
+          <a
+            href={exportUrl(filters)}
+            target="_blank"
+            rel="noopener"
             className="inline-flex items-center gap-2 rounded-lg border border-[var(--line-2)] bg-surface px-4 py-2 text-sm font-medium text-ink-2 transition-colors hover:bg-[var(--line-1)]"
             title="Exportar usuarios a CSV"
           >
             <FiDownload className="h-4 w-4" />
             Exportar CSV
-          </button>
+          </a>
           <Link
             href="/usuarios/nuevo"
             className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-[var(--accent-fg)] transition-colors hover:bg-[var(--accent-hover)]"
@@ -89,197 +74,107 @@ export default function UsuariosPage() {
         </div>
       </div>
 
-      {/* Filtros */}
+      {/* Filtros (todos en la URL) */}
       <div className="space-y-3">
-        <div className="flex flex-wrap gap-3">
-          <div className="border-accent/30 focus-within:ring-accent/20 flex min-w-56 flex-1 items-center gap-2 rounded-lg border bg-surface-inset px-3 py-2 focus-within:border-accent focus-within:ring-2">
-            <FiSearch className="h-4 w-4 shrink-0 text-ink-3" />
-            <input
-              className="flex-1 bg-transparent text-sm text-ink-1 outline-none placeholder:text-ink-4"
-              placeholder="Buscar por nombre, email o username..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && applySearch()}
-            />
-          </div>
-          <select
-            className={controlClass}
-            onChange={e => setFilters(f => ({ ...f, role: e.target.value || undefined, page: 1 }))}
-          >
-            <option value="">Todos los roles</option>
-            {roles?.map(role => (
-              <option key={role.id} value={role.name}>
-                {role.name.charAt(0).toUpperCase() + role.name.slice(1)}
-              </option>
-            ))}
-          </select>
-          <select
-            className={controlClass}
-            onChange={e => {
-              const v = e.target.value
-              setFilters(f => ({ ...f, is_active: v === '' ? undefined : v === 'true', page: 1 }))
-            }}
-          >
-            <option value="">Todos los estados</option>
-            <option value="true">Activos</option>
-            <option value="false">Inactivos</option>
-          </select>
-          <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-ink-2">
-            <input
-              type="checkbox"
-              className="rounded"
-              onChange={e => setFilters(f => ({ ...f, with_trashed: e.target.checked, page: 1 }))}
-            />
-            Incluir eliminados
-          </label>
+        <FilterBar hasActive={hasAnyFilter(search)} onClear={resetSearch}>
+          <SearchFilter
+            value={search.search}
+            onChange={value => setSearch({ search: value })}
+            placeholder="Buscar por nombre, email o username..."
+          />
+          <SelectFilter
+            value={search.role}
+            onChange={value => setSearch({ role: value })}
+            allLabel="Todos los roles"
+            options={(roles ?? []).map(r => ({
+              value: r.name,
+              label: r.name.charAt(0).toUpperCase() + r.name.slice(1),
+            }))}
+          />
+          <SelectFilter
+            value={search.is_active ?? ''}
+            onChange={value => setSearch({ is_active: value })}
+            allLabel="Todos los estados"
+            options={statusOptions}
+          />
+          <ToggleFilter
+            checked={!!search.with_trashed}
+            onChange={checked => setSearch({ with_trashed: checked ? 'true' : undefined })}
+            label="Incluir eliminados"
+          />
           <button
+            type="button"
             onClick={() => setShowDateFilters(v => !v)}
+            aria-expanded={showDateFilters}
             className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
-              hasActiveDateFilters
+              hasDateFilters(search)
                 ? 'border-accent bg-[var(--accent-subtle)] text-accent'
                 : 'border-[var(--line-2)] text-ink-2 hover:bg-[var(--line-1)]'
             }`}
           >
             {showDateFilters ? <FiChevronUp className="h-4 w-4" /> : <FiChevronDown className="h-4 w-4" />}
-            Filtros avanzados
-            {hasActiveDateFilters && (
-              <span className="ml-0.5 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-fg)]">
-                activos
-              </span>
-            )}
+            Filtros de fecha
           </button>
-        </div>
+        </FilterBar>
 
-        {/* Panel de filtros de fecha */}
         {showDateFilters && (
-          <div className="space-y-4 rounded-xl border border-[var(--line-2)] bg-surface p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wider text-accent">Filtros de fecha</p>
-              {hasActiveDateFilters && (
-                <button
-                  onClick={clearDateFilters}
-                  className="inline-flex items-center gap-1 text-xs text-ink-3 transition-colors hover:text-risk"
-                >
-                  <FiX className="h-3 w-3" />
-                  Limpiar fechas
-                </button>
-              )}
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-ink-2">Registrado desde</label>
-                <input
-                  type="date"
-                  className={dateInputClass}
-                  value={createdFrom}
-                  onChange={e => {
-                    setCreatedFrom(e.target.value)
-                    applyDateFilter('created_from', e.target.value)
-                  }}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-ink-2">Registrado hasta</label>
-                <input
-                  type="date"
-                  className={dateInputClass}
-                  value={createdTo}
-                  onChange={e => {
-                    setCreatedTo(e.target.value)
-                    applyDateFilter('created_to', e.target.value)
-                  }}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-ink-2">Último acceso desde</label>
-                <input
-                  type="date"
-                  className={dateInputClass}
-                  value={loginFrom}
-                  onChange={e => {
-                    setLoginFrom(e.target.value)
-                    applyDateFilter('login_from', e.target.value)
-                  }}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-ink-2">Último acceso hasta</label>
-                <input
-                  type="date"
-                  className={dateInputClass}
-                  value={loginTo}
-                  onChange={e => {
-                    setLoginTo(e.target.value)
-                    applyDateFilter('login_to', e.target.value)
-                  }}
-                />
-              </div>
-            </div>
-            {!hasActiveDateFilters && (
-              <p className="text-xs text-ink-4">Selecciona una o más fechas para filtrar el listado.</p>
-            )}
+          <div className="grid grid-cols-1 gap-4 rounded-xl border border-[var(--line-2)] bg-surface p-4 sm:grid-cols-2 lg:grid-cols-4">
+            <DateFilter
+              label="Registrado desde"
+              value={search.created_from ?? ''}
+              onChange={value => setSearch({ created_from: value })}
+            />
+            <DateFilter
+              label="Registrado hasta"
+              value={search.created_to ?? ''}
+              onChange={value => setSearch({ created_to: value })}
+            />
+            <DateFilter
+              label="Último acceso desde"
+              value={search.login_from ?? ''}
+              onChange={value => setSearch({ login_from: value })}
+            />
+            <DateFilter
+              label="Último acceso hasta"
+              value={search.login_to ?? ''}
+              onChange={value => setSearch({ login_to: value })}
+            />
           </div>
         )}
       </div>
 
-      {/* Tabla */}
-      {isLoading && <div className="py-16 text-center text-sm text-ink-3">Cargando usuarios...</div>}
-      {isError && (
-        <div className="rounded-lg bg-[var(--risk-bg)] px-4 py-3 text-sm text-risk">
-          Error al cargar los usuarios. Verifica la conexión con la API.
-        </div>
-      )}
-      {data && (
-        // Mientras llega la página nueva se muestra la anterior atenuada (keepPreviousData)
-        <div className={`transition-opacity ${isPlaceholderData ? 'opacity-60' : ''}`} aria-busy={isPlaceholderData}>
-          <UsersTable users={data.data} startIndex={data.from} />
-        </div>
-      )}
+      <UsersTable
+        users={data?.data}
+        isLoading={isLoading}
+        isError={isError}
+        isStale={isPlaceholderData}
+        sort={search.sort}
+        onSortChange={sort => setSearch({ sort })}
+        startIndex={data?.from}
+        selectionResetKey={JSON.stringify(filters)}
+      />
 
-      {/* Paginación */}
       {data && (
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-ink-3">
-          <div className="flex items-center gap-2">
-            <span>Mostrar</span>
-            <select
-              value={filters.per_page ?? 5}
-              onChange={e => setFilters(f => ({ ...f, per_page: Number(e.target.value), page: 1 }))}
-              className={controlClass}
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={15}>15</option>
-              <option value={50}>50</option>
-            </select>
-            <span>por página · {data.total} en total</span>
-          </div>
-
-          {data.last_page > 1 && (
-            <div className="flex items-center gap-2">
-              <span>
-                Mostrando {data.from}–{data.to}
-              </span>
-              <button
-                onClick={() => setFilters(f => ({ ...f, page: (f.page ?? 1) - 1 }))}
-                disabled={(filters.page ?? 1) <= 1}
-                className="rounded-lg border border-[var(--line-2)] px-3 py-1.5 text-ink-2 transition-colors hover:bg-[var(--line-1)] disabled:opacity-40"
-              >
-                Anterior
-              </button>
-              <span className="rounded-lg border border-accent bg-[var(--accent-subtle)] px-3 py-1.5 text-accent">
-                {filters.page ?? 1} / {data.last_page}
-              </span>
-              <button
-                onClick={() => setFilters(f => ({ ...f, page: (f.page ?? 1) + 1 }))}
-                disabled={(filters.page ?? 1) >= data.last_page}
-                className="rounded-lg border border-[var(--line-2)] px-3 py-1.5 text-ink-2 transition-colors hover:bg-[var(--line-1)] disabled:opacity-40"
-              >
-                Siguiente
-              </button>
-            </div>
-          )}
-        </div>
+        <DataTablePagination
+          page={search.page}
+          lastPage={data.last_page}
+          total={data.total}
+          from={data.from}
+          to={data.to}
+          perPage={search.per_page}
+          onPageChange={page => setSearch({ page })}
+          onPerPageChange={per_page => setSearch({ per_page })}
+          onPageHover={page => qc.prefetchQuery(userQueries.list({ ...filters, page }))}
+        />
       )}
     </div>
+  )
+}
+
+export default function UsuariosPage() {
+  return (
+    <Suspense>
+      <UsuariosContent />
+    </Suspense>
   )
 }

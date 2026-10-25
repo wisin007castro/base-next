@@ -4,6 +4,7 @@ import { usersApi } from '@/lib/api/users.api'
 import { userKeys, permissionKeys } from '@/lib/constants/query-keys'
 import type { CreateUserDto, UpdateUserDto, User, UserFilters } from '@/lib/types/user.types'
 import type { Permission } from '@/lib/types/rbac.types'
+import type { BulkUserAction } from '@/lib/api/schemas/user.schema'
 
 // -------------------------------------------------------------------
 // Query options — una sola definición para useQuery, prefetchQuery,
@@ -153,6 +154,18 @@ export function useVerifyUser() {
   return useMutation({
     mutationFn: (id: number) => usersApi.verify(id),
     onSuccess: sync,
+  })
+}
+
+/** Activar / desactivar / eliminar / restaurar varios usuarios */
+export function useBulkUserAction() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ action, ids }: { action: BulkUserAction; ids: number[] }) => usersApi.bulk(action, ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: userKeys.lists() })
+      qc.invalidateQueries({ queryKey: userKeys.details() })
+    },
   })
 }
 

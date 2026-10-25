@@ -1,5 +1,6 @@
 import type { User, CreateUserDto, UpdateUserDto, PaginatedResponse, UserFilters } from '@/lib/types/user.types'
 import type { Permission } from '@/lib/types/rbac.types'
+import type { BulkUserAction } from '@/lib/api/schemas/user.schema'
 import { request } from './http'
 
 export { ApiError } from './http'
@@ -67,6 +68,13 @@ export const usersApi = {
     request<void>(`/users/${id}/permissions`, {
       method: 'POST',
       body: JSON.stringify({ permission_id: permissionId }),
+    }),
+
+  /** Aplica una acción a varios usuarios a la vez */
+  bulk: (action: BulkUserAction, ids: number[]) =>
+    request<{ affected: number; skipped: number[] }>('/users/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ action, ids }),
     }),
 
   /** Revoca un permiso directo del usuario */

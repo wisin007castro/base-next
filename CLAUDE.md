@@ -109,6 +109,24 @@ lib/constants/query-keys.ts → centralised cache key factory
 
 Components call hooks, never `fetch` directly. Mutations invalidate the relevant query keys on success.
 
+### Lists & Tables
+
+```
+app/components/data-table/  → DataTable (TanStack Table), selectionColumn, BulkActionsBar,
+                              DataTablePagination, Search/Select/Toggle/DateFilter, FilterBar, ConfirmDialog
+lib/hooks/use-url-state.ts  → typed filter/page/sort state in the query string
+lib/filters/*.filters.ts    → URL schema per list (+ toXxxFilters() for the API)
+```
+
+Three layers, each with one job: **TanStack Query** fetches, **TanStack Table** (headless) handles sorting/filtering/selection, **the URL** holds the state.
+
+- Filters, page and sort live in the **URL** via `useUrlState(schema)`: they survive reloads and can be shared. Every schema field needs `.catch(default)`; changing any filter resets `page` to 1.
+- Pages using `useUrlState` must render their content inside `<Suspense>` (Next 15 `useSearchParams` rule).
+- Columns use `createColumnHelper<T>()`. `col.accessor(...)` columns are sortable (disable with `enableSorting: false`); `col.display(...)` ones are not. Column `id` = sort key sent as `sort=field` / `sort=-field`. Cell styling via `meta: { align, className }`.
+- `mode="server"` (paginated lists): the API sorts — it needs a whitelist (see `SORTABLE` in `app/api/users/route.ts`). `mode="client"` (small lists like roles/permissions): TanStack sorts and filters with `globalFilter` (accessor columns; opt out with `enableGlobalFilter: false`).
+- Row selection: add `selectionColumn<T>()`, keep `rowSelection` in the table owner, clear it when filters change, and expose actions with `<BulkActionsBar>`. Bulk endpoints validate with Zod and must not let an admin deactivate/delete themselves (see `app/api/users/bulk/route.ts`).
+- Destructive actions always go through `<ConfirmDialog>`.
+
 ### Forms & Validation
 
 Forms use **react-hook-form + Zod** (`zodResolver`). Never manage fields with `useState`.

@@ -108,3 +108,14 @@ export const updateUserSchema = z
 
 export type CreateUserInput = z.infer<typeof createUserSchema>
 export type UpdateUserInput = z.infer<typeof updateUserSchema>
+
+// ─── Acciones en lote ──────────────────────────────────────────────────────────
+export const BULK_USER_ACTIONS = ['activate', 'deactivate', 'delete', 'restore'] as const
+
+export const bulkUserActionSchema = z.object({
+  action: z.enum(BULK_USER_ACTIONS),
+  ids: z.array(z.number().int().positive()).min(1, 'Selecciona al menos un usuario').max(100),
+})
+
+export type BulkUserAction = (typeof BULK_USER_ACTIONS)[number]
+export type BulkUserActionInput = z.infer<typeof bulkUserActionSchema>
