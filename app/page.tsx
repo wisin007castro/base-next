@@ -1,35 +1,17 @@
 'use client'
-import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
+import { useDashboard } from '@/lib/hooks/dashboard.hooks'
+import type { RecentUser } from '@/lib/api/dashboard.api'
 import Link from 'next/link'
-import {
-  FiUsers, FiUserCheck, FiUserX, FiUserPlus,
-  FiShield, FiKey, FiArrowRight, FiActivity,
-} from 'react-icons/fi'
-
-interface RecentUser {
-  id: string
-  username: string
-  createdAt: string
-  isActive: boolean
-}
-
-interface DashboardData {
-  users: {
-    total: number
-    active: number
-    inactive: number
-    deleted: number
-    new_this_week: number
-  }
-  roles: { total: number }
-  permissions: { total: number }
-  recentUsers: RecentUser[]
-}
+import { FiUsers, FiUserCheck, FiUserX, FiUserPlus, FiShield, FiKey, FiArrowRight, FiActivity } from 'react-icons/fi'
 
 // ─── Mini stat tile ───────────────────────────────────────────────────────────
 function StatTile({
-  icon, value, label, bgClass, textClass,
+  icon,
+  value,
+  label,
+  bgClass,
+  textClass,
 }: {
   icon: React.ReactNode
   value: number | undefined
@@ -38,13 +20,11 @@ function StatTile({
   textClass: string
 }) {
   return (
-    <div className={`rounded-xl px-5 py-6 flex flex-col gap-3 ${bgClass}`}>
+    <div className={`flex flex-col gap-3 rounded-xl px-5 py-6 ${bgClass}`}>
       <span className={textClass}>{icon}</span>
       <div>
-        <p className={`text-2xl font-bold ${textClass}`}>
-          {value !== undefined ? value.toLocaleString() : '—'}
-        </p>
-        <p className={`text-xs font-medium mt-0.5 opacity-80 ${textClass}`}>{label}</p>
+        <p className={`text-2xl font-bold ${textClass}`}>{value !== undefined ? value.toLocaleString() : '—'}</p>
+        <p className={`mt-0.5 text-xs font-medium opacity-80 ${textClass}`}>{label}</p>
       </div>
     </div>
   )
@@ -52,7 +32,12 @@ function StatTile({
 
 // ─── Large nav card (roles / permisos) ───────────────────────────────────────
 function BigStatCard({
-  icon, value, label, href, bgClass, textClass,
+  icon,
+  value,
+  label,
+  href,
+  bgClass,
+  textClass,
 }: {
   icon: React.ReactNode
   value: number | undefined
@@ -64,21 +49,16 @@ function BigStatCard({
   return (
     <Link
       href={href}
-      className="group flex items-center gap-4 rounded-xl border border-[var(--line-2)] bg-surface p-5 transition-colors hover:border-accent/40"
+      className="hover:border-accent/40 group flex items-center gap-4 rounded-xl border border-[var(--line-2)] bg-surface p-5 transition-colors"
     >
       <div className={`flex-shrink-0 rounded-xl p-3 ${bgClass}`}>
         <span className={`block ${textClass}`}>{icon}</span>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-2xl font-bold text-ink-1">
-          {value !== undefined ? value.toLocaleString() : '—'}
-        </p>
+        <p className="text-2xl font-bold text-ink-1">{value !== undefined ? value.toLocaleString() : '—'}</p>
         <p className="text-sm text-ink-3">{label}</p>
       </div>
-      <FiArrowRight
-        className="flex-shrink-0 text-ink-4 transition-colors group-hover:text-accent"
-        size={16}
-      />
+      <FiArrowRight className="flex-shrink-0 text-ink-4 transition-colors group-hover:text-accent" size={16} />
     </Link>
   )
 }
@@ -92,16 +72,14 @@ function TimelineItem({ user, isLast }: { user: RecentUser; isLast: boolean }) {
   return (
     <div className="flex gap-3">
       <div className="flex flex-col items-center">
-        <span
-          className={`mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full ${
-            user.isActive ? 'bg-ok' : 'bg-warn'
-          }`}
-        />
+        <span className={`mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full ${user.isActive ? 'bg-ok' : 'bg-warn'}`} />
         {!isLast && <span className="mt-1 w-px flex-1 bg-[var(--line-2)]" />}
       </div>
-      <div className="pb-4 min-w-0">
-        <p className="text-sm font-medium text-ink-1 truncate">{user.username}</p>
-        <p className="text-xs text-ink-3">{formatted} · {time}</p>
+      <div className="min-w-0 pb-4">
+        <p className="truncate text-sm font-medium text-ink-1">{user.username}</p>
+        <p className="text-xs text-ink-3">
+          {formatted} · {time}
+        </p>
       </div>
     </div>
   )
@@ -109,7 +87,11 @@ function TimelineItem({ user, isLast }: { user: RecentUser; isLast: boolean }) {
 
 // ─── Progress ratio bar ───────────────────────────────────────────────────────
 function RatioBar({
-  label, value, total, barClass, textClass,
+  label,
+  value,
+  total,
+  barClass,
+  textClass,
 }: {
   label: string
   value: number
@@ -134,7 +116,11 @@ function RatioBar({
 
 // ─── Quick link item ──────────────────────────────────────────────────────────
 function QuickLink({
-  href, label, description, barClass, icon,
+  href,
+  label,
+  description,
+  barClass,
+  icon,
 }: {
   href: string
   label: string
@@ -143,24 +129,14 @@ function QuickLink({
   icon: React.ReactNode
 }) {
   return (
-    <Link
-      href={href}
-      className="group flex items-center gap-4 py-3 transition-opacity hover:opacity-90"
-    >
-      <span className={`w-1 self-stretch rounded-full flex-shrink-0 ${barClass}`} />
-      <span className="flex-shrink-0 text-ink-3 transition-colors group-hover:text-accent">
-        {icon}
-      </span>
+    <Link href={href} className="group flex items-center gap-4 py-3 transition-opacity hover:opacity-90">
+      <span className={`w-1 flex-shrink-0 self-stretch rounded-full ${barClass}`} />
+      <span className="flex-shrink-0 text-ink-3 transition-colors group-hover:text-accent">{icon}</span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-ink-1 transition-colors group-hover:text-accent">
-          {label}
-        </p>
+        <p className="text-sm font-semibold text-ink-1 transition-colors group-hover:text-accent">{label}</p>
         <p className="text-xs text-ink-3">{description}</p>
       </div>
-      <FiArrowRight
-        className="flex-shrink-0 text-ink-4 transition-colors group-hover:text-accent"
-        size={14}
-      />
+      <FiArrowRight className="flex-shrink-0 text-ink-4 transition-colors group-hover:text-accent" size={14} />
     </Link>
   )
 }
@@ -168,22 +144,9 @@ function QuickLink({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { data: session, status } = useSession()
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const { data, isPending, isError } = useDashboard({ enabled: status === 'authenticated' })
 
-  useEffect(() => {
-    if (status !== 'authenticated') return
-    fetch('/api/dashboard')
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Error al cargar el dashboard')
-        return res.json() as Promise<DashboardData>
-      })
-      .then((d) => { setData(d); setLoading(false) })
-      .catch((err: Error) => { setError(err.message); setLoading(false) })
-  }, [status])
-
-  if (status === 'loading' || (status === 'authenticated' && loading)) {
+  if (status === 'loading' || (status === 'authenticated' && isPending)) {
     return (
       <div className="flex items-center justify-center py-24">
         <p className="text-sm text-ink-3">Cargando dashboard…</p>
@@ -191,9 +154,9 @@ export default function DashboardPage() {
     )
   }
   if (status === 'unauthenticated') return null
-  if (error) {
+  if (isError) {
     return (
-      <div className="rounded-lg bg-[var(--risk-bg)] px-4 py-3 text-sm text-risk">{error}</div>
+      <div className="rounded-lg bg-[var(--risk-bg)] px-4 py-3 text-sm text-risk">Error al cargar el dashboard</div>
     )
   }
 
@@ -202,19 +165,16 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-
       {/* ── Page header ──────────────────────────────────────── */}
       <div>
         <h1 className="text-xl font-semibold text-ink-1">Dashboard</h1>
         <p className="mt-0.5 text-sm text-ink-3">
-          Bienvenido, <span className="font-medium text-ink-2">{userName}</span>.
-          Resumen del sistema de gestión.
+          Bienvenido, <span className="font-medium text-ink-2">{userName}</span>. Resumen del sistema de gestión.
         </p>
       </div>
 
       {/* ── Row 1: Hero + Timeline + Roles/Permisos ──────────── */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-
         {/* Hero card — resumen usuarios */}
         <div className="overflow-hidden rounded-xl border border-[var(--line-2)] bg-surface shadow-sm">
           {/* Accent header */}
@@ -280,11 +240,7 @@ export default function DashboardPage() {
           <div className="px-5 py-4">
             {data?.recentUsers && data.recentUsers.length > 0 ? (
               data.recentUsers.map((u, i) => (
-                <TimelineItem
-                  key={u.id}
-                  user={u}
-                  isLast={i === data.recentUsers.length - 1}
-                />
+                <TimelineItem key={u.id} user={u} isLast={i === data.recentUsers.length - 1} />
               ))
             ) : (
               <p className="text-sm text-ink-3">Sin usuarios registrados aún.</p>
@@ -319,27 +275,21 @@ export default function DashboardPage() {
             textClass="text-accent"
           />
           {(data?.users.new_this_week ?? 0) > 0 && (
-            <div className="rounded-xl border border-accent/30 bg-accent-subtle px-5 py-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-accent opacity-70">
-                Esta semana
-              </p>
-              <p className="mt-1 text-2xl font-bold text-accent">
-                +{data?.users.new_this_week}
-              </p>
+            <div className="border-accent/30 rounded-xl border bg-accent-subtle px-5 py-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-accent opacity-70">Esta semana</p>
+              <p className="mt-1 text-2xl font-bold text-accent">+{data?.users.new_this_week}</p>
               <p className="text-xs text-accent opacity-80">
                 {data?.users.new_this_week === 1 ? 'nuevo usuario' : 'nuevos usuarios'} registrados
               </p>
             </div>
           )}
         </div>
-
       </div>
 
       {/* ── Row 2: Quick links + Distribución ────────────────── */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
-
         {/* Quick access links */}
-        <div className="lg:col-span-2 rounded-xl border border-[var(--line-2)] bg-surface shadow-sm">
+        <div className="rounded-xl border border-[var(--line-2)] bg-surface shadow-sm lg:col-span-2">
           <div className="border-b border-[var(--line-2)] px-5 py-4">
             <p className="text-sm font-semibold text-ink-1">Accesos rápidos</p>
             <p className="text-xs text-ink-3">Navegación directa a secciones</p>
@@ -370,7 +320,7 @@ export default function DashboardPage() {
         </div>
 
         {/* User status distribution */}
-        <div className="lg:col-span-3 rounded-xl border border-[var(--line-2)] bg-surface shadow-sm">
+        <div className="rounded-xl border border-[var(--line-2)] bg-surface shadow-sm lg:col-span-3">
           <div className="border-b border-[var(--line-2)] px-5 py-4">
             <p className="text-sm font-semibold text-ink-1">Distribución de usuarios</p>
             <p className="text-xs text-ink-3">
@@ -403,7 +353,6 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-
       </div>
     </div>
   )

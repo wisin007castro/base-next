@@ -1,22 +1,36 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, queryOptions } from '@tanstack/react-query'
 import { rolesApi } from '@/lib/api/roles.api'
 import { roleKeys } from '@/lib/constants/query-keys'
 import type { CreateRoleDto, UpdateRoleDto } from '@/lib/types/rbac.types'
 
+export const roleQueries = {
+  list: () =>
+    queryOptions({
+      queryKey: roleKeys.lists(),
+      queryFn: ({ signal }) => rolesApi.getAll(signal),
+      staleTime: 5 * 60 * 1000, // 5 min — roles cambian poco
+    }),
+
+  detail: (id: number) =>
+    queryOptions({
+      queryKey: roleKeys.detail(id),
+      queryFn: ({ signal }) => rolesApi.getById(id, signal),
+      enabled: !!id,
+    }),
+}
+
 export function useRoles() {
-  return useQuery({
-    queryKey: roleKeys.lists(),
-    queryFn: () => rolesApi.getAll(),
-    staleTime: 5 * 60 * 1000, // 5 min — roles cambian poco
-  })
+  return useQuery(roleQueries.list())
 }
 
 export function useRole(id: number) {
-  return useQuery({
-    queryKey: roleKeys.detail(id),
-    queryFn: () => rolesApi.getById(id),
-    enabled: !!id,
-  })
+  return useQuery(roleQueries.detail(id))
+}
+
+/** Precarga el detalle de un rol (p. ej. al pasar el mouse por "Editar") */
+export function usePrefetchRole() {
+  const qc = useQueryClient()
+  return (id: number) => qc.prefetchQuery(roleQueries.detail(id))
 }
 
 export function useCreateRole() {
@@ -31,9 +45,9 @@ export function useUpdateRole(id: number) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (dto: UpdateRoleDto) => rolesApi.update(id, dto),
-    onSuccess: () => {
+    onSuccess: role => {
+      qc.setQueryData(roleKeys.detail(id), role)
       qc.invalidateQueries({ queryKey: roleKeys.lists() })
-      qc.invalidateQueries({ queryKey: roleKeys.detail(id) })
     },
   })
 }
@@ -42,6 +56,9 @@ export function useDeleteRole() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => rolesApi.remove(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: roleKeys.lists() }),
+    onSuccess: (_, id) => {
+      qc.removeQueries({ queryKey: roleKeys.detail(id) })
+      qc.invalidateQueries({ queryKey: roleKeys.lists() })
+    },
   })
 }

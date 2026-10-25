@@ -12,11 +12,11 @@ export default function UsuariosPage() {
   const [search, setSearch] = useState('')
   const [showDateFilters, setShowDateFilters] = useState(false)
   const [createdFrom, setCreatedFrom] = useState('')
-  const [createdTo, setCreatedTo]     = useState('')
-  const [loginFrom, setLoginFrom]     = useState('')
-  const [loginTo, setLoginTo]         = useState('')
+  const [createdTo, setCreatedTo] = useState('')
+  const [loginFrom, setLoginFrom] = useState('')
+  const [loginTo, setLoginTo] = useState('')
 
-  const { data, isLoading, isError } = useUsers(filters)
+  const { data, isLoading, isError, isPlaceholderData } = useUsers(filters)
   const { data: roles } = useRoles()
 
   function applySearch() {
@@ -44,8 +44,10 @@ export default function UsuariosPage() {
 
   const hasActiveDateFilters = !!(filters.created_from || filters.created_to || filters.login_from || filters.login_to)
 
-  const controlClass = 'rounded-lg border border-accent/30 bg-surface-inset px-3 py-2 text-sm text-ink-1 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20'
-  const dateInputClass = 'w-full rounded-lg border border-accent/30 bg-surface-inset px-3 py-2 text-sm text-ink-1 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20'
+  const controlClass =
+    'rounded-lg border border-accent/30 bg-surface-inset px-3 py-2 text-sm text-ink-1 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20'
+  const dateInputClass =
+    'w-full rounded-lg border border-accent/30 bg-surface-inset px-3 py-2 text-sm text-ink-1 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20'
 
   return (
     <div className="space-y-6">
@@ -61,27 +63,27 @@ export default function UsuariosPage() {
           <button
             onClick={() => {
               const params = new URLSearchParams()
-              if (filters.search)       params.set('search', filters.search)
-              if (filters.role)         params.set('role', filters.role)
+              if (filters.search) params.set('search', filters.search)
+              if (filters.role) params.set('role', filters.role)
               if (filters.is_active !== undefined) params.set('is_active', String(filters.is_active))
               if (filters.created_from) params.set('created_from', filters.created_from)
-              if (filters.created_to)   params.set('created_to', filters.created_to)
-              if (filters.login_from)   params.set('login_from', filters.login_from)
-              if (filters.login_to)     params.set('login_to', filters.login_to)
+              if (filters.created_to) params.set('created_to', filters.created_to)
+              if (filters.login_from) params.set('login_from', filters.login_from)
+              if (filters.login_to) params.set('login_to', filters.login_to)
               const url = `/api/users/export${params.toString() ? `?${params.toString()}` : ''}`
               window.open(url, '_blank')
             }}
-            className="inline-flex items-center gap-2 rounded-lg border border-[var(--line-2)] bg-surface px-4 py-2 text-sm font-medium text-ink-2 hover:bg-[var(--line-1)] transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg border border-[var(--line-2)] bg-surface px-4 py-2 text-sm font-medium text-ink-2 transition-colors hover:bg-[var(--line-1)]"
             title="Exportar usuarios a CSV"
           >
-            <FiDownload className="w-4 h-4" />
+            <FiDownload className="h-4 w-4" />
             Exportar CSV
           </button>
           <Link
             href="/usuarios/nuevo"
-            className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-[var(--accent-fg)] hover:bg-[var(--accent-hover)] transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-[var(--accent-fg)] transition-colors hover:bg-[var(--accent-hover)]"
           >
-            <FiPlus className="w-4 h-4" />
+            <FiPlus className="h-4 w-4" />
             Nuevo usuario
           </Link>
         </div>
@@ -90,10 +92,10 @@ export default function UsuariosPage() {
       {/* Filtros */}
       <div className="space-y-3">
         <div className="flex flex-wrap gap-3">
-          <div className="flex flex-1 min-w-56 items-center gap-2 rounded-lg border border-accent/30 bg-surface-inset px-3 py-2 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
-            <FiSearch className="w-4 h-4 text-ink-3 shrink-0" />
+          <div className="border-accent/30 focus-within:ring-accent/20 flex min-w-56 flex-1 items-center gap-2 rounded-lg border bg-surface-inset px-3 py-2 focus-within:border-accent focus-within:ring-2">
+            <FiSearch className="h-4 w-4 shrink-0 text-ink-3" />
             <input
-              className="flex-1 bg-transparent text-sm text-ink-1 placeholder:text-ink-4 outline-none"
+              className="flex-1 bg-transparent text-sm text-ink-1 outline-none placeholder:text-ink-4"
               placeholder="Buscar por nombre, email o username..."
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -106,7 +108,9 @@ export default function UsuariosPage() {
           >
             <option value="">Todos los roles</option>
             {roles?.map(role => (
-              <option key={role.id} value={role.name}>{role.name.charAt(0).toUpperCase() + role.name.slice(1)}</option>
+              <option key={role.id} value={role.name}>
+                {role.name.charAt(0).toUpperCase() + role.name.slice(1)}
+              </option>
             ))}
           </select>
           <select
@@ -120,7 +124,7 @@ export default function UsuariosPage() {
             <option value="true">Activos</option>
             <option value="false">Inactivos</option>
           </select>
-          <label className="flex items-center gap-2 text-sm text-ink-2 cursor-pointer select-none">
+          <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-ink-2">
             <input
               type="checkbox"
               className="rounded"
@@ -136,7 +140,7 @@ export default function UsuariosPage() {
                 : 'border-[var(--line-2)] text-ink-2 hover:bg-[var(--line-1)]'
             }`}
           >
-            {showDateFilters ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
+            {showDateFilters ? <FiChevronUp className="h-4 w-4" /> : <FiChevronDown className="h-4 w-4" />}
             Filtros avanzados
             {hasActiveDateFilters && (
               <span className="ml-0.5 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-fg)]">
@@ -148,15 +152,15 @@ export default function UsuariosPage() {
 
         {/* Panel de filtros de fecha */}
         {showDateFilters && (
-          <div className="rounded-xl border border-[var(--line-2)] bg-surface p-4 space-y-4">
+          <div className="space-y-4 rounded-xl border border-[var(--line-2)] bg-surface p-4">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wider text-accent">Filtros de fecha</p>
               {hasActiveDateFilters && (
                 <button
                   onClick={clearDateFilters}
-                  className="inline-flex items-center gap-1 text-xs text-ink-3 hover:text-risk transition-colors"
+                  className="inline-flex items-center gap-1 text-xs text-ink-3 transition-colors hover:text-risk"
                 >
-                  <FiX className="w-3 h-3" />
+                  <FiX className="h-3 w-3" />
                   Limpiar fechas
                 </button>
               )}
@@ -219,15 +223,18 @@ export default function UsuariosPage() {
       </div>
 
       {/* Tabla */}
-      {isLoading && (
-        <div className="py-16 text-center text-sm text-ink-3">Cargando usuarios...</div>
-      )}
+      {isLoading && <div className="py-16 text-center text-sm text-ink-3">Cargando usuarios...</div>}
       {isError && (
         <div className="rounded-lg bg-[var(--risk-bg)] px-4 py-3 text-sm text-risk">
           Error al cargar los usuarios. Verifica la conexión con la API.
         </div>
       )}
-      {data && <UsersTable users={data.data} withTrashed={filters.with_trashed} startIndex={data.from} />}
+      {data && (
+        // Mientras llega la página nueva se muestra la anterior atenuada (keepPreviousData)
+        <div className={`transition-opacity ${isPlaceholderData ? 'opacity-60' : ''}`} aria-busy={isPlaceholderData}>
+          <UsersTable users={data.data} withTrashed={filters.with_trashed} startIndex={data.from} />
+        </div>
+      )}
 
       {/* Paginación */}
       {data && (
@@ -249,11 +256,13 @@ export default function UsuariosPage() {
 
           {data.last_page > 1 && (
             <div className="flex items-center gap-2">
-              <span>Mostrando {data.from}–{data.to}</span>
+              <span>
+                Mostrando {data.from}–{data.to}
+              </span>
               <button
                 onClick={() => setFilters(f => ({ ...f, page: (f.page ?? 1) - 1 }))}
                 disabled={(filters.page ?? 1) <= 1}
-                className="rounded-lg border border-[var(--line-2)] px-3 py-1.5 text-ink-2 hover:bg-[var(--line-1)] disabled:opacity-40 transition-colors"
+                className="rounded-lg border border-[var(--line-2)] px-3 py-1.5 text-ink-2 transition-colors hover:bg-[var(--line-1)] disabled:opacity-40"
               >
                 Anterior
               </button>
@@ -263,7 +272,7 @@ export default function UsuariosPage() {
               <button
                 onClick={() => setFilters(f => ({ ...f, page: (f.page ?? 1) + 1 }))}
                 disabled={(filters.page ?? 1) >= data.last_page}
-                className="rounded-lg border border-[var(--line-2)] px-3 py-1.5 text-ink-2 hover:bg-[var(--line-1)] disabled:opacity-40 transition-colors"
+                className="rounded-lg border border-[var(--line-2)] px-3 py-1.5 text-ink-2 transition-colors hover:bg-[var(--line-1)] disabled:opacity-40"
               >
                 Siguiente
               </button>

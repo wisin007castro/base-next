@@ -1,22 +1,36 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, queryOptions } from '@tanstack/react-query'
 import { permissionsApi, type UpdatePermissionDto } from '@/lib/api/permissions.api'
 import { permissionKeys } from '@/lib/constants/query-keys'
 import type { CreatePermissionDto } from '@/lib/types/rbac.types'
 
+export const permissionQueries = {
+  list: () =>
+    queryOptions({
+      queryKey: permissionKeys.lists(),
+      queryFn: ({ signal }) => permissionsApi.getAll(signal),
+      staleTime: 5 * 60 * 1000,
+    }),
+
+  detail: (id: number) =>
+    queryOptions({
+      queryKey: permissionKeys.detail(id),
+      queryFn: ({ signal }) => permissionsApi.getById(id, signal),
+      enabled: !!id,
+    }),
+}
+
 export function usePermissions() {
-  return useQuery({
-    queryKey: permissionKeys.lists(),
-    queryFn: () => permissionsApi.getAll(),
-    staleTime: 5 * 60 * 1000,
-  })
+  return useQuery(permissionQueries.list())
 }
 
 export function usePermission(id: number) {
-  return useQuery({
-    queryKey: permissionKeys.detail(id),
-    queryFn: () => permissionsApi.getById(id),
-    enabled: !!id,
-  })
+  return useQuery(permissionQueries.detail(id))
+}
+
+/** Precarga el detalle de un permiso (p. ej. al pasar el mouse por "Editar") */
+export function usePrefetchPermission() {
+  const qc = useQueryClient()
+  return (id: number) => qc.prefetchQuery(permissionQueries.detail(id))
 }
 
 export function useCreatePermission() {
@@ -31,9 +45,9 @@ export function useUpdatePermission(id: number) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (dto: UpdatePermissionDto) => permissionsApi.update(id, dto),
-    onSuccess: () => {
+    onSuccess: permission => {
+      qc.setQueryData(permissionKeys.detail(id), permission)
       qc.invalidateQueries({ queryKey: permissionKeys.lists() })
-      qc.invalidateQueries({ queryKey: permissionKeys.detail(id) })
     },
   })
 }
@@ -42,6 +56,9 @@ export function useDeletePermission() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => permissionsApi.remove(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: permissionKeys.lists() }),
+    onSuccess: (_, id) => {
+      qc.removeQueries({ queryKey: permissionKeys.detail(id) })
+      qc.invalidateQueries({ queryKey: permissionKeys.lists() })
+    },
   })
 }

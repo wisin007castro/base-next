@@ -3,25 +3,34 @@ import { use, useState } from 'react'
 import Link from 'next/link'
 import { FiArrowLeft, FiEye, FiEyeOff } from 'react-icons/fi'
 import { useQueryClient } from '@tanstack/react-query'
-import { useUser, useUpdateUser, useUserDirectPermissions, useGiveDirectPermission, useRevokeDirectPermission } from '@/lib/hooks/users.hooks'
+import {
+  useUser,
+  useUpdateUser,
+  useUserDirectPermissions,
+  useGiveDirectPermission,
+  useRevokeDirectPermission,
+} from '@/lib/hooks/users.hooks'
 import { useRoles } from '@/lib/hooks/roles.hooks'
 import { usePermissions } from '@/lib/hooks/permissions.hooks'
 import type { User, UpdateUserDto, DocumentType, Gender } from '@/lib/types/user.types'
 import { ApiError } from '@/lib/api/users.api'
-import { userKeys } from '@/lib/constants/query-keys'
+import { userKeys, meKeys } from '@/lib/constants/query-keys'
 import AvatarUpload from '@/app/components/users/AvatarUpload'
 
-interface Props { params: Promise<{ id: string }> }
+interface Props {
+  params: Promise<{ id: string }>
+}
 
 // ---------------------------------------------------------------------------
 // Shared UI helpers
 // ---------------------------------------------------------------------------
 const inputClass = 'field-input'
 const inputError = 'field-input field-error'
-const ci = (err?: string) => err ? inputError : inputClass
+const ci = (err?: string) => (err ? inputError : inputClass)
 const selectClass = inputClass
 const sectionClass = 'rounded-xl border border-[var(--line-2)] bg-surface p-4 space-y-4'
-const sectionTitleClass = 'text-xs font-semibold uppercase tracking-wider text-accent border-b border-[var(--line-2)] pb-2 mb-4'
+const sectionTitleClass =
+  'text-xs font-semibold uppercase tracking-wider text-accent border-b border-[var(--line-2)] pb-2 mb-4'
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -38,9 +47,7 @@ function FieldError({ msg }: { msg?: string }) {
 }
 
 function Alert({ type, message }: { type: 'success' | 'error'; message: string }) {
-  const classes = type === 'success'
-    ? 'bg-[var(--ok-bg)] text-ok'
-    : 'bg-[var(--risk-bg)] text-risk'
+  const classes = type === 'success' ? 'bg-[var(--ok-bg)] text-ok' : 'bg-[var(--risk-bg)] text-risk'
   return <div className={`rounded-lg px-4 py-3 text-sm ${classes}`}>{message}</div>
 }
 
@@ -51,49 +58,44 @@ function AccountSection({ user, userId }: { user: User; userId: number }) {
   const { data: allRoles, isLoading: rolesLoading } = useRoles()
   const update = useUpdateUser(userId)
 
-  const [username, setUsername]         = useState(user.username)
-  const [email, setEmail]               = useState(user.email)
-  const [isActive, setIsActive]         = useState(user.is_active)
-  const [roleIds, setRoleIds]           = useState<number[]>(user.roles?.map(r => r.id) ?? [])
-  const [password, setPassword]         = useState('')
+  const [username, setUsername] = useState(user.username)
+  const [email, setEmail] = useState(user.email)
+  const [isActive, setIsActive] = useState(user.is_active)
+  const [roleIds, setRoleIds] = useState<number[]>(user.roles?.map(r => r.id) ?? [])
+  const [password, setPassword] = useState('')
   const [passwordConf, setPasswordConf] = useState('')
-  const [showPassword, setShowPassword]         = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [showPasswordConf, setShowPasswordConf] = useState(false)
-  const [errors, setErrors]             = useState<Record<string, string>>({})
-  const [status, setStatus]             = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [status, setStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
 
   function toggleRole(id: number) {
-    setRoleIds(prev => prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id])
+    setRoleIds(prev => (prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]))
   }
 
   /** Limpia el error de un campo individual cuando el usuario empieza a escribir */
   function clr(key: string) {
-    setErrors(prev => { const next = { ...prev }; delete next[key]; return next })
+    setErrors(prev => {
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
   }
 
   function validate(): Record<string, string> {
     const e: Record<string, string> = {}
-    if (!username.trim())
-      e.username = 'El username es obligatorio'
-    else if (username.length < 3)
-      e.username = 'Mínimo 3 caracteres'
-    else if (username.length > 50)
-      e.username = 'Máximo 50 caracteres'
-    else if (!/^[a-zA-Z0-9_]+$/.test(username))
-      e.username = 'Solo letras, números y guiones bajos'
+    if (!username.trim()) e.username = 'El username es obligatorio'
+    else if (username.length < 3) e.username = 'Mínimo 3 caracteres'
+    else if (username.length > 50) e.username = 'Máximo 50 caracteres'
+    else if (!/^[a-zA-Z0-9_]+$/.test(username)) e.username = 'Solo letras, números y guiones bajos'
 
-    if (!email.trim())
-      e.email = 'El correo es obligatorio'
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      e.email = 'Correo electrónico inválido'
+    if (!email.trim()) e.email = 'El correo es obligatorio'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = 'Correo electrónico inválido'
 
     if (password) {
-      if (password.length < 8)
-        e.password = 'La contraseña debe tener al menos 8 caracteres'
-      else if (password.length > 128)
-        e.password = 'La contraseña no puede superar 128 caracteres'
-      if (!e.password && password !== passwordConf)
-        e.password_confirmation = 'Las contraseñas no coinciden'
+      if (password.length < 8) e.password = 'La contraseña debe tener al menos 8 caracteres'
+      else if (password.length > 128) e.password = 'La contraseña no puede superar 128 caracteres'
+      if (!e.password && password !== passwordConf) e.password_confirmation = 'Las contraseñas no coinciden'
     }
 
     return e
@@ -109,7 +111,10 @@ function AccountSection({ user, userId }: { user: User; userId: number }) {
     setErrors({})
     setStatus(null)
     const dto: UpdateUserDto = { username, email, is_active: isActive, role_ids: roleIds }
-    if (password) { dto.password = password; dto.password_confirmation = passwordConf }
+    if (password) {
+      dto.password = password
+      dto.password_confirmation = passwordConf
+    }
     try {
       await update.mutateAsync(dto)
       setStatus({ type: 'success', msg: 'Datos de cuenta actualizados' })
@@ -137,7 +142,10 @@ function AccountSection({ user, userId }: { user: User; userId: number }) {
             <input
               className={ci(errors.username)}
               value={username}
-              onChange={e => { setUsername(e.target.value); clr('username') }}
+              onChange={e => {
+                setUsername(e.target.value)
+                clr('username')
+              }}
             />
             <FieldError msg={errors.username} />
           </Field>
@@ -147,7 +155,10 @@ function AccountSection({ user, userId }: { user: User; userId: number }) {
               className={ci(errors.email)}
               type="email"
               value={email}
-              onChange={e => { setEmail(e.target.value); clr('email') }}
+              onChange={e => {
+                setEmail(e.target.value)
+                clr('email')
+              }}
             />
             <FieldError msg={errors.email} />
           </Field>
@@ -169,16 +180,20 @@ function AccountSection({ user, userId }: { user: User; userId: number }) {
                 className={ci(errors.password) + ' pr-10'}
                 type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={e => { setPassword(e.target.value); clr('password'); clr('password_confirmation') }}
+                onChange={e => {
+                  setPassword(e.target.value)
+                  clr('password')
+                  clr('password_confirmation')
+                }}
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 tabIndex={-1}
                 onClick={() => setShowPassword(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink-2 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 transition-colors hover:text-ink-2"
               >
-                {showPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+                {showPassword ? <FiEyeOff className="h-4 w-4" /> : <FiEye className="h-4 w-4" />}
               </button>
             </div>
             <FieldError msg={errors.password} />
@@ -190,7 +205,10 @@ function AccountSection({ user, userId }: { user: User; userId: number }) {
                 className={ci(errors.password_confirmation) + ' pr-10'}
                 type={showPasswordConf ? 'text' : 'password'}
                 value={passwordConf}
-                onChange={e => { setPasswordConf(e.target.value); clr('password_confirmation') }}
+                onChange={e => {
+                  setPasswordConf(e.target.value)
+                  clr('password_confirmation')
+                }}
                 placeholder="••••••••"
                 required={!!password}
               />
@@ -198,9 +216,9 @@ function AccountSection({ user, userId }: { user: User; userId: number }) {
                 type="button"
                 tabIndex={-1}
                 onClick={() => setShowPasswordConf(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink-2 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 transition-colors hover:text-ink-2"
               >
-                {showPasswordConf ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+                {showPasswordConf ? <FiEyeOff className="h-4 w-4" /> : <FiEye className="h-4 w-4" />}
               </button>
             </div>
             <FieldError msg={errors.password_confirmation} />
@@ -215,14 +233,14 @@ function AccountSection({ user, userId }: { user: User; userId: number }) {
           ) : (
             <div className="flex flex-wrap gap-4">
               {allRoles?.map(role => (
-                <label key={role.id} className="flex items-center gap-2 cursor-pointer select-none">
+                <label key={role.id} className="flex cursor-pointer select-none items-center gap-2">
                   <input
                     type="checkbox"
-                    className="rounded border-[var(--line-3)] text-accent focus:ring-[var(--accent)]/30"
+                    className="focus:ring-[var(--accent)]/30 rounded border-[var(--line-3)] text-accent"
                     checked={roleIds.includes(role.id)}
                     onChange={() => toggleRole(role.id)}
                   />
-                  <span className="text-sm text-ink-2 capitalize">{role.name}</span>
+                  <span className="text-sm capitalize text-ink-2">{role.name}</span>
                 </label>
               ))}
             </div>
@@ -233,7 +251,7 @@ function AccountSection({ user, userId }: { user: User; userId: number }) {
           <button
             type="submit"
             disabled={update.isPending}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-[var(--accent-fg)] hover:bg-[var(--accent-hover)] disabled:opacity-60 transition-colors"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-[var(--accent-fg)] transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-60"
           >
             {update.isPending ? 'Guardando...' : 'Actualizar cuenta'}
           </button>
@@ -250,37 +268,37 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
   const update = useUpdateUser(userId)
   const p = user.profile
 
-  const [nombre, setNombre]                   = useState(p?.nombre ?? '')
-  const [primerApellido, setPrimerApellido]   = useState(p?.primer_apellido ?? '')
+  const [nombre, setNombre] = useState(p?.nombre ?? '')
+  const [primerApellido, setPrimerApellido] = useState(p?.primer_apellido ?? '')
   const [segundoApellido, setSegundoApellido] = useState(p?.segundo_apellido ?? '')
-  const [tipoDocumento, setTipoDocumento]     = useState<DocumentType>(p?.tipo_documento ?? 'dni')
+  const [tipoDocumento, setTipoDocumento] = useState<DocumentType>(p?.tipo_documento ?? 'dni')
   const [numeroDocumento, setNumeroDocumento] = useState(p?.numero_documento ?? '')
   const [fechaNacimiento, setFechaNacimiento] = useState(p?.fecha_nacimiento ?? '')
-  const [genero, setGenero]                   = useState<Gender>(p?.genero ?? 'prefiero_no_decir')
-  const [telefono, setTelefono]               = useState(p?.telefono ?? '')
-  const [telefonoAlt, setTelefonoAlt]         = useState(p?.telefono_alternativo ?? '')
-  const [pais, setPais]                       = useState(p?.pais ?? '')
-  const [departamento, setDepartamento]       = useState(p?.departamento ?? '')
-  const [ciudad, setCiudad]                   = useState(p?.ciudad ?? '')
-  const [direccion, setDireccion]             = useState(p?.direccion ?? '')
-  const [codigoPostal, setCodigoPostal]       = useState(p?.codigo_postal ?? '')
-  const [errors, setErrors]                   = useState<Record<string, string>>({})
-  const [status, setStatus]                   = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+  const [genero, setGenero] = useState<Gender>(p?.genero ?? 'prefiero_no_decir')
+  const [telefono, setTelefono] = useState(p?.telefono ?? '')
+  const [telefonoAlt, setTelefonoAlt] = useState(p?.telefono_alternativo ?? '')
+  const [pais, setPais] = useState(p?.pais ?? '')
+  const [departamento, setDepartamento] = useState(p?.departamento ?? '')
+  const [ciudad, setCiudad] = useState(p?.ciudad ?? '')
+  const [direccion, setDireccion] = useState(p?.direccion ?? '')
+  const [codigoPostal, setCodigoPostal] = useState(p?.codigo_postal ?? '')
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [status, setStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
 
   function clr(key: string) {
-    setErrors(prev => { const next = { ...prev }; delete next[key]; return next })
+    setErrors(prev => {
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
   }
 
   function validate(): Record<string, string> {
     const e: Record<string, string> = {}
-    if (!nombre.trim())
-      e.nombre = 'El nombre es obligatorio'
-    if (!primerApellido.trim())
-      e.primer_apellido = 'El primer apellido es obligatorio'
-    if (!numeroDocumento.trim())
-      e.numero_documento = 'El número de documento es obligatorio'
-    if (!fechaNacimiento)
-      e.fecha_nacimiento = 'La fecha de nacimiento es obligatoria'
+    if (!nombre.trim()) e.nombre = 'El nombre es obligatorio'
+    if (!primerApellido.trim()) e.primer_apellido = 'El primer apellido es obligatorio'
+    if (!numeroDocumento.trim()) e.numero_documento = 'El número de documento es obligatorio'
+    if (!fechaNacimiento) e.fecha_nacimiento = 'La fecha de nacimiento es obligatoria'
     return e
   }
 
@@ -296,12 +314,20 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
     try {
       await update.mutateAsync({
         profile: {
-          nombre, primer_apellido: primerApellido, segundo_apellido: segundoApellido || null,
-          tipo_documento: tipoDocumento, numero_documento: numeroDocumento,
-          fecha_nacimiento: fechaNacimiento, genero,
-          telefono: telefono || null, telefono_alternativo: telefonoAlt || null,
-          pais: pais || null, departamento: departamento || null, ciudad: ciudad || null,
-          direccion: direccion || null, codigo_postal: codigoPostal || null,
+          nombre,
+          primer_apellido: primerApellido,
+          segundo_apellido: segundoApellido || null,
+          tipo_documento: tipoDocumento,
+          numero_documento: numeroDocumento,
+          fecha_nacimiento: fechaNacimiento,
+          genero,
+          telefono: telefono || null,
+          telefono_alternativo: telefonoAlt || null,
+          pais: pais || null,
+          departamento: departamento || null,
+          ciudad: ciudad || null,
+          direccion: direccion || null,
+          codigo_postal: codigoPostal || null,
         },
       })
       setStatus({ type: 'success', msg: 'Datos personales actualizados' })
@@ -328,7 +354,10 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
             <input
               className={ci(errors.nombre)}
               value={nombre}
-              onChange={e => { setNombre(e.target.value); clr('nombre') }}
+              onChange={e => {
+                setNombre(e.target.value)
+                clr('nombre')
+              }}
             />
             <FieldError msg={errors.nombre} />
           </Field>
@@ -337,17 +366,16 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
             <input
               className={ci(errors.primer_apellido)}
               value={primerApellido}
-              onChange={e => { setPrimerApellido(e.target.value); clr('primer_apellido') }}
+              onChange={e => {
+                setPrimerApellido(e.target.value)
+                clr('primer_apellido')
+              }}
             />
             <FieldError msg={errors.primer_apellido} />
           </Field>
 
           <Field label="Segundo apellido">
-            <input
-              className={inputClass}
-              value={segundoApellido}
-              onChange={e => setSegundoApellido(e.target.value)}
-            />
+            <input className={inputClass} value={segundoApellido} onChange={e => setSegundoApellido(e.target.value)} />
           </Field>
 
           <Field label="Tipo de documento *">
@@ -367,7 +395,10 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
             <input
               className={ci(errors.numero_documento)}
               value={numeroDocumento}
-              onChange={e => { setNumeroDocumento(e.target.value); clr('numero_documento') }}
+              onChange={e => {
+                setNumeroDocumento(e.target.value)
+                clr('numero_documento')
+              }}
             />
             <FieldError msg={errors.numero_documento} />
           </Field>
@@ -377,17 +408,16 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
               className={ci(errors.fecha_nacimiento)}
               type="date"
               value={fechaNacimiento}
-              onChange={e => { setFechaNacimiento(e.target.value); clr('fecha_nacimiento') }}
+              onChange={e => {
+                setFechaNacimiento(e.target.value)
+                clr('fecha_nacimiento')
+              }}
             />
             <FieldError msg={errors.fecha_nacimiento} />
           </Field>
 
           <Field label="Género">
-            <select
-              className={selectClass}
-              value={genero}
-              onChange={e => setGenero(e.target.value as Gender)}
-            >
+            <select className={selectClass} value={genero} onChange={e => setGenero(e.target.value as Gender)}>
               <option value="masculino">Masculino</option>
               <option value="femenino">Femenino</option>
               <option value="otro">Otro</option>
@@ -410,11 +440,7 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
             />
           </Field>
           <Field label="Teléfono alternativo">
-            <input
-              className={inputClass}
-              value={telefonoAlt}
-              onChange={e => setTelefonoAlt(e.target.value)}
-            />
+            <input className={inputClass} value={telefonoAlt} onChange={e => setTelefonoAlt(e.target.value)} />
           </Field>
         </div>
       </div>
@@ -447,7 +473,7 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
         <button
           type="submit"
           disabled={update.isPending}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-[var(--accent-fg)] hover:bg-[var(--accent-hover)] disabled:opacity-60 transition-colors"
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-[var(--accent-fg)] transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-60"
         >
           {update.isPending ? 'Guardando...' : 'Actualizar datos personales'}
         </button>
@@ -461,30 +487,26 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
 // ---------------------------------------------------------------------------
 function DirectPermissionsSection({ userId }: { userId: number }) {
   const { data: directPerms, isLoading: loadingDirect } = useUserDirectPermissions(userId)
-  const { data: allPerms, isLoading: loadingAll }       = usePermissions()
-  const give   = useGiveDirectPermission(userId)
+  const { data: allPerms, isLoading: loadingAll } = usePermissions()
+  const give = useGiveDirectPermission(userId)
   const revoke = useRevokeDirectPermission(userId)
 
   const directIds = new Set(directPerms?.map(p => p.id) ?? [])
 
-  async function togglePermission(permId: number, hasIt: boolean) {
-    if (hasIt) {
-      await revoke.mutateAsync(permId)
-    } else {
-      await give.mutateAsync(permId)
-    }
+  // Actualización optimista: el checkbox cambia al instante y se revierte si falla
+  function togglePermission(permId: number, hasIt: boolean) {
+    if (hasIt) revoke.mutate(permId)
+    else give.mutate(permId)
   }
-
-  const isBusy = give.isPending || revoke.isPending
 
   return (
     <div className={sectionClass}>
       <p className={sectionTitleClass}>Permisos directos</p>
-      <p className="text-xs text-ink-3 -mt-2 mb-2">
+      <p className="-mt-2 mb-2 text-xs text-ink-3">
         Permisos asignados directamente a este usuario, independientes de sus roles.
       </p>
 
-      {(loadingDirect || loadingAll) ? (
+      {loadingDirect || loadingAll ? (
         <p className="text-xs text-ink-3">Cargando permisos...</p>
       ) : !allPerms?.length ? (
         <p className="text-xs text-ink-3">No hay permisos definidos en el sistema.</p>
@@ -493,21 +515,15 @@ function DirectPermissionsSection({ userId }: { userId: number }) {
           {allPerms.map(perm => {
             const hasIt = directIds.has(perm.id)
             return (
-              <label
-                key={perm.id}
-                className={`flex items-center gap-2 cursor-pointer select-none ${isBusy ? 'opacity-60 pointer-events-none' : ''}`}
-              >
+              <label key={perm.id} className="flex cursor-pointer select-none items-center gap-2">
                 <input
                   type="checkbox"
-                  className="rounded border-[var(--line-3)] text-accent focus:ring-[var(--accent)]/30"
+                  className="focus:ring-[var(--accent)]/30 rounded border-[var(--line-3)] text-accent"
                   checked={hasIt}
                   onChange={() => togglePermission(perm.id, hasIt)}
-                  disabled={isBusy}
                 />
                 <span className="text-sm text-ink-2">{perm.name}</span>
-                {perm.description && (
-                  <span className="text-xs text-ink-4">— {perm.description}</span>
-                )}
+                {perm.description && <span className="text-xs text-ink-4">— {perm.description}</span>}
               </label>
             )
           })}
@@ -515,9 +531,7 @@ function DirectPermissionsSection({ userId }: { userId: number }) {
       )}
 
       {(give.isError || revoke.isError) && (
-        <p className="mt-2 text-xs text-risk">
-          Error al modificar el permiso. Inténtalo de nuevo.
-        </p>
+        <p className="mt-2 text-xs text-risk">Error al modificar el permiso. Inténtalo de nuevo.</p>
       )}
     </div>
   )
@@ -539,9 +553,7 @@ export default function EditarUsuarioPage({ params }: Props) {
 
   if (isError || !user) {
     return (
-      <div className="rounded-lg bg-[var(--risk-bg)] px-4 py-3 text-sm text-risk">
-        No se pudo cargar el usuario.
-      </div>
+      <div className="rounded-lg bg-[var(--risk-bg)] px-4 py-3 text-sm text-risk">No se pudo cargar el usuario.</div>
     )
   }
 
@@ -556,9 +568,9 @@ export default function EditarUsuarioPage({ params }: Props) {
         </div>
         <Link
           href="/usuarios"
-          className="flex items-center gap-1.5 rounded-lg border border-[var(--line-2)] px-3 py-1.5 text-sm text-ink-2 hover:bg-[var(--line-1)] transition-colors shrink-0"
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--line-2)] px-3 py-1.5 text-sm text-ink-2 transition-colors hover:bg-[var(--line-1)]"
         >
-          <FiArrowLeft className="w-4 h-4" />
+          <FiArrowLeft className="h-4 w-4" />
           Volver al listado
         </Link>
       </div>
@@ -570,6 +582,8 @@ export default function EditarUsuarioPage({ params }: Props) {
           onUploaded={() => {
             qc.invalidateQueries({ queryKey: userKeys.detail(userId) })
             qc.invalidateQueries({ queryKey: userKeys.lists() })
+            // Si el admin se edita a sí mismo, el avatar del Header también cambia
+            qc.invalidateQueries({ queryKey: meKeys.detail() })
           }}
         />
       </div>

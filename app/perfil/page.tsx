@@ -1,14 +1,17 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import type { User, DocumentType, Gender } from '@/lib/types/user.types'
+import type { ActiveSession } from '@/lib/api/me.api'
+import { useMe, useUpdateMe, useSetMe, useInvalidateMe, useMySessions, useRevokeSession } from '@/lib/hooks/me.hooks'
 import AvatarUpload from '@/app/components/users/AvatarUpload'
 
 const inputClass = 'field-input'
 
 const selectClass = inputClass
 const sectionClass = 'rounded-xl border border-[var(--line-2)] bg-surface p-4 space-y-4'
-const sectionTitleClass = 'text-xs font-semibold uppercase tracking-wider text-accent border-b border-[var(--line-2)] pb-2 mb-4'
+const sectionTitleClass =
+  'text-xs font-semibold uppercase tracking-wider text-accent border-b border-[var(--line-2)] pb-2 mb-4'
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -20,39 +23,25 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function Alert({ type, message }: { type: 'success' | 'error'; message: string }) {
-  const classes = type === 'success'
-    ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
-    : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-  return (
-    <div className={`rounded-lg px-4 py-3 text-sm ${classes}`}>{message}</div>
-  )
-}
-
-async function patchMe(body: Record<string, unknown>) {
-  const res = await fetch('/api/me', {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    throw data
-  }
-  return res.json() as Promise<User>
+  const classes =
+    type === 'success'
+      ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+      : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+  return <div className={`rounded-lg px-4 py-3 text-sm ${classes}`}>{message}</div>
 }
 
 // ---------------------------------------------------------------------------
 // Sección: Datos de cuenta
 // ---------------------------------------------------------------------------
 function AccountSection({ user }: { user: User }) {
-  const [username, setUsername]             = useState(user.username)
-  const [email, setEmail]                   = useState(user.email)
-  const [password, setPassword]             = useState('')
-  const [passwordConf, setPasswordConf]     = useState('')
+  const [username, setUsername] = useState(user.username)
+  const [email, setEmail] = useState(user.email)
+  const [password, setPassword] = useState('')
+  const [passwordConf, setPasswordConf] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
-  const [saving, setSaving]                 = useState(false)
-  const [status, setStatus]                 = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
-  const [fieldErrors, setFieldErrors]       = useState<Record<string, string>>({})
+  const updateMe = useUpdateMe()
+  const [status, setStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -60,7 +49,6 @@ function AccountSection({ user }: { user: User }) {
       setStatus({ type: 'error', msg: 'Las contraseñas no coinciden' })
       return
     }
-    setSaving(true)
     setStatus(null)
     setFieldErrors({})
     const body: Record<string, unknown> = { username, email }
@@ -69,7 +57,7 @@ function AccountSection({ user }: { user: User }) {
       body.current_password = currentPassword
     }
     try {
-      await patchMe(body)
+      await updateMe.mutateAsync(body)
       setStatus({ type: 'success', msg: 'Datos de cuenta actualizados' })
       setPassword('')
       setPasswordConf('')
@@ -87,7 +75,8 @@ function AccountSection({ user }: { user: User }) {
           }
         }
         if (errData.field === 'current_password' || errors.current_password) {
-          errors.current_password = errors.current_password ?? (errData.message as string) ?? 'Contraseña actual incorrecta'
+          errors.current_password =
+            errors.current_password ?? (errData.message as string) ?? 'Contraseña actual incorrecta'
         }
         if (Object.keys(errors).length > 0) {
           setFieldErrors(errors)
@@ -98,8 +87,6 @@ function AccountSection({ user }: { user: User }) {
       } else {
         setStatus({ type: 'error', msg: 'Error al guardar' })
       }
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -113,7 +100,13 @@ function AccountSection({ user }: { user: User }) {
             <input className={inputClass} value={username} onChange={e => setUsername(e.target.value)} required />
           </Field>
           <Field label="Correo electrónico *">
-            <input className={inputClass} type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+            <input
+              className={inputClass}
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+            />
           </Field>
           <Field label="Nueva contraseña">
             <input
@@ -140,16 +133,18 @@ function AccountSection({ user }: { user: User }) {
                 <input
                   className={
                     inputClass +
-                    (fieldErrors.current_password
-                      ? ' !border-red-400 focus:!border-red-400 focus:!ring-red-200'
-                      : '')
+                    (fieldErrors.current_password ? ' !border-red-400 focus:!border-red-400 focus:!ring-red-200' : '')
                   }
                   type="password"
                   value={currentPassword}
                   onChange={e => {
                     setCurrentPassword(e.target.value)
                     if (fieldErrors.current_password) {
-                      setFieldErrors(prev => { const next = { ...prev }; delete next.current_password; return next })
+                      setFieldErrors(prev => {
+                        const next = { ...prev }
+                        delete next.current_password
+                        return next
+                      })
                     }
                   }}
                   placeholder="Introduce tu contraseña actual para confirmar"
@@ -165,10 +160,10 @@ function AccountSection({ user }: { user: User }) {
         <div className="flex justify-end pt-1">
           <button
             type="submit"
-            disabled={saving}
-            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60 transition-colors"
+            disabled={updateMe.isPending}
+            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-60"
           >
-            {saving ? 'Guardando...' : 'Actualizar cuenta'}
+            {updateMe.isPending ? 'Guardando...' : 'Actualizar cuenta'}
           </button>
         </div>
       </div>
@@ -182,45 +177,50 @@ function AccountSection({ user }: { user: User }) {
 function PersonalSection({ user }: { user: User }) {
   const p = user.profile
 
-  const [nombre, setNombre]                   = useState(p?.nombre ?? '')
-  const [primerApellido, setPrimerApellido]   = useState(p?.primer_apellido ?? '')
+  const [nombre, setNombre] = useState(p?.nombre ?? '')
+  const [primerApellido, setPrimerApellido] = useState(p?.primer_apellido ?? '')
   const [segundoApellido, setSegundoApellido] = useState(p?.segundo_apellido ?? '')
-  const [tipoDocumento, setTipoDocumento]     = useState<DocumentType>(p?.tipo_documento ?? 'dni')
+  const [tipoDocumento, setTipoDocumento] = useState<DocumentType>(p?.tipo_documento ?? 'dni')
   const [numeroDocumento, setNumeroDocumento] = useState(p?.numero_documento ?? '')
   const [fechaNacimiento, setFechaNacimiento] = useState(p?.fecha_nacimiento ?? '')
-  const [genero, setGenero]                   = useState<Gender>(p?.genero ?? 'prefiero_no_decir')
-  const [telefono, setTelefono]               = useState(p?.telefono ?? '')
-  const [telefonoAlt, setTelefonoAlt]         = useState(p?.telefono_alternativo ?? '')
-  const [pais, setPais]                       = useState(p?.pais ?? '')
-  const [departamento, setDepartamento]       = useState(p?.departamento ?? '')
-  const [ciudad, setCiudad]                   = useState(p?.ciudad ?? '')
-  const [direccion, setDireccion]             = useState(p?.direccion ?? '')
-  const [codigoPostal, setCodigoPostal]       = useState(p?.codigo_postal ?? '')
+  const [genero, setGenero] = useState<Gender>(p?.genero ?? 'prefiero_no_decir')
+  const [telefono, setTelefono] = useState(p?.telefono ?? '')
+  const [telefonoAlt, setTelefonoAlt] = useState(p?.telefono_alternativo ?? '')
+  const [pais, setPais] = useState(p?.pais ?? '')
+  const [departamento, setDepartamento] = useState(p?.departamento ?? '')
+  const [ciudad, setCiudad] = useState(p?.ciudad ?? '')
+  const [direccion, setDireccion] = useState(p?.direccion ?? '')
+  const [codigoPostal, setCodigoPostal] = useState(p?.codigo_postal ?? '')
 
-  const [saving, setSaving] = useState(false)
+  const updateMe = useUpdateMe()
   const [status, setStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSaving(true)
     setStatus(null)
     try {
-      await patchMe({
+      await updateMe.mutateAsync({
         profile: {
-          nombre, primer_apellido: primerApellido, segundo_apellido: segundoApellido || null,
-          tipo_documento: tipoDocumento, numero_documento: numeroDocumento,
-          fecha_nacimiento: fechaNacimiento, genero,
-          telefono: telefono || null, telefono_alternativo: telefonoAlt || null,
-          pais: pais || null, departamento: departamento || null, ciudad: ciudad || null,
-          direccion: direccion || null, codigo_postal: codigoPostal || null,
+          nombre,
+          primer_apellido: primerApellido,
+          segundo_apellido: segundoApellido || null,
+          tipo_documento: tipoDocumento,
+          numero_documento: numeroDocumento,
+          fecha_nacimiento: fechaNacimiento,
+          genero,
+          telefono: telefono || null,
+          telefono_alternativo: telefonoAlt || null,
+          pais: pais || null,
+          departamento: departamento || null,
+          ciudad: ciudad || null,
+          direccion: direccion || null,
+          codigo_postal: codigoPostal || null,
         },
       })
       setStatus({ type: 'success', msg: 'Datos personales actualizados' })
     } catch (err: unknown) {
       const errData = err as Record<string, unknown>
       setStatus({ type: 'error', msg: (errData?.message as string) ?? 'Error al guardar' })
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -235,13 +235,22 @@ function PersonalSection({ user }: { user: User }) {
             <input className={inputClass} value={nombre} onChange={e => setNombre(e.target.value)} required />
           </Field>
           <Field label="Primer apellido *">
-            <input className={inputClass} value={primerApellido} onChange={e => setPrimerApellido(e.target.value)} required />
+            <input
+              className={inputClass}
+              value={primerApellido}
+              onChange={e => setPrimerApellido(e.target.value)}
+              required
+            />
           </Field>
           <Field label="Segundo apellido">
             <input className={inputClass} value={segundoApellido} onChange={e => setSegundoApellido(e.target.value)} />
           </Field>
           <Field label="Tipo de documento *">
-            <select className={selectClass} value={tipoDocumento} onChange={e => setTipoDocumento(e.target.value as DocumentType)}>
+            <select
+              className={selectClass}
+              value={tipoDocumento}
+              onChange={e => setTipoDocumento(e.target.value as DocumentType)}
+            >
               <option value="dni">DNI</option>
               <option value="cedula">Cédula</option>
               <option value="pasaporte">Pasaporte</option>
@@ -249,10 +258,21 @@ function PersonalSection({ user }: { user: User }) {
             </select>
           </Field>
           <Field label="Número de documento *">
-            <input className={inputClass} value={numeroDocumento} onChange={e => setNumeroDocumento(e.target.value)} required />
+            <input
+              className={inputClass}
+              value={numeroDocumento}
+              onChange={e => setNumeroDocumento(e.target.value)}
+              required
+            />
           </Field>
           <Field label="Fecha de nacimiento *">
-            <input className={inputClass} type="date" value={fechaNacimiento} onChange={e => setFechaNacimiento(e.target.value)} required />
+            <input
+              className={inputClass}
+              type="date"
+              value={fechaNacimiento}
+              onChange={e => setFechaNacimiento(e.target.value)}
+              required
+            />
           </Field>
           <Field label="Género">
             <select className={selectClass} value={genero} onChange={e => setGenero(e.target.value as Gender)}>
@@ -270,7 +290,12 @@ function PersonalSection({ user }: { user: User }) {
         <p className={sectionTitleClass}>Contacto</p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Teléfono">
-            <input className={inputClass} value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="+34 600 000 000" />
+            <input
+              className={inputClass}
+              value={telefono}
+              onChange={e => setTelefono(e.target.value)}
+              placeholder="+34 600 000 000"
+            />
           </Field>
           <Field label="Teléfono alternativo">
             <input className={inputClass} value={telefonoAlt} onChange={e => setTelefonoAlt(e.target.value)} />
@@ -305,10 +330,10 @@ function PersonalSection({ user }: { user: User }) {
       <div className="flex justify-end">
         <button
           type="submit"
-          disabled={saving}
-          className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60 transition-colors"
+          disabled={updateMe.isPending}
+          className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-60"
         >
-          {saving ? 'Guardando...' : 'Actualizar datos personales'}
+          {updateMe.isPending ? 'Guardando...' : 'Actualizar datos personales'}
         </button>
       </div>
     </form>
@@ -318,64 +343,36 @@ function PersonalSection({ user }: { user: User }) {
 // ---------------------------------------------------------------------------
 // Sección B: Sesiones activas
 // ---------------------------------------------------------------------------
-interface ActiveSession {
-  id: string
-  userAgent: string | null
-  device: string | null
-  createdAt: string
-  lastAccessAt: string | null
-  expiresAt: string | null
-  isCurrent?: boolean
-}
-
 function SessionsSection() {
   const { data: sessionData } = useSession()
-  const [sessions, setSessions]   = useState<ActiveSession[]>([])
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState<string | null>(null)
-  const [revokingId, setRevokingId] = useState<string | null>(null)
+  const { data: sessions = [], isPending: loading, error: loadError } = useMySessions()
+  const revoke = useRevokeSession()
 
   // The JWT jti (session id) is available on the session token
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentJti = (sessionData as any)?.jti as string | undefined
 
-  useEffect(() => {
-    fetch('/api/me/sessions', { headers: { Accept: 'application/json' } })
-      .then(r => {
-        if (!r.ok) throw new Error('No se pudieron cargar las sesiones')
-        return r.json()
-      })
-      .then((data: ActiveSession[]) => setSessions(data))
-      .catch(err => setError(err instanceof Error ? err.message : 'Error al cargar sesiones'))
-      .finally(() => setLoading(false))
-  }, [])
+  const error = loadError ? 'No se pudieron cargar las sesiones' : (revoke.error?.message ?? null)
+  const revokingId = revoke.isPending ? revoke.variables : null
 
-  async function revokeSession(id: string) {
-    setRevokingId(id)
-    try {
-      const res = await fetch(`/api/me/sessions/${id}`, { method: 'DELETE' })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.message ?? 'Error al cerrar sesión')
-      }
-      // If revoking current session, sign out
-      const isCurrentSession = sessions.find(s => s.id === id)?.isCurrent || id === currentJti
-      setSessions(prev => prev.filter(s => s.id !== id))
-      if (isCurrentSession) {
-        await signOut({ callbackUrl: '/login' })
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cerrar sesión')
-    } finally {
-      setRevokingId(null)
-    }
+  function revokeSession(id: string) {
+    // Calcularlo antes: onSuccess quita la sesión de la caché
+    const isCurrentSession = sessions.find(s => s.id === id)?.isCurrent || id === currentJti
+    revoke.mutate(id, {
+      onSuccess: () => {
+        if (isCurrentSession) signOut({ callbackUrl: '/login' })
+      },
+    })
   }
 
   function formatDate(iso: string | null | undefined) {
     if (!iso) return '—'
     return new Date(iso).toLocaleString('es-ES', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     })
   }
 
@@ -402,9 +399,7 @@ function SessionsSection() {
     <div className={sectionClass}>
       <p className={sectionTitleClass}>Sesiones activas</p>
 
-      {loading && (
-        <p className="text-sm text-gray-500 dark:text-gray-400">Cargando sesiones...</p>
-      )}
+      {loading && <p className="text-sm text-gray-500 dark:text-gray-400">Cargando sesiones...</p>}
       {error && <Alert type="error" message={error} />}
 
       {!loading && !error && sessions.length === 0 && (
@@ -422,29 +417,25 @@ function SessionsSection() {
                     <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                       {getDeviceLabel(session)}
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">
+                    <span className="max-w-xs truncate text-xs text-gray-500 dark:text-gray-400">
                       {getBrowserLabel(session)}
                     </span>
                     {isCurrent && (
-                      <span className="rounded-full bg-sky-100 dark:bg-sky-900/40 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:text-sky-300 uppercase tracking-wide">
+                      <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
                         Sesión actual
                       </span>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500 dark:text-gray-400">
                     <span>Creada: {formatDate(session.createdAt)}</span>
-                    {session.lastAccessAt && (
-                      <span>Último acceso: {formatDate(session.lastAccessAt)}</span>
-                    )}
-                    {session.expiresAt && (
-                      <span>Expira: {formatDate(session.expiresAt)}</span>
-                    )}
+                    {session.lastAccessAt && <span>Último acceso: {formatDate(session.lastAccessAt)}</span>}
+                    {session.expiresAt && <span>Expira: {formatDate(session.expiresAt)}</span>}
                   </div>
                 </div>
                 <button
                   onClick={() => revokeSession(session.id)}
                   disabled={revokingId === session.id}
-                  className="shrink-0 rounded-lg border border-red-200 dark:border-red-800 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition-colors"
+                  className="shrink-0 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
                 >
                   {revokingId === session.id ? 'Cerrando...' : 'Cerrar sesión'}
                 </button>
@@ -466,15 +457,16 @@ interface TwoFactorSetupData {
 }
 
 function TwoFactorSection({ user }: { user: User & { twoFactorEnabled?: boolean } }) {
+  const invalidateMe = useInvalidateMe()
   const [twoFactorEnabled, setTwoFactorEnabled] = useState<boolean>(
-    (user as User & { twoFactorEnabled?: boolean }).twoFactorEnabled ?? false
+    (user as User & { twoFactorEnabled?: boolean }).twoFactorEnabled ?? false,
   )
-  const [setupData, setSetupData]     = useState<TwoFactorSetupData | null>(null)
-  const [otpCode, setOtpCode]         = useState('')
+  const [setupData, setSetupData] = useState<TwoFactorSetupData | null>(null)
+  const [otpCode, setOtpCode] = useState('')
   const [disablePassword, setDisablePassword] = useState('')
   const [showDisableForm, setShowDisableForm] = useState(false)
-  const [loading, setLoading]         = useState(false)
-  const [status, setStatus]           = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [status, setStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
 
   async function handleSetup() {
     setLoading(true)
@@ -513,6 +505,7 @@ function TwoFactorSection({ user }: { user: User & { twoFactorEnabled?: boolean 
         throw new Error(data.message ?? 'Código incorrecto')
       }
       setTwoFactorEnabled(true)
+      invalidateMe()
       setSetupData(null)
       setOtpCode('')
       setStatus({ type: 'success', msg: '2FA activado correctamente' })
@@ -542,6 +535,7 @@ function TwoFactorSection({ user }: { user: User & { twoFactorEnabled?: boolean 
         throw new Error(data.message ?? 'Contraseña incorrecta')
       }
       setTwoFactorEnabled(false)
+      invalidateMe()
       setShowDisableForm(false)
       setDisablePassword('')
       setStatus({ type: 'success', msg: '2FA desactivado' })
@@ -561,7 +555,7 @@ function TwoFactorSection({ user }: { user: User & { twoFactorEnabled?: boolean 
       {twoFactorEnabled ? (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 dark:bg-green-900/30 px-3 py-1 text-sm font-medium text-green-700 dark:text-green-400">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
               <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
               2FA activo
             </span>
@@ -572,13 +566,16 @@ function TwoFactorSection({ user }: { user: User & { twoFactorEnabled?: boolean 
 
           {!showDisableForm ? (
             <button
-              onClick={() => { setShowDisableForm(true); setStatus(null) }}
-              className="rounded-lg border border-red-200 dark:border-red-800 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              onClick={() => {
+                setShowDisableForm(true)
+                setStatus(null)
+              }}
+              className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
             >
               Desactivar 2FA
             </button>
           ) : (
-            <form onSubmit={handleDisable} className="space-y-3 max-w-sm">
+            <form onSubmit={handleDisable} className="max-w-sm space-y-3">
               <Field label="Contraseña actual *">
                 <input
                   className={inputClass}
@@ -594,14 +591,18 @@ function TwoFactorSection({ user }: { user: User & { twoFactorEnabled?: boolean 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60 transition-colors"
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60"
                 >
                   {loading ? 'Desactivando...' : 'Confirmar desactivación'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setShowDisableForm(false); setDisablePassword(''); setStatus(null) }}
-                  className="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => {
+                    setShowDisableForm(false)
+                    setDisablePassword('')
+                    setStatus(null)
+                  }}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                   Cancelar
                 </button>
@@ -612,44 +613,39 @@ function TwoFactorSection({ user }: { user: User & { twoFactorEnabled?: boolean 
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Añade una capa adicional de seguridad a tu cuenta con una aplicación de autenticación (Google Authenticator, Authy, etc.).
+            Añade una capa adicional de seguridad a tu cuenta con una aplicación de autenticación (Google Authenticator,
+            Authy, etc.).
           </p>
 
           {!setupData ? (
             <button
               onClick={handleSetup}
               disabled={loading}
-              className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60 transition-colors"
+              className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-60"
             >
               {loading ? 'Iniciando...' : 'Configurar 2FA'}
             </button>
           ) : (
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row gap-6 items-start">
+              <div className="flex flex-col items-start gap-6 sm:flex-row">
                 {/* QR Code */}
                 <div className="shrink-0">
-                  <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400">
                     Escanea con tu app de autenticación
                   </p>
-                  <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-3 bg-white dark:bg-gray-900 inline-block">
+                  <div className="inline-block rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={setupData.qrDataUrl}
-                      alt="QR Code para 2FA"
-                      width={160}
-                      height={160}
-                      className="block"
-                    />
+                    <img src={setupData.qrDataUrl} alt="QR Code para 2FA" width={160} height={160} className="block" />
                   </div>
                 </div>
 
                 {/* Secret + OTP form */}
-                <div className="flex-1 space-y-4 min-w-0">
+                <div className="min-w-0 flex-1 space-y-4">
                   <div>
-                    <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400">
                       O introduce el código manualmente
                     </p>
-                    <code className="block rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2 text-sm font-mono text-gray-800 dark:text-gray-200 break-all select-all">
+                    <code className="block select-all break-all rounded-lg bg-gray-100 px-3 py-2 font-mono text-sm text-gray-800 dark:bg-gray-800 dark:text-gray-200">
                       {setupData.secret}
                     </code>
                   </div>
@@ -673,14 +669,18 @@ function TwoFactorSection({ user }: { user: User & { twoFactorEnabled?: boolean 
                       <button
                         type="submit"
                         disabled={loading}
-                        className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60 transition-colors"
+                        className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-60"
                       >
                         {loading ? 'Verificando...' : 'Activar 2FA'}
                       </button>
                       <button
                         type="button"
-                        onClick={() => { setSetupData(null); setOtpCode(''); setStatus(null) }}
-                        className="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        onClick={() => {
+                          setSetupData(null)
+                          setOtpCode('')
+                          setStatus(null)
+                        }}
+                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                       >
                         Cancelar
                       </button>
@@ -700,26 +700,23 @@ function TwoFactorSection({ user }: { user: User & { twoFactorEnabled?: boolean 
 // Página
 // ---------------------------------------------------------------------------
 export default function PerfilPage() {
-  const [user, setUser]       = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { data: user, isPending } = useMe()
+  const setMe = useSetMe()
 
-  useEffect(() => {
-    fetch('/api/me', { headers: { Accept: 'application/json' } })
-      .then(r => r.json())
-      .then((u: User) => setUser(u))
-      .finally(() => setLoading(false))
-  }, [])
-
-  if (loading) {
+  if (isPending) {
     return <div className="py-16 text-center text-sm text-gray-500 dark:text-gray-400">Cargando perfil...</div>
   }
 
   if (!user) {
-    return <div className="rounded-lg bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-600">No se pudo cargar el perfil.</div>
+    return (
+      <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/20">
+        No se pudo cargar el perfil.
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-8 max-w-3xl">
+    <div className="max-w-3xl space-y-8">
       <div>
         <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Mi perfil</h1>
         <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Gestiona tu información personal y de cuenta</p>
@@ -729,7 +726,14 @@ export default function PerfilPage() {
         <AvatarUpload
           currentUrl={user.profile?.avatar_url}
           uploadUrl="/api/upload/avatar"
-          onUploaded={(result) => setUser(u => u ? { ...u, profile: u.profile ? { ...u.profile, avatar_url: result.avatar_url, avatar_thumb_url: result.avatar_thumb_url } : u.profile } : u)}
+          onUploaded={result =>
+            setMe(u => ({
+              ...u,
+              profile: u.profile
+                ? { ...u.profile, avatar_url: result.avatar_url, avatar_thumb_url: result.avatar_thumb_url }
+                : u.profile,
+            }))
+          }
         />
       </div>
 

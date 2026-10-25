@@ -20,3 +20,13 @@ export const permissionKeys = {
   lists: () => [...permissionKeys.all, 'list'] as const,
   detail: (id: number) => [...permissionKeys.all, 'detail', id] as const,
 }
+
+export const meKeys = {
+  all: ['me'] as const,
+  detail: () => [...meKeys.all, 'detail'] as const,
+  sessions: () => [...meKeys.all, 'sessions'] as const,
+}
+
+export const dashboardKeys = {
+  all: ['dashboard'] as const,
+}
