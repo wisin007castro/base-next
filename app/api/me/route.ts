@@ -26,18 +26,21 @@ export async function PATCH(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ message: 'No autenticado' }, { status: 401 })
 
   const userId = Number(session.user.id)
-  const body   = await req.json()
-  const now    = new Date().toISOString()
+  const body = await req.json()
+  const now = new Date().toISOString()
 
   const userValues: Record<string, unknown> = { updatedAt: now }
   if (body.username !== undefined) userValues.username = body.username
-  if (body.email    !== undefined) userValues.email    = body.email
+  if (body.email !== undefined) userValues.email = body.email
 
   // FEAT 4: cambio de contraseña requiere verificar current_password
   if (body.password) {
     if (!body.current_password) {
       return NextResponse.json(
-        { message: 'Datos inválidos', errors: { fields: { current_password: ['La contraseña actual es requerida'] } } },
+        {
+          message: 'Datos inválidos',
+          errors: { fieldErrors: { current_password: ['La contraseña actual es requerida'] } },
+        },
         { status: 422 },
       )
     }
@@ -50,7 +53,10 @@ export async function PATCH(req: NextRequest) {
     const valid = await bcrypt.compare(body.current_password as string, currentUser.password)
     if (!valid) {
       return NextResponse.json(
-        { message: 'Datos inválidos', errors: { fields: { current_password: ['La contraseña actual es incorrecta'] } } },
+        {
+          message: 'Datos inválidos',
+          errors: { fieldErrors: { current_password: ['La contraseña actual es incorrecta'] } },
+        },
         { status: 422 },
       )
     }
@@ -64,12 +70,20 @@ export async function PATCH(req: NextRequest) {
     const p = body.profile
     const profileValues: Record<string, unknown> = { updatedAt: now }
     const map: Record<string, string> = {
-      nombre: 'nombre', primer_apellido: 'primerApellido', segundo_apellido: 'segundoApellido',
-      tipo_documento: 'tipoDocumento', numero_documento: 'numeroDocumento',
-      fecha_nacimiento: 'fechaNacimiento', genero: 'genero',
-      telefono: 'telefono', telefono_alternativo: 'telefonoAlternativo',
-      pais: 'pais', departamento: 'departamento', ciudad: 'ciudad',
-      direccion: 'direccion', codigo_postal: 'codigoPostal',
+      nombre: 'nombre',
+      primer_apellido: 'primerApellido',
+      segundo_apellido: 'segundoApellido',
+      tipo_documento: 'tipoDocumento',
+      numero_documento: 'numeroDocumento',
+      fecha_nacimiento: 'fechaNacimiento',
+      genero: 'genero',
+      telefono: 'telefono',
+      telefono_alternativo: 'telefonoAlternativo',
+      pais: 'pais',
+      departamento: 'departamento',
+      ciudad: 'ciudad',
+      direccion: 'direccion',
+      codigo_postal: 'codigoPostal',
     }
     Object.entries(map).forEach(([src, dst]) => {
       if (p[src] !== undefined) profileValues[dst] = p[src]

@@ -13,8 +13,9 @@ export default function EditarRolPage({ params }: { params: Promise<{ id: string
   const { data: role, isLoading, isError } = useRole(roleId)
   const update = useUpdateRole(roleId)
 
-  function handleSubmit(data: UpdateRoleDto) {
-    update.mutate(data, { onSuccess: () => router.push('/roles') })
+  async function handleSubmit(data: UpdateRoleDto) {
+    await update.mutateAsync(data)
+    router.push('/roles')
   }
 
   if (isLoading) {
@@ -23,7 +24,7 @@ export default function EditarRolPage({ params }: { params: Promise<{ id: string
 
   if (isError || !role) {
     return (
-      <div className="rounded-lg bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+      <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
         Rol no encontrado.
       </div>
     )
@@ -33,16 +34,10 @@ export default function EditarRolPage({ params }: { params: Promise<{ id: string
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Editar rol</h1>
-        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400 capitalize">{role.name}</p>
+        <p className="mt-0.5 text-sm capitalize text-gray-500 dark:text-gray-400">{role.name}</p>
       </div>
 
-      {update.isError && (
-        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-600 dark:text-red-400">
-          {update.error?.message ?? 'Error al actualizar el rol'}
-        </div>
-      )}
-
-      <RoleForm mode="edit" role={role} onSubmit={handleSubmit} isLoading={update.isPending} />
+      <RoleForm role={role} onSubmit={handleSubmit} />
     </div>
   )
 }

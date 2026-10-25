@@ -1,14 +1,27 @@
 'use client'
 import { useState } from 'react'
 import { signOut, useSession } from 'next-auth/react'
-import type { User, DocumentType, Gender } from '@/lib/types/user.types'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import type { User } from '@/lib/types/user.types'
 import type { ActiveSession } from '@/lib/api/me.api'
 import { useMe, useUpdateMe, useSetMe, useInvalidateMe, useMySessions, useRevokeSession } from '@/lib/hooks/me.hooks'
 import AvatarUpload from '@/app/components/users/AvatarUpload'
+import { FieldText, Form, FormSection, FormStatus, SubmitButton } from '@/app/components/form'
+import { PersonalDataFields } from '@/app/components/users/UserFields'
+import {
+  myAccountDefaults,
+  myAccountFormSchema,
+  personalDataDefaults,
+  personalDataFormSchema,
+  toMyAccountDto,
+  toProfileDto,
+  type MyAccountFormValues,
+  type PersonalDataFormValues,
+} from '@/lib/forms/user.form'
 
 const inputClass = 'field-input'
 
-const selectClass = inputClass
 const sectionClass = 'rounded-xl border border-[var(--line-2)] bg-surface p-4 space-y-4'
 const sectionTitleClass =
   'text-xs font-semibold uppercase tracking-wider text-accent border-b border-[var(--line-2)] pb-2 mb-4'
@@ -34,309 +47,87 @@ function Alert({ type, message }: { type: 'success' | 'error'; message: string }
 // Sección: Datos de cuenta
 // ---------------------------------------------------------------------------
 function AccountSection({ user }: { user: User }) {
-  const [username, setUsername] = useState(user.username)
-  const [email, setEmail] = useState(user.email)
-  const [password, setPassword] = useState('')
-  const [passwordConf, setPasswordConf] = useState('')
-  const [currentPassword, setCurrentPassword] = useState('')
   const updateMe = useUpdateMe()
-  const [status, setStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const form = useForm<MyAccountFormValues>({
+    resolver: zodResolver(myAccountFormSchema),
+    defaultValues: myAccountDefaults(user),
+  })
+  const { control } = form
+  const password = form.watch('password')
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (password && password !== passwordConf) {
-      setStatus({ type: 'error', msg: 'Las contraseñas no coinciden' })
-      return
-    }
-    setStatus(null)
-    setFieldErrors({})
-    const body: Record<string, unknown> = { username, email }
-    if (password) {
-      body.password = password
-      body.current_password = currentPassword
-    }
-    try {
-      await updateMe.mutateAsync(body)
-      setStatus({ type: 'success', msg: 'Datos de cuenta actualizados' })
-      setPassword('')
-      setPasswordConf('')
-      setCurrentPassword('')
-    } catch (err: unknown) {
-      const errData = err as Record<string, unknown>
-      if (errData && typeof errData === 'object') {
-        // Check for field-level errors
-        const errors: Record<string, string> = {}
-        if (errData.errors && typeof errData.errors === 'object') {
-          const rawErrors = errData.errors as Record<string, unknown>
-          for (const key of Object.keys(rawErrors)) {
-            const val = rawErrors[key]
-            errors[key] = Array.isArray(val) ? String(val[0]) : String(val)
-          }
-        }
-        if (errData.field === 'current_password' || errors.current_password) {
-          errors.current_password =
-            errors.current_password ?? (errData.message as string) ?? 'Contraseña actual incorrecta'
-        }
-        if (Object.keys(errors).length > 0) {
-          setFieldErrors(errors)
-          setStatus(null)
-        } else {
-          setStatus({ type: 'error', msg: (errData.message as string) ?? 'Error al guardar' })
-        }
-      } else {
-        setStatus({ type: 'error', msg: 'Error al guardar' })
-      }
-    }
+  async function handleSubmit(values: MyAccountFormValues) {
+    await updateMe.mutateAsync(toMyAccountDto(values))
+    form.reset(
+      { ...values, password: '', password_confirmation: '', current_password: '' },
+      { keepIsSubmitSuccessful: true },
+    )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className={sectionClass}>
-        <p className={sectionTitleClass}>Datos de cuenta</p>
-        {status && <Alert type={status.type} message={status.msg} />}
+    <Form form={form} onSubmit={handleSubmit} className="space-y-4">
+      <FormSection title="Datos de cuenta">
+        <FormStatus success="Datos de cuenta actualizados" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Username *">
-            <input className={inputClass} value={username} onChange={e => setUsername(e.target.value)} required />
-          </Field>
-          <Field label="Correo electrónico *">
-            <input
-              className={inputClass}
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-            />
-          </Field>
-          <Field label="Nueva contraseña">
-            <input
-              className={inputClass}
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Dejar vacío para no cambiar"
-            />
-          </Field>
-          <Field label="Confirmar contraseña">
-            <input
-              className={inputClass}
-              type="password"
-              value={passwordConf}
-              onChange={e => setPasswordConf(e.target.value)}
-              placeholder="••••••••"
-              required={!!password}
-            />
-          </Field>
+          <FieldText control={control} name="username" label="Username" required />
+          <FieldText control={control} name="email" type="email" label="Correo electrónico" required />
+          <FieldText
+            control={control}
+            name="password"
+            type="password"
+            label="Nueva contraseña"
+            placeholder="Dejar vacío para no cambiar"
+            autoComplete="new-password"
+          />
+          <FieldText
+            control={control}
+            name="password_confirmation"
+            type="password"
+            label="Confirmar contraseña"
+            placeholder="••••••••"
+            autoComplete="new-password"
+          />
           {password && (
-            <div className="sm:col-span-2">
-              <Field label="Contraseña actual *">
-                <input
-                  className={
-                    inputClass +
-                    (fieldErrors.current_password ? ' !border-red-400 focus:!border-red-400 focus:!ring-red-200' : '')
-                  }
-                  type="password"
-                  value={currentPassword}
-                  onChange={e => {
-                    setCurrentPassword(e.target.value)
-                    if (fieldErrors.current_password) {
-                      setFieldErrors(prev => {
-                        const next = { ...prev }
-                        delete next.current_password
-                        return next
-                      })
-                    }
-                  }}
-                  placeholder="Introduce tu contraseña actual para confirmar"
-                  required={!!password}
-                />
-                {fieldErrors.current_password && (
-                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.current_password}</p>
-                )}
-              </Field>
-            </div>
+            <FieldText
+              control={control}
+              name="current_password"
+              type="password"
+              label="Contraseña actual"
+              required
+              autoComplete="current-password"
+              className="sm:col-span-2"
+            />
           )}
         </div>
         <div className="flex justify-end pt-1">
-          <button
-            type="submit"
-            disabled={updateMe.isPending}
-            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-60"
-          >
-            {updateMe.isPending ? 'Guardando...' : 'Actualizar cuenta'}
-          </button>
+          <SubmitButton>Actualizar cuenta</SubmitButton>
         </div>
-      </div>
-    </form>
+      </FormSection>
+    </Form>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Sección: Datos personales, contacto y dirección
+// Sección: Datos personales
 // ---------------------------------------------------------------------------
 function PersonalSection({ user }: { user: User }) {
-  const p = user.profile
-
-  const [nombre, setNombre] = useState(p?.nombre ?? '')
-  const [primerApellido, setPrimerApellido] = useState(p?.primer_apellido ?? '')
-  const [segundoApellido, setSegundoApellido] = useState(p?.segundo_apellido ?? '')
-  const [tipoDocumento, setTipoDocumento] = useState<DocumentType>(p?.tipo_documento ?? 'dni')
-  const [numeroDocumento, setNumeroDocumento] = useState(p?.numero_documento ?? '')
-  const [fechaNacimiento, setFechaNacimiento] = useState(p?.fecha_nacimiento ?? '')
-  const [genero, setGenero] = useState<Gender>(p?.genero ?? 'prefiero_no_decir')
-  const [telefono, setTelefono] = useState(p?.telefono ?? '')
-  const [telefonoAlt, setTelefonoAlt] = useState(p?.telefono_alternativo ?? '')
-  const [pais, setPais] = useState(p?.pais ?? '')
-  const [departamento, setDepartamento] = useState(p?.departamento ?? '')
-  const [ciudad, setCiudad] = useState(p?.ciudad ?? '')
-  const [direccion, setDireccion] = useState(p?.direccion ?? '')
-  const [codigoPostal, setCodigoPostal] = useState(p?.codigo_postal ?? '')
-
   const updateMe = useUpdateMe()
-  const [status, setStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setStatus(null)
-    try {
-      await updateMe.mutateAsync({
-        profile: {
-          nombre,
-          primer_apellido: primerApellido,
-          segundo_apellido: segundoApellido || null,
-          tipo_documento: tipoDocumento,
-          numero_documento: numeroDocumento,
-          fecha_nacimiento: fechaNacimiento,
-          genero,
-          telefono: telefono || null,
-          telefono_alternativo: telefonoAlt || null,
-          pais: pais || null,
-          departamento: departamento || null,
-          ciudad: ciudad || null,
-          direccion: direccion || null,
-          codigo_postal: codigoPostal || null,
-        },
-      })
-      setStatus({ type: 'success', msg: 'Datos personales actualizados' })
-    } catch (err: unknown) {
-      const errData = err as Record<string, unknown>
-      setStatus({ type: 'error', msg: (errData?.message as string) ?? 'Error al guardar' })
-    }
-  }
+  const form = useForm<PersonalDataFormValues>({
+    resolver: zodResolver(personalDataFormSchema),
+    defaultValues: personalDataDefaults(user.profile),
+  })
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Datos personales */}
-      <div className={sectionClass}>
-        <p className={sectionTitleClass}>Datos personales</p>
-        {status && <Alert type={status.type} message={status.msg} />}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Field label="Nombre *">
-            <input className={inputClass} value={nombre} onChange={e => setNombre(e.target.value)} required />
-          </Field>
-          <Field label="Primer apellido *">
-            <input
-              className={inputClass}
-              value={primerApellido}
-              onChange={e => setPrimerApellido(e.target.value)}
-              required
-            />
-          </Field>
-          <Field label="Segundo apellido">
-            <input className={inputClass} value={segundoApellido} onChange={e => setSegundoApellido(e.target.value)} />
-          </Field>
-          <Field label="Tipo de documento *">
-            <select
-              className={selectClass}
-              value={tipoDocumento}
-              onChange={e => setTipoDocumento(e.target.value as DocumentType)}
-            >
-              <option value="dni">DNI</option>
-              <option value="cedula">Cédula</option>
-              <option value="pasaporte">Pasaporte</option>
-              <option value="nie">NIE</option>
-            </select>
-          </Field>
-          <Field label="Número de documento *">
-            <input
-              className={inputClass}
-              value={numeroDocumento}
-              onChange={e => setNumeroDocumento(e.target.value)}
-              required
-            />
-          </Field>
-          <Field label="Fecha de nacimiento *">
-            <input
-              className={inputClass}
-              type="date"
-              value={fechaNacimiento}
-              onChange={e => setFechaNacimiento(e.target.value)}
-              required
-            />
-          </Field>
-          <Field label="Género">
-            <select className={selectClass} value={genero} onChange={e => setGenero(e.target.value as Gender)}>
-              <option value="masculino">Masculino</option>
-              <option value="femenino">Femenino</option>
-              <option value="otro">Otro</option>
-              <option value="prefiero_no_decir">Prefiero no decir</option>
-            </select>
-          </Field>
-        </div>
-      </div>
-
-      {/* Contacto */}
-      <div className={sectionClass}>
-        <p className={sectionTitleClass}>Contacto</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Teléfono">
-            <input
-              className={inputClass}
-              value={telefono}
-              onChange={e => setTelefono(e.target.value)}
-              placeholder="+34 600 000 000"
-            />
-          </Field>
-          <Field label="Teléfono alternativo">
-            <input className={inputClass} value={telefonoAlt} onChange={e => setTelefonoAlt(e.target.value)} />
-          </Field>
-        </div>
-      </div>
-
-      {/* Dirección */}
-      <div className={sectionClass}>
-        <p className={sectionTitleClass}>Dirección</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="País">
-            <input className={inputClass} value={pais} onChange={e => setPais(e.target.value)} />
-          </Field>
-          <Field label="Departamento / Provincia">
-            <input className={inputClass} value={departamento} onChange={e => setDepartamento(e.target.value)} />
-          </Field>
-          <Field label="Ciudad">
-            <input className={inputClass} value={ciudad} onChange={e => setCiudad(e.target.value)} />
-          </Field>
-          <Field label="Código postal">
-            <input className={inputClass} value={codigoPostal} onChange={e => setCodigoPostal(e.target.value)} />
-          </Field>
-          <div className="sm:col-span-2">
-            <Field label="Dirección">
-              <input className={inputClass} value={direccion} onChange={e => setDireccion(e.target.value)} />
-            </Field>
-          </div>
-        </div>
-      </div>
-
+    <Form
+      form={form}
+      onSubmit={values => updateMe.mutateAsync({ profile: toProfileDto(values) })}
+      className="space-y-4"
+    >
+      <FormStatus success="Datos personales actualizados" />
+      <PersonalDataFields />
       <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={updateMe.isPending}
-          className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-60"
-        >
-          {updateMe.isPending ? 'Guardando...' : 'Actualizar datos personales'}
-        </button>
+        <SubmitButton>Actualizar datos personales</SubmitButton>
       </div>
-    </form>
+    </Form>
   )
 }
 

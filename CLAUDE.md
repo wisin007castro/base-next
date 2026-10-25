@@ -111,29 +111,30 @@ Components call hooks, never `fetch` directly. Mutations invalidate the relevant
 
 ### Forms & Validation
 
-Client-side validation runs **before** the API call in `handleSubmit`. The pattern used throughout:
+Forms use **react-hook-form + Zod** (`zodResolver`). Never manage fields with `useState`.
 
-```ts
-const [errors, setErrors] = useState<Record<string, string>>({})
-
-function clr(key: string) {
-  // call in onChange to clear individual field error
-  setErrors(prev => {
-    const next = { ...prev }
-    delete next[key]
-    return next
-  })
-}
-
-function validate(): Record<string, string> {
-  const e: Record<string, string> = {}
-  if (!username.trim()) e.username = 'El username es obligatorio'
-  // ...
-  return e
-}
+```
+lib/validation/zod-config.ts  → Spanish Zod messages (import `z` from here, not from 'zod')
+lib/api/schemas/*.schema.ts   → server schemas (source of truth for field rules)
+lib/forms/*.form.ts           → form schema + defaults(entity) + toDto(values)
+app/components/form/          → Form, FieldText, FieldSelect, FieldCheckboxGroup, FormSection, FormStatus, FormActions
 ```
 
-Input classes toggle between `inputClass` (normal) and `inputError` (red border) via a `ci(err?)` helper defined at the top of each form file.
+- Form schemas **reuse rules** from the server schema (`createUserSchema.shape.username`) so client and API never drift.
+- Form values are plain strings (`''` for empty); `toDto()` converts `''` → `null`/`undefined`.
+- `<Form form onSubmit>` catches errors thrown by `onSubmit`: `ApiError.fieldErrors` matching a field go to that field, the rest to `errors.root.server` (shown by `<FormStatus />`). So pages call `await mutation.mutateAsync(dto)` — no manual error banners.
+- API error shape must be `{ message, errors: { fieldErrors, formErrors } }` (Zod `flatten()`).
+
+```tsx
+const form = useForm<RoleFormValues>({ resolver: zodResolver(roleFormSchema), defaultValues: roleFormDefaults(role) })
+<Form form={form} onSubmit={v => onSubmit(toRoleDto(v))}>
+  <FormStatus />
+  <FieldText control={form.control} name="name" label="Nombre" required />
+  <FormActions submitLabel="Guardar" />
+</Form>
+```
+
+Reusable field groups that read `control` from context: `UserAccountFields`, `PersonalDataFields` (`app/components/users/UserFields.tsx`).
 
 ### File Storage (Avatars)
 

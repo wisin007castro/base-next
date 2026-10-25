@@ -17,22 +17,8 @@ export const meApi = {
   /** Usuario autenticado (incluye profile y roles) */
   get: (signal?: AbortSignal) => request<MeUser>('/me', { signal }),
 
-  /**
-   * PATCH parcial del propio usuario.
-   * Lanza el body de error crudo: el perfil interpreta `errors` / `field` a su manera.
-   */
-  update: async (body: Record<string, unknown>) => {
-    const res = await fetch('/api/me', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      throw data
-    }
-    return res.json() as Promise<MeUser>
-  },
+  /** PATCH parcial del propio usuario */
+  update: (body: Record<string, unknown>) => request<MeUser>('/me', { method: 'PATCH', body: JSON.stringify(body) }),
 
   /** Sesiones activas */
   getSessions: (signal?: AbortSignal) => request<ActiveSession[]>('/me/sessions', { signal }),
