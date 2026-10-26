@@ -3,7 +3,7 @@ import { syncRoles } from '@/lib/auth/rbac'
 
 // PUT /api/users/:id/roles — sincroniza los roles del usuario
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id }     = await params
+  const { id } = await params
   const { role_ids } = await req.json()
 
   if (!Array.isArray(role_ids)) {

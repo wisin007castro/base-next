@@ -12,7 +12,7 @@ const resetPasswordSchema = z
     password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
     password_confirmation: z.string().min(1, 'La confirmación es obligatoria'),
   })
-  .refine((data) => data.password === data.password_confirmation, {
+  .refine(data => data.password === data.password_confirmation, {
     message: 'Las contraseñas no coinciden',
     path: ['password_confirmation'],
   })
@@ -23,10 +23,7 @@ export async function POST(req: NextRequest) {
 
   const parsed = resetPasswordSchema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json(
-      { message: 'Datos inválidos', errors: parsed.error.flatten() },
-      { status: 422 },
-    )
+    return NextResponse.json({ message: 'Datos inválidos', errors: parsed.error.flatten() }, { status: 422 })
   }
 
   const { token, password } = parsed.data
@@ -34,10 +31,7 @@ export async function POST(req: NextRequest) {
   // Verificar la firma del token y que no haya expirado según HMAC
   const userId = verifyToken(token)
   if (!userId) {
-    return NextResponse.json(
-      { message: 'El enlace es inválido o ha expirado' },
-      { status: 400 },
-    )
+    return NextResponse.json({ message: 'El enlace es inválido o ha expirado' }, { status: 400 })
   }
 
   const user = await db.query.users.findFirst({
@@ -45,26 +39,17 @@ export async function POST(req: NextRequest) {
   })
 
   if (!user) {
-    return NextResponse.json(
-      { message: 'El enlace es inválido o ha expirado' },
-      { status: 400 },
-    )
+    return NextResponse.json({ message: 'El enlace es inválido o ha expirado' }, { status: 400 })
   }
 
   // Verificar que el token almacenado coincide con el enviado
   if (user.passwordResetToken !== token) {
-    return NextResponse.json(
-      { message: 'El enlace es inválido o ha expirado' },
-      { status: 400 },
-    )
+    return NextResponse.json({ message: 'El enlace es inválido o ha expirado' }, { status: 400 })
   }
 
   // Verificar que el token no haya expirado según la fecha almacenada
   if (!user.passwordResetExpiresAt || new Date(user.passwordResetExpiresAt) <= new Date()) {
-    return NextResponse.json(
-      { message: 'El enlace ha expirado. Solicita uno nuevo.' },
-      { status: 400 },
-    )
+    return NextResponse.json({ message: 'El enlace ha expirado. Solicita uno nuevo.' }, { status: 400 })
   }
 
   const hashed = await bcrypt.hash(password, 12)

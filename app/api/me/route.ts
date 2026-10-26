@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
-import { auth } from '@/auth'
+import { requireAuth, isGuardError } from '@/lib/api/api-guard'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { serializeUser } from '@/lib/api/serializers/user.serializer'
@@ -13,10 +13,10 @@ const withRoles = { profile: true, userRoles: { with: { role: true } } } as cons
 
 // GET /api/me
 export async function GET() {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ message: 'No autenticado' }, { status: 401 })
+  const guard = await requireAuth()
+  if (isGuardError(guard)) return guard
 
-  const userId = Number(session.user.id)
+  const userId = Number(guard.user.id)
   const user = await db.query.users.findFirst({ where: eq(users.id, userId), with: withRoles })
   if (!user) return NextResponse.json({ message: 'Usuario no encontrado' }, { status: 404 })
 
@@ -25,10 +25,10 @@ export async function GET() {
 
 // PATCH /api/me
 export async function PATCH(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ message: 'No autenticado' }, { status: 401 })
+  const guard = await requireAuth()
+  if (isGuardError(guard)) return guard
 
-  const userId = Number(session.user.id)
+  const userId = Number(guard.user.id)
   const parsed = updateMeSchema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) {
     return NextResponse.json({ message: 'Datos inválidos', errors: parsed.error.flatten() }, { status: 422 })

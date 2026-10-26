@@ -1,4 +1,10 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
+
+/**
+ * id único por instancia: dos formularios en la misma página pueden tener un campo `password`
+ * (cambiar contraseña / desactivar 2FA) y un id repetido hace que el label apunte al input equivocado.
+ */
+export const useFieldId = (name: string) => `${name}-${useId()}`
 
 export const fieldClass = (error?: string) => (error ? 'field-input field-error' : 'field-input')
 

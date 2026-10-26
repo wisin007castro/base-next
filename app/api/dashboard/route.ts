@@ -24,19 +24,22 @@ export async function GET() {
     // Total usuarios (no eliminados)
     db.select({ total: count() }).from(users).where(isNull(users.deletedAt)),
     // Activos
-    db.select({ total: count() }).from(users).where(
-      and(isNull(users.deletedAt), eq(users.isActive, true)),
-    ),
+    db
+      .select({ total: count() })
+      .from(users)
+      .where(and(isNull(users.deletedAt), eq(users.isActive, true))),
     // Inactivos
-    db.select({ total: count() }).from(users).where(
-      and(isNull(users.deletedAt), eq(users.isActive, false)),
-    ),
+    db
+      .select({ total: count() })
+      .from(users)
+      .where(and(isNull(users.deletedAt), eq(users.isActive, false))),
     // Eliminados (soft delete)
     db.select({ total: count() }).from(users).where(isNotNull(users.deletedAt)),
     // Nuevos esta semana (createdAt >= 7 días atrás, no eliminados)
-    db.select({ total: count() }).from(users).where(
-      and(isNull(users.deletedAt), gte(users.createdAt, sevenDaysAgo)),
-    ),
+    db
+      .select({ total: count() })
+      .from(users)
+      .where(and(isNull(users.deletedAt), gte(users.createdAt, sevenDaysAgo))),
     // Total roles
     db.select({ total: count() }).from(roles),
     // Total permisos
@@ -52,10 +55,10 @@ export async function GET() {
 
   return NextResponse.json({
     users: {
-      total:         totalUsers,
-      active:        activeUsers,
-      inactive:      inactiveUsers,
-      deleted:       deletedUsers,
+      total: totalUsers,
+      active: activeUsers,
+      inactive: inactiveUsers,
+      deleted: deletedUsers,
       new_this_week: newThisWeek,
     },
     roles: {

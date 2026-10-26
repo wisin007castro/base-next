@@ -13,17 +13,17 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div
       data-admin={isAdmin ? 'true' : undefined}
-      className='bg-canvas w-full min-h-screen flex flex-col overflow-x-hidden'
+      className="flex min-h-screen w-full flex-col overflow-x-hidden bg-canvas"
     >
-      <div className='flex flex-1'>
+      <div className="flex flex-1">
         <Sidebar />
 
         {/* Main Content */}
-        <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ease-in-out ${open ? "lg:ml-0 ml-60" : "ml-0"}`}>
+        <div
+          className={`flex min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out ${open ? 'ml-60 lg:ml-0' : 'ml-0'}`}
+        >
           <Header />
-          <main className='flex-1 overflow-auto p-2 md:p-4 lg:p-6'>
-            {children}
-          </main>
+          <main className="flex-1 overflow-auto p-2 md:p-4 lg:p-6">{children}</main>
         </div>
       </div>
     </div>

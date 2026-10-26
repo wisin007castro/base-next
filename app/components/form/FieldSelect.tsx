@@ -1,6 +1,6 @@
 'use client'
 import { useController, type Control, type FieldValues, type Path, type PathValue } from 'react-hook-form'
-import { FormField, fieldClass } from './FormField'
+import { FormField, fieldClass, useFieldId } from './FormField'
 
 export interface SelectOption<V> {
   value: V
@@ -31,13 +31,14 @@ export function FieldSelect<T extends FieldValues, N extends Path<T>>({
   className,
 }: Props<T, N>) {
   const { field, fieldState } = useController({ control, name })
+  const id = useFieldId(name)
   const error = fieldState.error?.message
   const selected = options.findIndex(o => o.value === field.value)
 
   return (
-    <FormField id={name} label={label} required={required} hint={hint} error={error} className={className}>
+    <FormField id={id} label={label} required={required} hint={hint} error={error} className={className}>
       <select
-        id={name}
+        id={id}
         ref={field.ref}
         name={field.name}
         onBlur={field.onBlur}

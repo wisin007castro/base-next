@@ -71,11 +71,19 @@ export const authConfig: NextAuthConfig = {
       }
       return token
     },
+    // La usa el middleware (`authorized` lee auth.user): sin twoFactorPending aquí, el redirect a
+    // /verify-2fa nunca ocurría y la contraseña sola daba acceso a la app.
     session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string
-        ;(session.user as { roles?: string[]; permissions?: string[] }).roles = token.roles as string[]
-        ;(session.user as { roles?: string[]; permissions?: string[] }).permissions = token.permissions as string[]
+        const user = session.user as typeof session.user & {
+          roles?: string[]
+          permissions?: string[]
+          twoFactorPending?: boolean
+        }
+        user.id = token.id as string
+        user.roles = (token.roles as string[]) ?? []
+        user.permissions = (token.permissions as string[]) ?? []
+        user.twoFactorPending = token.twoFactorPending as boolean | undefined
       }
       return session
     },

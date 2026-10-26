@@ -24,7 +24,7 @@ function ResetPasswordForm() {
   const ci = (err?: string) => (err ? inputError : inputClass)
 
   function clr(key: string) {
-    setFieldErrors((prev) => {
+    setFieldErrors(prev => {
       const next = { ...prev }
       delete next[key]
       return next
@@ -101,14 +101,9 @@ function ResetPasswordForm() {
       <div className="space-y-4">
         <div className="rounded-lg bg-green-50 px-4 py-4 text-sm text-green-700 dark:bg-green-900/20 dark:text-green-400">
           <p className="font-medium">Contraseña actualizada</p>
-          <p className="mt-1 text-green-600 dark:text-green-500">
-            Tu contraseña ha sido restablecida exitosamente.
-          </p>
+          <p className="mt-1 text-green-600 dark:text-green-500">Tu contraseña ha sido restablecida exitosamente.</p>
         </div>
-        <Link
-          href="/login"
-          className="block text-center text-sm text-sky-600 hover:underline dark:text-sky-400"
-        >
+        <Link href="/login" className="block text-center text-sm text-sky-600 hover:underline dark:text-sky-400">
           Ir al inicio de sesión
         </Link>
       </div>
@@ -135,15 +130,16 @@ function ResetPasswordForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="field-label">
-          Nueva contraseña
-        </label>
+        <label className="field-label">Nueva contraseña</label>
         <div className="relative">
           <input
             className={ci(fieldErrors.password) + ' pr-10'}
             type={showPassword ? 'text' : 'password'}
             value={password}
-            onChange={(e) => { setPassword(e.target.value); clr('password') }}
+            onChange={e => {
+              setPassword(e.target.value)
+              clr('password')
+            }}
             required
             placeholder="Mínimo 8 caracteres"
             autoComplete="new-password"
@@ -151,27 +147,26 @@ function ResetPasswordForm() {
           <button
             type="button"
             tabIndex={-1}
-            onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            onClick={() => setShowPassword(v => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
           >
-            {showPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+            {showPassword ? <FiEyeOff className="h-4 w-4" /> : <FiEye className="h-4 w-4" />}
           </button>
         </div>
-        {fieldErrors.password && (
-          <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>
-        )}
+        {fieldErrors.password && <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>}
       </div>
 
       <div>
-        <label className="field-label">
-          Confirmar contraseña
-        </label>
+        <label className="field-label">Confirmar contraseña</label>
         <div className="relative">
           <input
             className={ci(fieldErrors.password_confirmation) + ' pr-10'}
             type={showPasswordConfirmation ? 'text' : 'password'}
             value={passwordConfirmation}
-            onChange={(e) => { setPasswordConfirmation(e.target.value); clr('password_confirmation') }}
+            onChange={e => {
+              setPasswordConfirmation(e.target.value)
+              clr('password_confirmation')
+            }}
             required
             placeholder="Repite la contraseña"
             autoComplete="new-password"
@@ -179,10 +174,10 @@ function ResetPasswordForm() {
           <button
             type="button"
             tabIndex={-1}
-            onClick={() => setShowPasswordConfirmation((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            onClick={() => setShowPasswordConfirmation(v => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
           >
-            {showPasswordConfirmation ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+            {showPasswordConfirmation ? <FiEyeOff className="h-4 w-4" /> : <FiEye className="h-4 w-4" />}
           </button>
         </div>
         {fieldErrors.password_confirmation && (
@@ -199,16 +194,13 @@ function ResetPasswordForm() {
       <button
         type="submit"
         disabled={status === 'loading'}
-        className="w-full rounded-lg bg-sky-600 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60 transition-colors"
+        className="w-full rounded-lg bg-sky-600 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-60"
       >
         {status === 'loading' ? 'Guardando...' : 'Restablecer contraseña'}
       </button>
 
       <div className="text-center">
-        <Link
-          href="/login"
-          className="text-sm text-sky-600 hover:underline dark:text-sky-400"
-        >
+        <Link href="/login" className="text-sm text-sky-600 hover:underline dark:text-sky-400">
           Volver al inicio de sesión
         </Link>
       </div>
@@ -218,16 +210,10 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 px-4 dark:bg-gray-900">
       <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <h1 className="mb-6 text-xl font-semibold text-gray-900 dark:text-gray-100">
-          Restablecer contraseña
-        </h1>
-        <Suspense
-          fallback={
-            <p className="text-sm text-gray-500 dark:text-gray-400">Cargando...</p>
-          }
-        >
+        <h1 className="mb-6 text-xl font-semibold text-gray-900 dark:text-gray-100">Restablecer contraseña</h1>
+        <Suspense fallback={<p className="text-sm text-gray-500 dark:text-gray-400">Cargando...</p>}>
           <ResetPasswordForm />
         </Suspense>
       </div>

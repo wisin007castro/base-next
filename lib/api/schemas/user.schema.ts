@@ -117,6 +117,21 @@ export type CreateUserInput = z.infer<typeof createUserSchema>
 export type UpdateUserInput = z.infer<typeof updateUserSchema>
 export type UpdateMeInput = z.infer<typeof updateMeSchema>
 
+// ─── 2FA (perfil propio) ───────────────────────────────────────────────────────
+export const enableTwoFactorSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6,8}$/, 'El código tiene 6 dígitos'),
+})
+
+export const disableTwoFactorSchema = z.object({
+  password: z.string().min(1, 'Introduce tu contraseña actual'),
+})
+
+export type EnableTwoFactorInput = z.infer<typeof enableTwoFactorSchema>
+export type DisableTwoFactorInput = z.infer<typeof disableTwoFactorSchema>
+
 // ─── Acciones en lote ──────────────────────────────────────────────────────────
 export const BULK_USER_ACTIONS = ['activate', 'deactivate', 'delete', 'restore', 'force_delete'] as const
 

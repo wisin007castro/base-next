@@ -18,7 +18,10 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   if (user.emailVerifiedAt) return NextResponse.json({ message: 'El correo ya está verificado' }, { status: 400 })
 
   const now = new Date().toISOString()
-  await db.update(users).set({ emailVerifiedAt: now, updatedAt: now }).where(eq(users.id, Number(id)))
+  await db
+    .update(users)
+    .set({ emailVerifiedAt: now, updatedAt: now })
+    .where(eq(users.id, Number(id)))
 
   const updated = await db.query.users.findFirst({
     where: eq(users.id, Number(id)),

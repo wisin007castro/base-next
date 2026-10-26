@@ -5,7 +5,7 @@ const FROM = process.env.MAIL_FROM ?? 'noreply@localhost'
 export async function sendVerificationLinkEmail(to: string, username: string, token: string) {
   const url = `${process.env.NEXTAUTH_URL}/api/verify-email?token=${token}`
   await transporter.sendMail({
-    from:    FROM,
+    from: FROM,
     to,
     subject: 'Verifica tu correo electrónico',
     html: `
@@ -24,7 +24,7 @@ export async function sendVerificationLinkEmail(to: string, username: string, to
 
 export async function sendVerificationEmail(to: string, username: string) {
   await transporter.sendMail({
-    from:    FROM,
+    from: FROM,
     to,
     subject: 'Verifica tu cuenta',
     html: `
@@ -37,7 +37,7 @@ export async function sendVerificationEmail(to: string, username: string) {
 
 export async function sendWelcomeEmail(to: string, username: string) {
   await transporter.sendMail({
-    from:    FROM,
+    from: FROM,
     to,
     subject: '¡Bienvenido a la plataforma!',
     html: `
@@ -50,7 +50,7 @@ export async function sendWelcomeEmail(to: string, username: string) {
 export async function sendPasswordResetEmail(to: string, username: string, token: string) {
   const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`
   await transporter.sendMail({
-    from:    FROM,
+    from: FROM,
     to,
     subject: 'Restablece tu contraseña',
     html: `

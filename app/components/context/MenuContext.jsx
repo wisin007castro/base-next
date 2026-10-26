@@ -10,11 +10,7 @@ const MenuContextProvider = ({ children }) => {
     setOpen(!open)
   }
 
-  return (
-    <MenuContext.Provider value={{ open, toggleMenu }}>
-      {children}
-    </MenuContext.Provider>
-  )
+  return <MenuContext.Provider value={{ open, toggleMenu }}>{children}</MenuContext.Provider>
 }
 
 export default MenuContextProvider

@@ -4,8 +4,8 @@ import Image from 'next/image'
 import { FiUpload, FiUser } from 'react-icons/fi'
 
 interface UploadResult {
-  avatar_url:       string
-  avatar_key:       string
+  avatar_url: string
+  avatar_key: string
   avatar_thumb_url: string
   avatar_thumb_key: string
 }
@@ -18,9 +18,9 @@ interface Props {
 
 export default function AvatarUpload({ currentUrl, uploadUrl, onUploaded }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [preview, setPreview]   = useState<string | null>(currentUrl ?? null)
+  const [preview, setPreview] = useState<string | null>(currentUrl ?? null)
   const [uploading, setUploading] = useState(false)
-  const [error, setError]       = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -54,7 +54,7 @@ export default function AvatarUpload({ currentUrl, uploadUrl, onUploaded }: Prop
   return (
     <div className="flex flex-col items-center gap-3">
       <div
-        className="relative h-24 w-24 cursor-pointer rounded-full overflow-hidden border-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 flex items-center justify-center"
+        className="relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800"
         onClick={() => !uploading && inputRef.current?.click()}
         title="Haz clic para cambiar el avatar"
       >
@@ -64,7 +64,7 @@ export default function AvatarUpload({ currentUrl, uploadUrl, onUploaded }: Prop
           <FiUser className="h-10 w-10 text-gray-400" />
         )}
         {uploading && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full">
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
             <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
           </div>
         )}
@@ -74,7 +74,7 @@ export default function AvatarUpload({ currentUrl, uploadUrl, onUploaded }: Prop
         type="button"
         disabled={uploading}
         onClick={() => inputRef.current?.click()}
-        className="flex items-center gap-1.5 text-xs text-sky-600 hover:text-sky-700 dark:text-sky-400 disabled:opacity-50"
+        className="flex items-center gap-1.5 text-xs text-sky-600 hover:text-sky-700 disabled:opacity-50 dark:text-sky-400"
       >
         <FiUpload className="h-3.5 w-3.5" />
         {uploading ? 'Subiendo...' : 'Cambiar foto'}

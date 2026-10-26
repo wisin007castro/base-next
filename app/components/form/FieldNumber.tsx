@@ -1,6 +1,6 @@
 'use client'
 import { useController, type Control, type FieldValues, type Path } from 'react-hook-form'
-import { FormField, fieldClass } from './FormField'
+import { FormField, fieldClass, useFieldId } from './FormField'
 
 interface Props<T extends FieldValues> {
   control: Control<T>
@@ -30,12 +30,13 @@ export function FieldNumber<T extends FieldValues>({
   className,
 }: Props<T>) {
   const { field, fieldState } = useController({ control, name })
+  const id = useFieldId(name)
   const error = fieldState.error?.message
 
   return (
-    <FormField id={name} label={label} required={required} hint={hint} error={error} className={className}>
+    <FormField id={id} label={label} required={required} hint={hint} error={error} className={className}>
       <input
-        id={name}
+        id={id}
         ref={field.ref}
         name={field.name}
         onBlur={field.onBlur}
@@ -48,7 +49,7 @@ export function FieldNumber<T extends FieldValues>({
         onChange={e => field.onChange(e.target.value === '' ? null : e.target.valueAsNumber)}
         placeholder={placeholder}
         aria-invalid={!!error}
-        aria-describedby={error ? `${name}-error` : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
         className={fieldClass(error)}
       />
     </FormField>

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   const guard = await requireAdmin()
   if (isGuardError(guard)) return guard
 
-  const raw    = await req.json()
+  const raw = await req.json()
   const parsed = createPermissionSchema.safeParse(raw)
   if (!parsed.success) {
     return NextResponse.json({ message: 'Datos inválidos', errors: parsed.error.flatten() }, { status: 422 })
