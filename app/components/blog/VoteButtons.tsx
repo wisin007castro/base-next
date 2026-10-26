@@ -44,7 +44,6 @@ export function VoteButtons({ postId, puntaje, miVoto, size = 'md' }: Props) {
       >
         <FiThumbsDown className={icon} />
       </button>
-      {votar.isError && <span className="text-xs text-risk">No se pudo votar</span>}
     </div>
   )
 }

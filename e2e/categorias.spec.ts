@@ -16,6 +16,7 @@ async function crear(page: Page, nombre: string) {
   await nombreInput(page).fill(nombre)
   await page.getByRole('button', { name: 'Crear categoría' }).click()
   await page.waitForURL(url => url.pathname === '/categorias')
+  await expect(page.getByText('Categoría creada').last()).toBeVisible()
 }
 
 test.describe('Categorías (CRUD generado con soft delete)', () => {
@@ -92,5 +93,6 @@ test.describe('Categorías (CRUD generado con soft delete)', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'Eliminar' }).click()
     await expect(row(page, base)).toHaveCount(0)
     await expect(bar).toBeHidden()
+    await expect(page.getByText('2 registros eliminados')).toBeVisible()
   })
 })

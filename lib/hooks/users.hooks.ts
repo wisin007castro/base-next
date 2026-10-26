@@ -5,6 +5,9 @@ import { userKeys, permissionKeys } from '@/lib/constants/query-keys'
 import type { CreateUserDto, UpdateUserDto, User, UserFilters } from '@/lib/types/user.types'
 import type { Permission } from '@/lib/types/rbac.types'
 import type { BulkUserAction } from '@/lib/api/schemas/user.schema'
+import { crudToasts, bulkToast } from '@/lib/toast'
+
+const t = crudToasts('Usuario')
 
 // -------------------------------------------------------------------
 // Query options — una sola definición para useQuery, prefetchQuery,
@@ -92,6 +95,7 @@ function useInvalidateUser() {
 export function useCreateUser() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successToast: t.created },
     mutationFn: (dto: CreateUserDto) => usersApi.create(dto),
     onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.lists() }),
   })
@@ -100,6 +104,7 @@ export function useCreateUser() {
 export function useUpdateUser(id: number) {
   const sync = useSyncUser()
   return useMutation({
+    meta: { successToast: t.updated },
     mutationFn: (dto: UpdateUserDto) => usersApi.update(id, dto),
     onSuccess: sync,
   })
@@ -108,6 +113,7 @@ export function useUpdateUser(id: number) {
 export function useRemoveUser() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successToast: t.deleted },
     mutationFn: (id: number) => usersApi.remove(id),
     onSuccess: (_, id) => {
       qc.removeQueries({ queryKey: userKeys.detail(id) })
@@ -119,6 +125,7 @@ export function useRemoveUser() {
 export function useRestoreUser() {
   const invalidate = useInvalidateUser()
   return useMutation({
+    meta: { successToast: t.restored, errorToast: true },
     mutationFn: (id: number) => usersApi.restore(id),
     onSuccess: invalidate,
   })
@@ -127,6 +134,7 @@ export function useRestoreUser() {
 export function useForceDeleteUser() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successToast: t.forceDeleted, errorToast: true },
     mutationFn: (id: number) => usersApi.forceDelete(id),
     onSuccess: (_, id) => {
       qc.removeQueries({ queryKey: userKeys.detail(id) })
@@ -138,6 +146,7 @@ export function useForceDeleteUser() {
 export function useToggleActive() {
   const invalidate = useInvalidateUser()
   return useMutation({
+    meta: { successToast: 'Estado actualizado', errorToast: true },
     mutationFn: (id: number) => usersApi.toggleActive(id),
     onSuccess: invalidate,
   })
@@ -145,6 +154,7 @@ export function useToggleActive() {
 
 export function useResendVerification() {
   return useMutation({
+    meta: { successToast: 'Correo de verificación reenviado', errorToast: true },
     mutationFn: (id: number) => usersApi.resendVerification(id),
   })
 }
@@ -152,6 +162,7 @@ export function useResendVerification() {
 export function useVerifyUser() {
   const sync = useSyncUser()
   return useMutation({
+    meta: { successToast: 'Correo marcado como verificado', errorToast: true },
     mutationFn: (id: number) => usersApi.verify(id),
     onSuccess: sync,
   })
@@ -161,6 +172,7 @@ export function useVerifyUser() {
 export function useBulkUserAction() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successToast: bulkToast },
     mutationFn: ({ action, ids }: { action: BulkUserAction; ids: number[] }) => usersApi.bulk(action, ids),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: userKeys.lists() })
@@ -186,6 +198,8 @@ function useOptimisticDirectPermission(
 
   return useMutation({
     mutationFn,
+    // Optimista: si falla se revierte el check en silencio, así que el error va en un toast
+    meta: { errorToast: true },
     onMutate: async permissionId => {
       await qc.cancelQueries({ queryKey: key })
       const previous = qc.getQueryData<Permission[]>(key)

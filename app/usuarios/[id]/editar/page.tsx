@@ -55,7 +55,7 @@ function AccountSection({ user, userId }: { user: User; userId: number }) {
 
   return (
     <Form form={form} onSubmit={handleSubmit} className="space-y-4">
-      <FormStatus success="Datos de cuenta actualizados" />
+      <FormStatus />
       <UserAccountFields>
         <div className="flex justify-end pt-1">
           <SubmitButton>Actualizar cuenta</SubmitButton>
@@ -77,7 +77,7 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
 
   return (
     <Form form={form} onSubmit={values => update.mutateAsync({ profile: toProfileDto(values) })} className="space-y-4">
-      <FormStatus success="Datos personales actualizados" />
+      <FormStatus />
       <PersonalDataFields />
       <div className="flex justify-end">
         <SubmitButton>Actualizar datos personales</SubmitButton>
