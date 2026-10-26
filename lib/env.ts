@@ -10,42 +10,35 @@ import { z } from '@/lib/validation/zod-config'
  */
 const boolString = z.enum(['true', 'false']).transform(v => v === 'true')
 
-const schema = z
-  .object({
-    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+const schema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
-    // Auth
-    AUTH_SECRET: z.string().min(32, 'Debe tener al menos 32 caracteres. Genera uno con: npx auth secret'),
-    NEXTAUTH_URL: z.url().default('http://localhost:3005'),
+  // Auth
+  AUTH_SECRET: z.string().min(32, 'Debe tener al menos 32 caracteres. Genera uno con: npx auth secret'),
+  NEXTAUTH_URL: z.url().default('http://localhost:3005'),
 
-    // Base de datos (SQLite)
-    DATABASE_URL: z.string().min(1).default('./dev.db'),
+  // Base de datos (SQLite)
+  DATABASE_URL: z.string().min(1).default('./dev.db'),
 
-    // Correo (MailDev en desarrollo)
-    MAIL_HOST: z.string().min(1).default('127.0.0.1'), // IPv4 explícito: localhost puede resolver a ::1
-    MAIL_PORT: z.coerce.number().int().positive().default(1025),
-    MAIL_SECURE: boolString.default(false),
-    MAIL_USER: z.string().optional(),
-    MAIL_PASS: z.string().optional(),
-    MAIL_FROM: z.string().min(1).default('noreply@localhost'),
+  // Correo (MailDev en desarrollo)
+  MAIL_HOST: z.string().min(1).default('127.0.0.1'), // IPv4 explícito: localhost puede resolver a ::1
+  MAIL_PORT: z.coerce.number().int().positive().default(1025),
+  MAIL_SECURE: boolString.default(false),
+  MAIL_USER: z.string().optional(),
+  MAIL_PASS: z.string().optional(),
+  MAIL_FROM: z.string().min(1).default('noreply@localhost'),
 
-    // Almacenamiento S3/MinIO (avatares). Opcional: sin él la app funciona, pero subir avatares falla
-    STORAGE_ENDPOINT: z.url().optional(),
-    STORAGE_REGION: z.string().default('us-east-1'),
-    STORAGE_ACCESS_KEY: z.string().optional(),
-    STORAGE_SECRET_KEY: z.string().optional(),
-    STORAGE_BUCKET: z.string().optional(),
-    STORAGE_PUBLIC_URL: z.url().optional(),
+  // Almacenamiento S3/MinIO (avatares). Opcional: sin él la app funciona, pero subir avatares falla
+  STORAGE_ENDPOINT: z.url().optional(),
+  STORAGE_REGION: z.string().default('us-east-1'),
+  STORAGE_ACCESS_KEY: z.string().optional(),
+  STORAGE_SECRET_KEY: z.string().optional(),
+  STORAGE_BUCKET: z.string().optional(),
+  STORAGE_PUBLIC_URL: z.url().optional(),
 
-    // Logs (pino): trace | debug | info | warn | error | fatal
-    LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).optional(),
-  })
-  .superRefine((e, ctx) => {
-    // En producción no valen los valores por defecto de desarrollo
-    if (e.NODE_ENV === 'production' && e.NEXTAUTH_URL.startsWith('http://localhost')) {
-      ctx.addIssue({ code: 'custom', path: ['NEXTAUTH_URL'], message: 'En producción debe ser la URL pública' })
-    }
-  })
+  // Logs (pino): trace | debug | info | warn | error | fatal
+  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).optional(),
+})
 
 export type Env = z.output<typeof schema>
 

@@ -236,4 +236,8 @@ Template: `.env.example` (copy to `.env`; personal overrides in `.env.local`).
 
 `lib/env.ts` validates them with Zod when the server boots (`instrumentation.ts`): a missing/invalid variable stops startup with a message naming it. **Read config through `env.X`, never `process.env.X`** (except `NODE_ENV`/`NEXT_RUNTIME`). Only `AUTH_SECRET` (≥ 32 chars) is mandatory; the rest default to the docker-compose dev setup. Storage is optional: `storageEnv()` throws a clear error only when uploading. Add new variables to the schema in `lib/env.ts` and to `.env.example`.
 
+### Logging
+
+`lib/logger.ts` (pino): pretty output in dev, JSON lines in production, level via `LOG_LEVEL`. Use `logger.child({ module: 'x' })` and `log.info({ userId }, 'mensaje fijo')` — data in the object, constant message. Never log passwords, tokens, secrets or 2FA codes (`redact` is only a safety net). Auth events (login ok/failed/locked, 2FA, expelled sessions) and mail failures are logged; unhandled request errors go through `onRequestError` in `instrumentation.ts`. Node-only imports in `instrumentation.ts` must sit inside `if (process.env.NEXT_RUNTIME === 'nodejs') { … }` (the Edge bundle has no `stream`).
+
 Standalone scripts (`tsx scripts/…`, `drizzle/seed.ts`) don't load `.env` and must not import `lib/env` / `lib/db`: they open SQLite with `process.env.DATABASE_URL ?? './dev.db'`.

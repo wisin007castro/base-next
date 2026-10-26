@@ -48,6 +48,8 @@ const nextConfig = (phase: string): NextConfig => ({
   // `next dev` y `next build` en carpetas distintas: un build con el dev corriendo
   // pisaba sus archivos y el dev empezaba a responder 500.
   distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
+  // pino usa worker threads y require dinámicos: se carga desde node_modules, sin empaquetar
+  serverExternalPackages: ['pino', 'pino-pretty'],
   images: {
     remotePatterns: [
       {

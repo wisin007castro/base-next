@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { generateVerificationToken } from '@/lib/auth/tokens'
 import { sendPasswordResetEmail } from '@/lib/mail/mail.service'
+import { logger } from '@/lib/logger'
 
 // POST /api/auth/forgot-password
 export async function POST(req: NextRequest) {
@@ -35,9 +36,10 @@ export async function POST(req: NextRequest) {
     })
     .where(eq(users.id, user.id))
 
-  await sendPasswordResetEmail(user.email, user.username, token).catch(() => {
-    // No exponer errores de correo al cliente
-  })
+  // No exponer errores de correo al cliente (revelaría si el email existe), pero sí registrarlos
+  await sendPasswordResetEmail(user.email, user.username, token).catch(err =>
+    logger.error({ module: 'mail', userId: user.id, err }, 'no se pudo enviar el correo de recuperación'),
+  )
 
   return ok
 }

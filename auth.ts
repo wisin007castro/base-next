@@ -8,6 +8,9 @@ import { users, userSessions } from '@/lib/db/schema'
 import { getUserRoles, getUserPermissions } from '@/lib/auth/rbac'
 import { rateLimit } from '@/lib/api/rate-limiter'
 import { verifyTotp } from '@/lib/auth/two-factor'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'auth' })
 
 /** Llega al cliente como `res.code === 'rate_limited'` en signIn(). */
 class RateLimitedError extends CredentialsSignin {
@@ -28,19 +31,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Rate limiting: 5 intentos por email cada 15 minutos
         const email = credentials.email as string
         const { allowed } = rateLimit(`login:${email}`, 5, 15 * 60 * 1000)
-        if (!allowed) throw new RateLimitedError()
+        if (!allowed) {
+          log.warn({ email }, 'login bloqueado por límite de intentos')
+          throw new RateLimitedError()
+        }
 
         const user = await db.query.users.findFirst({
           where: and(eq(users.email, email), eq(users.isActive, true), isNull(users.deletedAt)),
         })
 
-        if (!user) return null
+        if (!user) {
+          log.info({ email }, 'login fallido: usuario inexistente o inactivo')
+          return null
+        }
 
         const valid = await bcrypt.compare(credentials.password as string, user.password)
-        if (!valid) return null
+        if (!valid) {
+          log.info({ userId: user.id }, 'login fallido: contraseña incorrecta')
+          return null
+        }
 
         // FEAT 7: si 2FA está habilitado, retornar pendiente sin roles
         if (user.twoFactorEnabled) {
+          log.info({ userId: user.id }, 'login: contraseña correcta, falta el código 2FA')
           return {
             id: String(user.id),
             twoFactorPending: true,
@@ -65,6 +78,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           revokedAt: null,
         })
 
+        log.info({ userId: user.id }, 'login correcto')
         return {
           id: String(user.id),
           name: user.username,
@@ -107,7 +121,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // navegador, así que el código se comprueba aquí, en el servidor, antes de conceder la sesión.
       if (trigger === 'update' && token.twoFactorPending && typeof session?.twoFactorCode === 'string') {
         const userId = Number(token.id)
-        if ((await verifyTotp(userId, session.twoFactorCode)) !== 'ok') return token
+        if ((await verifyTotp(userId, session.twoFactorCode)) !== 'ok') {
+          log.warn({ userId }, 'login 2FA: código rechazado al completar la sesión')
+          return token
+        }
         const [roles, perms] = await Promise.all([getUserRoles(userId), getUserPermissions(userId)])
 
         // Insertar sesión ahora que está verificado
@@ -129,6 +146,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.permissions = perms
         token.sid = sid
         token.twoFactorPending = undefined
+        log.info({ userId }, 'login correcto (2FA)')
         return token
       }
 
@@ -151,6 +169,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           columns: { isActive: true, deletedAt: true },
         })
         if (!user || !user.isActive || user.deletedAt) {
+          log.info({ userId }, 'sesión cerrada: usuario desactivado o eliminado')
           return null
         }
 
