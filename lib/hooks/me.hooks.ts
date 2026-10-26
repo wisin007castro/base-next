@@ -51,7 +51,7 @@ export function useMySessions() {
 export function useRevokeSession() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => meApi.revokeSession(id),
+    mutationFn: (id: number) => meApi.revokeSession(id),
     onSuccess: (_, id) => {
       qc.setQueryData<ActiveSession[]>(meKeys.sessions(), old => old?.filter(s => s.id !== id))
     },

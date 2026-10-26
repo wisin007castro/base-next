@@ -149,28 +149,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
     session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string
-        ;(
-          session.user as {
-            roles?: string[]
-            permissions?: string[]
-            twoFactorPending?: boolean
-          }
-        ).roles = (token.roles as string[]) ?? []
-        ;(
-          session.user as {
-            roles?: string[]
-            permissions?: string[]
-            twoFactorPending?: boolean
-          }
-        ).permissions = (token.permissions as string[]) ?? []
-        ;(
-          session.user as {
-            roles?: string[]
-            permissions?: string[]
-            twoFactorPending?: boolean
-          }
-        ).twoFactorPending = token.twoFactorPending as boolean | undefined
+        const user = session.user as typeof session.user & {
+          roles?: string[]
+          permissions?: string[]
+          twoFactorPending?: boolean
+          sid?: string
+        }
+        user.id = token.id as string
+        user.roles = (token.roles as string[]) ?? []
+        user.permissions = (token.permissions as string[]) ?? []
+        user.twoFactorPending = token.twoFactorPending as boolean | undefined
+        // Para marcar "Sesión actual" en /api/me/sessions (es un id, no una credencial)
+        user.sid = token.sid as string | undefined
       }
       return session
     },

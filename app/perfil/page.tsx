@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { signOut, useSession } from 'next-auth/react'
+import { signOut } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { User } from '@/lib/types/user.types'
@@ -135,20 +135,15 @@ function PersonalSection({ user }: { user: User }) {
 // Sección B: Sesiones activas
 // ---------------------------------------------------------------------------
 function SessionsSection() {
-  const { data: sessionData } = useSession()
   const { data: sessions = [], isPending: loading, error: loadError } = useMySessions()
   const revoke = useRevokeSession()
-
-  // The JWT jti (session id) is available on the session token
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const currentJti = (sessionData as any)?.jti as string | undefined
 
   const error = loadError ? 'No se pudieron cargar las sesiones' : (revoke.error?.message ?? null)
   const revokingId = revoke.isPending ? revoke.variables : null
 
-  function revokeSession(id: string) {
+  function revokeSession(id: number) {
     // Calcularlo antes: onSuccess quita la sesión de la caché
-    const isCurrentSession = sessions.find(s => s.id === id)?.isCurrent || id === currentJti
+    const isCurrentSession = sessions.find(s => s.id === id)?.isCurrent
     revoke.mutate(id, {
       onSuccess: () => {
         if (isCurrentSession) signOut({ callbackUrl: '/login' })
@@ -168,7 +163,6 @@ function SessionsSection() {
   }
 
   function getDeviceLabel(session: ActiveSession) {
-    if (session.device) return session.device
     if (!session.userAgent) return 'Dispositivo desconocido'
     // Simple UA parse
     const ua = session.userAgent
@@ -200,7 +194,7 @@ function SessionsSection() {
       {!loading && sessions.length > 0 && (
         <ul className="divide-y divide-gray-100 dark:divide-gray-700">
           {sessions.map(session => {
-            const isCurrent = session.isCurrent || session.id === currentJti
+            const isCurrent = session.isCurrent
             return (
               <li key={session.id} className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
                 <div className="min-w-0 flex-1 space-y-0.5">
@@ -219,7 +213,7 @@ function SessionsSection() {
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500 dark:text-gray-400">
                     <span>Creada: {formatDate(session.createdAt)}</span>
-                    {session.lastAccessAt && <span>Último acceso: {formatDate(session.lastAccessAt)}</span>}
+                    {session.lastUsedAt && <span>Último acceso: {formatDate(session.lastUsedAt)}</span>}
                     {session.expiresAt && <span>Expira: {formatDate(session.expiresAt)}</span>}
                   </div>
                 </div>

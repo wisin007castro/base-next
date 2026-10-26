@@ -8,6 +8,8 @@ export type GuardSession = {
     email?: string | null
     roles: string[]
     permissions: string[]
+    /** id de la fila en user_sessions (jti) de esta sesión */
+    sid?: string
   }
 }
 
@@ -17,6 +19,7 @@ type RawUser = {
   email?: string | null
   roles?: string[]
   permissions?: string[]
+  sid?: string
 }
 
 function buildGuard(session: { user?: RawUser | null } | null): GuardSession {
@@ -28,6 +31,7 @@ function buildGuard(session: { user?: RawUser | null } | null): GuardSession {
       email: u.email,
       roles: u.roles ?? [],
       permissions: u.permissions ?? [],
+      sid: u.sid,
     },
   }
 }

@@ -162,8 +162,14 @@ export const myAccountDefaults = (u: User): MyAccountFormValues => ({
   current_password: '',
 })
 
-export const toMyAccountDto = ({ username, email, password, current_password }: MyAccountFormValues) =>
-  password ? { username, email, password, current_password } : { username, email }
+export const toMyAccountDto = ({
+  username,
+  email,
+  password,
+  password_confirmation,
+  current_password,
+}: MyAccountFormValues) =>
+  password ? { username, email, password, password_confirmation, current_password } : { username, email }
 
 // ─── Opciones de selects ──────────────────────────────────────────────────────
 export const documentTypeOptions = [

@@ -2,13 +2,13 @@ import type { User } from '@/lib/types/user.types'
 import { request } from './http'
 
 export interface ActiveSession {
-  id: string
+  id: number
   userAgent: string | null
-  device: string | null
+  ip: string | null
   createdAt: string
-  lastAccessAt: string | null
+  lastUsedAt: string | null
   expiresAt: string | null
-  isCurrent?: boolean
+  isCurrent: boolean
 }
 
 export type MeUser = User & { twoFactorEnabled?: boolean }
@@ -24,5 +24,5 @@ export const meApi = {
   getSessions: (signal?: AbortSignal) => request<ActiveSession[]>('/me/sessions', { signal }),
 
   /** Revocar una sesión */
-  revokeSession: (id: string) => request<void>(`/me/sessions/${id}`, { method: 'DELETE' }),
+  revokeSession: (id: number) => request<void>(`/me/sessions/${id}`, { method: 'DELETE' }),
 }

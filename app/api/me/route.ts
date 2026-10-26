@@ -3,9 +3,11 @@ import { eq } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import { auth } from '@/auth'
 import { db } from '@/lib/db'
-import { users, userProfiles } from '@/lib/db/schema'
+import { users } from '@/lib/db/schema'
 import { serializeUser } from '@/lib/api/serializers/user.serializer'
 import { uniqueViolationResponse } from '@/lib/api/db-errors'
+import { updateMeSchema } from '@/lib/api/schemas/user.schema'
+import { saveProfile, validateProfileWrite } from '@/lib/api/user-profile'
 
 const withRoles = { profile: true, userRoles: { with: { role: true } } } as const
 
@@ -27,8 +29,17 @@ export async function PATCH(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ message: 'No autenticado' }, { status: 401 })
 
   const userId = Number(session.user.id)
-  const body = await req.json()
+  const parsed = updateMeSchema.safeParse(await req.json().catch(() => null))
+  if (!parsed.success) {
+    return NextResponse.json({ message: 'Datos inválidos', errors: parsed.error.flatten() }, { status: 422 })
+  }
+  const body = parsed.data
   const now = new Date().toISOString()
+
+  if (body.profile) {
+    const res = await validateProfileWrite(userId, body.profile)
+    if (res) return res
+  }
 
   const userValues: Record<string, unknown> = { updatedAt: now }
   if (body.username !== undefined) userValues.username = body.username
@@ -51,7 +62,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ message: 'Usuario no encontrado' }, { status: 404 })
     }
 
-    const valid = await bcrypt.compare(body.current_password as string, currentUser.password)
+    const valid = await bcrypt.compare(body.current_password, currentUser.password)
     if (!valid) {
       return NextResponse.json(
         {
@@ -74,35 +85,8 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (body.profile) {
-    const p = body.profile
-    const profileValues: Record<string, unknown> = { updatedAt: now }
-    const map: Record<string, string> = {
-      nombre: 'nombre',
-      primer_apellido: 'primerApellido',
-      segundo_apellido: 'segundoApellido',
-      tipo_documento: 'tipoDocumento',
-      numero_documento: 'numeroDocumento',
-      fecha_nacimiento: 'fechaNacimiento',
-      genero: 'genero',
-      telefono: 'telefono',
-      telefono_alternativo: 'telefonoAlternativo',
-      pais: 'pais',
-      departamento: 'departamento',
-      ciudad: 'ciudad',
-      direccion: 'direccion',
-      codigo_postal: 'codigoPostal',
-    }
-    Object.entries(map).forEach(([src, dst]) => {
-      if (p[src] !== undefined) profileValues[dst] = p[src]
-    })
-
-    const existing = await db.query.userProfiles.findFirst({ where: eq(userProfiles.userId, userId) })
-    if (existing) {
-      await db.update(userProfiles).set(profileValues).where(eq(userProfiles.userId, userId))
-    } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await db.insert(userProfiles).values({ userId, ...(profileValues as any), createdAt: now })
-    }
+    const res = await saveProfile(userId, body.profile, now)
+    if (res) return res
   }
 
   const result = await db.query.users.findFirst({ where: eq(users.id, userId), with: withRoles })

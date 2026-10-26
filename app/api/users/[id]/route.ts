@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
-import { users, userProfiles } from '@/lib/db/schema'
+import { users } from '@/lib/db/schema'
 import { serializeUser } from '@/lib/api/serializers/user.serializer'
 import { syncRoles } from '@/lib/auth/rbac'
 import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
 import { updateUserSchema } from '@/lib/api/schemas/user.schema'
 import { uniqueViolationResponse } from '@/lib/api/db-errors'
+import { saveProfile, validateProfileWrite } from '@/lib/api/user-profile'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -40,6 +41,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const userId = Number(id)
   const body = parsed.data
 
+  const target = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { id: true } })
+  if (!target) return NextResponse.json({ message: 'Usuario no encontrado' }, { status: 404 })
+  if (body.profile) {
+    const res = await validateProfileWrite(userId, body.profile)
+    if (res) return res
+  }
+
   const userValues: Record<string, unknown> = { updatedAt: now }
   if (body.username !== undefined) userValues.username = body.username
   if (body.email !== undefined) userValues.email = body.email
@@ -57,35 +65,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (Array.isArray(body.role_ids)) await syncRoles(userId, body.role_ids)
 
   if (body.profile) {
-    const p = body.profile
-    const profileValues: Record<string, unknown> = { updatedAt: now }
-    const map: Record<string, string> = {
-      nombre: 'nombre',
-      primer_apellido: 'primerApellido',
-      segundo_apellido: 'segundoApellido',
-      tipo_documento: 'tipoDocumento',
-      numero_documento: 'numeroDocumento',
-      fecha_nacimiento: 'fechaNacimiento',
-      genero: 'genero',
-      telefono: 'telefono',
-      telefono_alternativo: 'telefonoAlternativo',
-      pais: 'pais',
-      departamento: 'departamento',
-      ciudad: 'ciudad',
-      direccion: 'direccion',
-      codigo_postal: 'codigoPostal',
-    }
-    Object.entries(map).forEach(([src, dst]) => {
-      if ((p as Record<string, unknown>)[src] !== undefined) profileValues[dst] = (p as Record<string, unknown>)[src]
-    })
-
-    const existing = await db.query.userProfiles.findFirst({ where: eq(userProfiles.userId, userId) })
-    if (existing) {
-      await db.update(userProfiles).set(profileValues).where(eq(userProfiles.userId, userId))
-    } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await db.insert(userProfiles).values({ userId, ...(profileValues as any), createdAt: now })
-    }
+    const res = await saveProfile(userId, body.profile, now)
+    if (res) return res
   }
 
   const result = await db.query.users.findFirst({ where: eq(users.id, userId), with: withRoles })

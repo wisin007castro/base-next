@@ -10,28 +10,24 @@ export async function GET() {
   if (isGuardError(guard)) return guard
 
   const userId = Number(guard.user.id)
-  const now    = new Date().toISOString()
+  const now = new Date().toISOString()
 
   const sessions = await db.query.userSessions.findMany({
-    where: and(
-      eq(userSessions.userId, userId),
-      isNull(userSessions.revokedAt),
-      gt(userSessions.expiresAt, now),
-    ),
+    where: and(eq(userSessions.userId, userId), isNull(userSessions.revokedAt), gt(userSessions.expiresAt, now)),
     orderBy: [desc(userSessions.lastUsedAt)],
   })
 
-  type SessionRow = typeof sessions[number]
+  type SessionRow = (typeof sessions)[number]
 
   return NextResponse.json(
     sessions.map((s: SessionRow) => ({
-      id:          s.id,
-      jti:         s.jti,
-      userAgent:   s.userAgent,
-      ip:          s.ip,
-      createdAt:   s.createdAt,
-      lastUsedAt:  s.lastUsedAt,
-      expiresAt:   s.expiresAt,
+      id: s.id,
+      userAgent: s.userAgent,
+      ip: s.ip,
+      createdAt: s.createdAt,
+      lastUsedAt: s.lastUsedAt,
+      expiresAt: s.expiresAt,
+      isCurrent: s.jti === guard.user.sid,
     })),
   )
 }

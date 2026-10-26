@@ -17,7 +17,7 @@ export const DOCUMENT_TYPES = ['dni', 'cedula', 'pasaporte', 'nie'] as const
 export const GENDERS = ['masculino', 'femenino', 'otro', 'prefiero_no_decir'] as const
 
 // ─── Perfil completo (creación) ────────────────────────────────────────────────
-const profileSchema = z
+export const profileSchema = z
   .object({
     nombre: z.string().min(1).max(100),
     primer_apellido: nullableStr(z.string().max(100)),
@@ -86,28 +86,36 @@ export const createUserSchema = z.object({
   profile: profileSchema.optional(),
 })
 
-export const updateUserSchema = z
-  .object({
-    username: z
-      .string()
-      .min(3)
-      .max(50)
-      .regex(/^[a-zA-Z0-9_]+$/)
-      .optional(),
-    email: z.string().email().max(255).optional(),
-    is_active: z.boolean().optional(),
-    password: emptyStr(z.string().min(8).max(128).optional()),
-    password_confirmation: emptyStr(z.string().optional()),
-    role_ids: z.array(z.number().int().positive()).optional(),
-    profile: profileUpdateSchema.optional(),
-  })
-  .refine(data => !data.password || data.password === data.password_confirmation, {
-    message: 'Las contraseñas no coinciden',
-    path: ['password_confirmation'],
-  })
+const updateUserFields = z.object({
+  username: z
+    .string()
+    .min(3)
+    .max(50)
+    .regex(/^[a-zA-Z0-9_]+$/)
+    .optional(),
+  email: z.string().email().max(255).optional(),
+  is_active: z.boolean().optional(),
+  password: emptyStr(z.string().min(8).max(128).optional()),
+  password_confirmation: emptyStr(z.string().optional()),
+  role_ids: z.array(z.number().int().positive()).optional(),
+  profile: profileUpdateSchema.optional(),
+})
+
+const passwordsMatch = (data: { password?: string; password_confirmation?: string }) =>
+  !data.password || data.password === data.password_confirmation
+const passwordsMismatch = { message: 'Las contraseñas no coinciden', path: ['password_confirmation'] }
+
+export const updateUserSchema = updateUserFields.refine(passwordsMatch, passwordsMismatch)
+
+/** PATCH /api/me: el propio usuario no puede tocar `is_active` ni sus roles. */
+export const updateMeSchema = updateUserFields
+  .omit({ is_active: true, role_ids: true })
+  .extend({ current_password: emptyStr(z.string().max(128).optional()) })
+  .refine(passwordsMatch, passwordsMismatch)
 
 export type CreateUserInput = z.infer<typeof createUserSchema>
 export type UpdateUserInput = z.infer<typeof updateUserSchema>
+export type UpdateMeInput = z.infer<typeof updateMeSchema>
 
 // ─── Acciones en lote ──────────────────────────────────────────────────────────
 export const BULK_USER_ACTIONS = ['activate', 'deactivate', 'delete', 'restore', 'force_delete'] as const
