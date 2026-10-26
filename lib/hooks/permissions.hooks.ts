@@ -2,6 +2,9 @@ import { useQuery, useMutation, useQueryClient, queryOptions } from '@tanstack/r
 import { permissionsApi, type UpdatePermissionDto } from '@/lib/api/permissions.api'
 import { permissionKeys } from '@/lib/constants/query-keys'
 import type { CreatePermissionDto } from '@/lib/types/rbac.types'
+import { crudToasts } from '@/lib/toast'
+
+const t = crudToasts('Permiso')
 
 export const permissionQueries = {
   list: () =>
@@ -36,6 +39,7 @@ export function usePrefetchPermission() {
 export function useCreatePermission() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successToast: t.created },
     mutationFn: (dto: CreatePermissionDto) => permissionsApi.create(dto),
     onSuccess: () => qc.invalidateQueries({ queryKey: permissionKeys.lists() }),
   })
@@ -44,6 +48,7 @@ export function useCreatePermission() {
 export function useUpdatePermission(id: number) {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successToast: t.updated },
     mutationFn: (dto: UpdatePermissionDto) => permissionsApi.update(id, dto),
     onSuccess: permission => {
       qc.setQueryData(permissionKeys.detail(id), permission)
@@ -55,6 +60,7 @@ export function useUpdatePermission(id: number) {
 export function useDeletePermission() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { successToast: t.deleted },
     mutationFn: (id: number) => permissionsApi.remove(id),
     onSuccess: (_, id) => {
       qc.removeQueries({ queryKey: permissionKeys.detail(id) })

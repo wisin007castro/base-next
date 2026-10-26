@@ -5,6 +5,9 @@ import { etiquetaKeys } from '@/lib/constants/query-keys'
 import { invalidateDependents } from '@/lib/hooks/invalidate-dependents'
 import type { EtiquetaFilters } from '@/lib/types/etiqueta.types'
 import type { BulkEtiquetaAction, CreateEtiquetaInput, UpdateEtiquetaInput } from '@/lib/api/schemas/etiqueta.schema'
+import { crudToasts, bulkToast } from '@/lib/toast'
+
+const t = crudToasts('Etiqueta', true)
 
 export const etiquetaQueries = {
   list: (filters: EtiquetaFilters) =>
@@ -75,6 +78,7 @@ export function useCreateEtiqueta() {
   const qc = useQueryClient()
   const invalidate = useInvalidateEtiquetas()
   return useMutation({
+    meta: { successToast: t.created },
     mutationFn: (dto: CreateEtiquetaInput) => etiquetasApi.create(dto),
     onSuccess: item => {
       qc.setQueryData(etiquetaKeys.detail(item.id), item)
@@ -87,6 +91,7 @@ export function useUpdateEtiqueta(id: number) {
   const qc = useQueryClient()
   const invalidate = useInvalidateEtiquetas()
   return useMutation({
+    meta: { successToast: t.updated },
     mutationFn: (dto: UpdateEtiquetaInput) => etiquetasApi.update(id, dto),
     onSuccess: item => {
       qc.setQueryData(etiquetaKeys.detail(id), item)
@@ -99,6 +104,7 @@ export function useDeleteEtiqueta() {
   const qc = useQueryClient()
   const invalidate = useInvalidateEtiquetas()
   return useMutation({
+    meta: { successToast: t.deleted },
     mutationFn: (id: number) => etiquetasApi.remove(id),
     onSuccess: (_, id) => {
       qc.removeQueries({ queryKey: etiquetaKeys.detail(id) })
@@ -112,6 +118,7 @@ export function useBulkEtiquetas() {
   const qc = useQueryClient()
   const invalidate = useInvalidateEtiquetas()
   return useMutation({
+    meta: { successToast: bulkToast },
     mutationFn: ({ action, ids }: { action: BulkEtiquetaAction; ids: number[] }) => etiquetasApi.bulk(action, ids),
     onSuccess: (_, { ids }) => {
       ids.forEach(id => qc.removeQueries({ queryKey: etiquetaKeys.detail(id) }))

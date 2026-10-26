@@ -32,7 +32,18 @@ npm run storage:setup # Initialize MinIO bucket after docker:up
 npm run e2e           # todas las pruebas (e2e/*.spec.ts)
 npm run e2e:ui        # modo interactivo
 npm run format:check  # lo que corre CI (el repo está formateado entero)
+
+# Unit tests (Vitest) y catálogo de componentes (Storybook)
+npm test              # vitest run (también en pre-push y CI)
+npm run test:watch
+npm run storybook     # http://localhost:6008 (puerto del registro)
+npm run build-storybook
 ```
+
+### Unit tests & Storybook
+
+- Vitest (`vitest.config.ts`): Node environment, `*.test.ts` next to the code. Each file gets an **in-memory SQLite with the real migrations** (`vitest.setup.ts`, `DATABASE_URL=':memory:'`), so server logic like `getUserPermissions` is tested without touching `dev.db`. Good targets: pure helpers, Zod schemas, RBAC/settings logic. UI flows belong in e2e.
+- Storybook (`.storybook/`, `@storybook/nextjs-vite`): stories live next to the component (`*.stories.tsx` under `app/` or `lib/`). Existing: form fields (`Formularios/Campos`), `DataTable` with selection/bulk bar/states, and every email template rendered to its final HTML (`Correos`). Toolbar switches light/dark (`dark` class, like next-themes). Tailwind only scans `app/`, `pages/`, `components/` → stories under `lib/` use inline styles. `react-dom/server` is aliased to Next's compiled copy in `main.ts` (otherwise React error #527 with react-email).
 
 ### E2E tests
 
@@ -123,7 +134,7 @@ Drizzle singleton lives in `lib/db/index.ts` using `globalThis` to survive hot-r
 - `syncRoles(userId, roleIds[])` — replaces all roles atomically (used in user update)
 - `assignRole` / `removeRole` / `givePermissionTo` / `revokePermission` — individual mutations
 
-Permissions are additive: a user's effective permissions = direct permissions ∪ permissions from all assigned roles.
+Effective permissions = (permissions from roles ∪ active **grant** privileges) − active **deny** privileges. Privileges live in `user_permissions` (`effect` grant/deny, `reason`, `expires_at`, `granted_by_id`; one per user+permission, `setPrivilege` upserts) and are managed in the user edit page (`PrivilegesSection`, API `GET|POST /api/users/:id/permissions`, `DELETE …/:permId`). Expired ones stay listed but don't count (`privilegeActive()`). The `admin` role passes every check, so denials don't affect admins.
 
 ### Frontend Data Layer
 
@@ -209,7 +220,7 @@ npm run gen:crud -- publicacion "titulo:string=Título" contenido:text "categori
 - Other options: `--plural=`, `--label=`, `--label-singular=`, `--fem`, `--dry-run`, `--force` (regenerate: overwrites the module files and **replaces** its blocks).
 - Generates: Drizzle table (+ pivots), enum constants, types, Zod schema, serializer (base SELECT with joins, visibility conditions, N:M loader/sync, ref validation), API (`list`, `[id]`, `restore`, `force`, `bulk`, `options`), API client, hooks, form schema, URL filters, Form, Table (selection + bulk actions), list/new/edit pages.
 - Writes into existing files as `// @gen:begin <module>` … `// @gen:end <module>` blocks before the markers — never remove them: `// @gen:tables` (schema), `// @gen:query-keys`, `// @gen:modules` (`lib/auth/module-permissions.ts`), `// @gen:menu`, `// @gen:dependents` (`lib/api/dependents.ts`), `// @gen:dependencies` (`lib/constants/query-dependencies.ts`). Re-running replaces the block. Only new files are formatted.
-- After generating: `db:generate` (review the SQL) → `db:migrate` → `db:permissions` → log in again (permissions travel in the JWT).
+- After generating: `db:generate` (review the SQL) → `db:migrate` → `db:permissions` (no re-login needed: permissions are reloaded on every server `auth()`).
 - Security: API uses `requirePermission('<plural>.view|create|edit|delete|force_delete')` (admin always passes); `/options` uses `requireAnyPermission(optionsPermissions(prefix))` so whoever creates/edits a referencing module can load the select; middleware maps `/<plural>` → view, `/nuevo` → create, `/editar` → edit; menu needs `.view`; UI uses `useCan()`.
 - Cache: mutations call `invalidateDependents(qc, '<plural>')` (`lib/hooks/invalidate-dependents.ts` + `QUERY_DEPENDENCIES`) so renaming a category refreshes the posts list and the blog.
 - Generated code is a starting point: edit it freely. Templates live in `scripts/gen-crud/templates/`.
@@ -232,12 +243,25 @@ Example of what the generator does **not** cover, built by hand on top of the ge
 
 ### Environment Variables
 
-Required in `.env.local`:
+Template: `.env.example` (copy to `.env`; personal overrides in `.env.local`).
 
-```
-AUTH_SECRET=
-DATABASE_URL=./dev.db
-MAIL_HOST=  MAIL_PORT=  MAIL_USER=  MAIL_PASS=  MAIL_FROM=
-STORAGE_ENDPOINT=  STORAGE_ACCESS_KEY=  STORAGE_SECRET_KEY=
-STORAGE_BUCKET=  STORAGE_PUBLIC_URL=
-```
+`lib/env.ts` validates them with Zod when the server boots (`instrumentation.ts`): a missing/invalid variable stops startup with a message naming it. **Read config through `env.X`, never `process.env.X`** (except `NODE_ENV`/`NEXT_RUNTIME`). Only `AUTH_SECRET` (≥ 32 chars) is mandatory; the rest default to the docker-compose dev setup. Storage is optional: `storageEnv()` throws a clear error only when uploading. Add new variables to the schema in `lib/env.ts` and to `.env.example`.
+
+### Settings (`/configuracion`, admin)
+
+`settings` table, one row per section (`system`, `access`, `mail`) holding JSON validated by the Zod schemas in `lib/settings/schemas.ts` (shared by API and forms). Read with `getSettings('access')` (`lib/settings/index.ts`; in-memory cache with 10 s TTL, defaults fill missing keys), write with `saveSettings`. API: `GET|PUT /api/settings/:section` (admin), `POST /api/settings/mail/test`, `GET /api/settings/public` (name, logo, `loginCodeEnabled`; no auth).
+
+- **system**: name + logo URL → sidebar/header (`<Brand />`) and email layout.
+- **access**: `twoFactorPolicy` (`off`/`admins`/`everyone`), invitation days, login-by-code toggle + minutes. With a policy that applies to the user and no 2FA, the JWT carries `twoFactorSetupRequired`: middleware sends pages to `/configurar-2fa`, `requireAuth()` answers 403 except routes declared with `requireAuth({ allowTwoFactorSetup: true })` (`GET /api/me`, `/api/me/2fa/setup|enable`); disabling 2FA is refused (409).
+- **mail**: `source: 'env'` (MAIL_* variables) or `'database'`. The SMTP password is stored AES-256-GCM-encrypted with a key derived from `AUTH_SECRET` (`lib/settings/secrets.ts`) and never returned (`hasPassword`). `getMailer()` (`lib/mail/mail.client.ts`) rebuilds the transport when the config changes.
+
+### Invitations & emails
+
+- `/usuarios/invitaciones` (admin): invite by email with roles; `/invitacion?token=` (public) creates the account (verified, with the roles) and signs in. Token = 256 bits, only its SHA-256 is stored; lifetime from settings; re-inviting replaces the pending one.
+- Emails are React components in `lib/mail/templates` (react-email, inline styles); `lib/mail/mail.service.tsx` renders HTML + plain text with the system branding. e2e read them from MailDev's REST API (`e2e/support/maildev.ts`).
+
+### Logging
+
+`lib/logger.ts` (pino): pretty output in dev, JSON lines in production, level via `LOG_LEVEL`. Use `logger.child({ module: 'x' })` and `log.info({ userId }, 'mensaje fijo')` — data in the object, constant message. Never log passwords, tokens, secrets or 2FA codes (`redact` is only a safety net). Auth events (login ok/failed/locked, 2FA, expelled sessions) and mail failures are logged; unhandled request errors go through `onRequestError` in `instrumentation.ts`. Node-only imports in `instrumentation.ts` must sit inside `if (process.env.NEXT_RUNTIME === 'nodejs') { … }` (the Edge bundle has no `stream`).
+
+Standalone scripts (`tsx scripts/…`, `drizzle/seed.ts`) don't load `.env` and must not import `lib/env` / `lib/db`: they open SQLite with `process.env.DATABASE_URL ?? './dev.db'`.

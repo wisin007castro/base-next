@@ -14,11 +14,13 @@ env:
   # Solo para CI: base de datos desechable y secreto sin valor real
   AUTH_SECRET: ci-only-secret-not-used-anywhere-else
   NEXTAUTH_URL: http://localhost:3005
+  # next start (modo producción): Auth.js solo acepta hosts de confianza
+  AUTH_TRUST_HOST: 'true'
   DATABASE_URL: ./dev.db
 
 jobs:
   check:
-    name: Lint + build (incluye typecheck)
+    name: Lint, unit tests y build (incluye typecheck)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -30,6 +32,9 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run format:check
+      - run: npm test
+      # Las stories compilan (detecta componentes rotos aunque nadie abra Storybook)
+      - run: npm run build-storybook -- --quiet
       # next build también comprueba los tipos (tsconfig completo, e2e incluido)
       - run: npm run build
 
@@ -37,6 +42,10 @@ jobs:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      MAIL_PORT: 1025
+      E2E_MAILDEV_URL: http://localhost:1080
+      E2E_SMTP_PORT: 1025
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -45,11 +54,19 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      # MailDev recibe los correos (invitaciones, códigos…); las pruebas los leen por su API REST.
+      # Con docker run y no como `services:`: su healthcheck interno lo marca "unhealthy" y el runner aborta.
+      - name: MailDev
+        run: |
+          docker run -d --name maildev -p 1025:1025 -p 1080:1080 maildev/maildev:2.2.1
+          for i in $(seq 1 30); do curl -sf http://localhost:1080/email > /dev/null && exit 0; sleep 1; done
+          docker logs maildev; exit 1
       - name: Base de datos de prueba
         run: |
           npm run db:migrate
           npm run db:seed
-      # playwright.config levanta `npm run dev` (en CI no reutiliza servidores)
+          npm run db:permissions
+      # playwright.config levanta next build + next start (en CI no reutiliza servidores)
       - run: npm run e2e
       - name: Reporte y trazas de los fallos
         if: failure()

@@ -1,4 +1,4 @@
-import { eq, and, inArray } from 'drizzle-orm'
+import { eq, and, gt, inArray, isNull, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { roles, permissions, userRoles, userPermissions, rolePermissions } from '@/lib/db/schema'
 
@@ -16,21 +16,26 @@ export async function getUserRoles(userId: number): Promise<string[]> {
   return rows.map(r => r.name)
 }
 
-/** Permisos efectivos: directos + heredados de roles */
+/** Privilegio vigente: sin caducidad o que caduca en el futuro */
+export const privilegeActive = () =>
+  or(isNull(userPermissions.expiresAt), gt(userPermissions.expiresAt, new Date().toISOString()))
+
+/**
+ * Permisos efectivos = (heredados de roles ∪ privilegios que conceden) − privilegios que deniegan.
+ * Solo cuentan los privilegios vigentes. Ojo: el rol `admin` pasa todos los checks igualmente
+ * (requirePermission / useCan), así que una denegación no le afecta.
+ */
 export async function getUserPermissions(userId: number): Promise<string[]> {
-  // Permisos directos
   const direct = await db
-    .select({ name: permissions.name })
+    .select({ name: permissions.name, effect: userPermissions.effect })
     .from(userPermissions)
     .innerJoin(permissions, eq(permissions.id, userPermissions.permissionId))
-    .where(eq(userPermissions.userId, userId))
+    .where(and(eq(userPermissions.userId, userId), privilegeActive()))
 
-  // IDs de roles del usuario
   const roleIds = (
     await db.select({ roleId: userRoles.roleId }).from(userRoles).where(eq(userRoles.userId, userId))
   ).map(r => r.roleId)
 
-  // Permisos heredados de roles
   let viaRoles: { name: string }[] = []
   if (roleIds.length > 0) {
     viaRoles = await db
@@ -40,7 +45,9 @@ export async function getUserPermissions(userId: number): Promise<string[]> {
       .where(inArray(rolePermissions.roleId, roleIds))
   }
 
-  return [...new Set([...direct.map(p => p.name), ...viaRoles.map(p => p.name)])]
+  const denied = new Set(direct.filter(p => p.effect === 'deny').map(p => p.name))
+  const granted = direct.filter(p => p.effect === 'grant').map(p => p.name)
+  return [...new Set([...viaRoles.map(p => p.name), ...granted])].filter(name => !denied.has(name))
 }
 
 // -------------------------------------------------------------------
@@ -86,8 +93,23 @@ export async function syncRoles(userId: number, roleIds: number[]) {
   }
 }
 
-export async function givePermissionTo(userId: number, permissionId: number) {
-  await db.insert(userPermissions).values({ userId, permissionId }).onConflictDoNothing()
+/** Crea o reemplaza el privilegio del usuario sobre un permiso */
+export async function setPrivilege(
+  userId: number,
+  permissionId: number,
+  p: { effect: 'grant' | 'deny'; reason?: string | null; expiresAt?: string | null; grantedById?: number | null },
+) {
+  const values = {
+    effect: p.effect,
+    reason: p.reason ?? null,
+    expiresAt: p.expiresAt ?? null,
+    grantedById: p.grantedById ?? null,
+    createdAt: new Date().toISOString(),
+  }
+  await db
+    .insert(userPermissions)
+    .values({ userId, permissionId, ...values })
+    .onConflictDoUpdate({ target: [userPermissions.userId, userPermissions.permissionId], set: values })
 }
 
 export async function revokePermission(userId: number, permissionId: number) {

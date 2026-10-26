@@ -40,13 +40,23 @@ function buildGuard(session: { user?: RawUser | null } | null): GuardSession {
  * Requiere sesión activa y completa. Con 2FA pendiente (solo contraseña) → 403: hasta verificar
  * el código no hay acceso a nada salvo las rutas del flujo 2FA (`requireAuthPending`).
  */
-export async function requireAuth(): Promise<GuardSession | NextResponse> {
+export async function requireAuth({
+  allowTwoFactorSetup = false,
+}: {
+  /** Rutas que necesita /configurar-2fa (GET /api/me, /api/me/2fa/setup|enable) */
+  allowTwoFactorSetup?: boolean
+} = {}): Promise<GuardSession | NextResponse> {
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ message: 'No autenticado' }, { status: 401 })
   }
-  if ((session.user as { twoFactorPending?: boolean }).twoFactorPending) {
+  const u = session.user as { twoFactorPending?: boolean; twoFactorSetupRequired?: boolean }
+  if (u.twoFactorPending) {
     return NextResponse.json({ message: 'Verificación en dos pasos pendiente' }, { status: 403 })
+  }
+  // Política de 2FA obligatorio sin cumplir: hasta activarlo, nada más
+  if (u.twoFactorSetupRequired && !allowTwoFactorSetup) {
+    return NextResponse.json({ message: 'Debes activar la verificación en dos pasos' }, { status: 403 })
   }
   return buildGuard(session)
 }

@@ -13,7 +13,7 @@ const withRoles = { profile: true, userRoles: { with: { role: true } } } as cons
 
 // GET /api/me
 export async function GET() {
-  const guard = await requireAuth()
+  const guard = await requireAuth({ allowTwoFactorSetup: true })
   if (isGuardError(guard)) return guard
 
   const userId = Number(guard.user.id)
