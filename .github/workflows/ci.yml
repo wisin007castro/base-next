@@ -40,15 +40,6 @@ jobs:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # MailDev recibe los correos (invitaciones…); las pruebas los leen por su API REST
-    services:
-      maildev:
-        image: maildev/maildev:2.2.1
-        ports:
-          - 1025:1025
-          - 1080:1080
-        # Su healthcheck interno marca "unhealthy" aunque funciona: se espera a su API más abajo
-        options: --no-healthcheck
     env:
       MAIL_PORT: 1025
       E2E_MAILDEV_URL: http://localhost:1080
@@ -61,14 +52,19 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: Esperar a MailDev
-        run: for i in $(seq 1 30); do curl -sf http://localhost:1080/email > /dev/null && exit 0; sleep 1; done; exit 1
+      # MailDev recibe los correos (invitaciones, códigos…); las pruebas los leen por su API REST.
+      # Con docker run y no como `services:`: su healthcheck interno lo marca "unhealthy" y el runner aborta.
+      - name: MailDev
+        run: |
+          docker run -d --name maildev -p 1025:1025 -p 1080:1080 maildev/maildev:2.2.1
+          for i in $(seq 1 30); do curl -sf http://localhost:1080/email > /dev/null && exit 0; sleep 1; done
+          docker logs maildev; exit 1
       - name: Base de datos de prueba
         run: |
           npm run db:migrate
           npm run db:seed
           npm run db:permissions
-      # playwright.config levanta `npm run dev` (en CI no reutiliza servidores)
+      # playwright.config levanta next build + next start (en CI no reutiliza servidores)
       - run: npm run e2e
       - name: Reporte y trazas de los fallos
         if: failure()
