@@ -54,6 +54,9 @@ const alignClass = { left: 'text-left', right: 'text-right', center: 'text-cente
 const toSorting = (sort?: string): SortingState =>
   sort ? [{ id: sort.replace(/^-/, ''), desc: sort.startsWith('-') }] : []
 
+/** Referencia estable para `data` vacío (un `[]` nuevo por render invalida los modelos de la tabla) */
+const EMPTY: never[] = []
+
 const fromSorting = (sorting: SortingState) => (sorting[0] ? `${sorting[0].desc ? '-' : ''}${sorting[0].id}` : '')
 
 /**
@@ -80,9 +83,13 @@ export function DataTable<T>({
   const sorting = toSorting(sort)
 
   const table = useReactTable({
-    data: data ?? [],
+    data: data ?? EMPTY,
     columns,
     getRowId,
+    // Sin esto, en modo client cada cambio de `columns` (se crean en cada render) recalcula el
+    // modelo ordenado/filtrado, que encola un reset de pageIndex → setState → render → columnas
+    // nuevas → … bucle infinito que congela la página (no usamos paginación de TanStack: va en la URL)
+    autoResetAll: false,
     state: { sorting, globalFilter, rowSelection: rowSelection ?? {} },
     onSortingChange: updater => onSortChange?.(fromSorting(typeof updater === 'function' ? updater(sorting) : updater)),
     onRowSelectionChange,
