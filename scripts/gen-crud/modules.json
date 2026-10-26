@@ -1,0 +1,16 @@
+{
+  "categorias": {
+    "table": "categorias",
+    "display": "nombre",
+    "PascalPlural": "Categorias",
+    "camelPlural": "categorias",
+    "kebabPlural": "categorias"
+  },
+  "publicaciones": {
+    "table": "publicaciones",
+    "display": "titulo",
+    "PascalPlural": "Publicaciones",
+    "camelPlural": "publicaciones",
+    "kebabPlural": "publicaciones"
+  }
+}

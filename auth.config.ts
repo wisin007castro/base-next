@@ -19,7 +19,7 @@ export const authConfig: NextAuthConfig = {
       const twoFactorPending = !!(auth?.user as { twoFactorPending?: boolean })?.twoFactorPending
 
       const adminPaths = ['/usuarios', '/roles', '/permisos']
-      const userPaths = ['/perfil']
+      const userPaths = ['/perfil', '/blog']
       const authPaths = ['/'] // home sólo autenticados
       const publicPaths = ['/login', '/forgot-password', '/reset-password']
 

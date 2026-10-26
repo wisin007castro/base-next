@@ -18,6 +18,7 @@ npm run db:migrate    # Apply pending migrations to dev.db
 npm run db:studio     # Open Drizzle Studio GUI (browser-based DB explorer)
 npm run db:seed       # Seed initial data (roles, admin user, permissions)
 npm run db:permissions # Create missing CRUD-module permissions and assign them to admin (idempotent)
+npm run db:seed:blog   # Demo categories/posts/comments/votes (skips if categories exist)
 
 # Code generator
 npm run gen:crud -- <entity> <field:type>...   # full CRUD module — see "CRUD Generator" below
@@ -186,6 +187,15 @@ npm run gen:crud -- publicacion "titulo:string=Título" "contenido:text" "catego
 ### Database notes
 
 - `lib/db/index.ts` enables `PRAGMA foreign_keys = ON`: `onDelete` rules in the schema are enforced (SQLite ignores them otherwise). `ON DELETE RESTRICT` surfaces as `SQLITE_CONSTRAINT_TRIGGER`.
+
+### Blog (reference for non-CRUD features)
+
+Example of what the generator does **not** cover, built by hand on top of the generated `categorias` / `publicaciones`:
+
+- `comentarios` and `votos` tables (vote = composite PK user+post, upsert with `onConflictDoUpdate`).
+- Reader API under `/api/blog` (`requireAuth`, only published posts): list with correlated subqueries for comment count / score / my vote (`lib/api/blog/queries.ts`), comments (author or moderator can delete), `PUT /voto`.
+- `lib/hooks/blog.hooks.ts`: optimistic vote that patches the detail **and** every cached list page, rollback on error; comment mutations update the counters in place.
+- `/blog` (cards + URL filters) and `/blog/[id]` (votes + comments). `npm run db:seed:blog` loads demo data (idempotent).
 
 ### Environment Variables
 

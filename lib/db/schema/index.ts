@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, primaryKey, index } from 'drizzle-orm/sqlite-core'
 import { sql, relations } from 'drizzle-orm'
 
 const ts = () => sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`
@@ -191,4 +191,71 @@ export const userSessionsRelations = relations(userSessions, ({ one }) => ({
 // -------------------------------------------------------------------
 // Módulos generados con `npm run gen:crud`
 // -------------------------------------------------------------------
+// -------------------------------------------------------------------
+// categorias
+// -------------------------------------------------------------------
+export const categorias = sqliteTable('categorias', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  nombre: text('nombre').notNull().unique(),
+  descripcion: text('descripcion'),
+  createdAt: text('created_at').notNull().default(ts()),
+  updatedAt: text('updated_at').notNull().default(ts()),
+})
+
+// -------------------------------------------------------------------
+// publicaciones
+// -------------------------------------------------------------------
+export const publicaciones = sqliteTable('publicaciones', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  titulo: text('titulo').notNull(),
+  resumen: text('resumen'),
+  contenido: text('contenido').notNull(),
+  categoriaId: integer('categoria_id')
+    .references(() => categorias.id, { onDelete: 'restrict' })
+    .notNull(),
+  publicada: integer('publicada', { mode: 'boolean' }).notNull().default(false),
+  fechaPublicacion: text('fecha_publicacion'),
+  autorId: integer('autor_id')
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull(),
+  createdAt: text('created_at').notNull().default(ts()),
+  updatedAt: text('updated_at').notNull().default(ts()),
+})
+
 // @gen:tables
+
+// -------------------------------------------------------------------
+// Blog: comentarios y votos de publicaciones (escrito a mano: no es un CRUD de tabla)
+// -------------------------------------------------------------------
+export const comentarios = sqliteTable(
+  'comentarios',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    publicacionId: integer('publicacion_id')
+      .notNull()
+      .references(() => publicaciones.id, { onDelete: 'cascade' }),
+    autorId: integer('autor_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    contenido: text('contenido').notNull(),
+    createdAt: text('created_at').notNull().default(ts()),
+    updatedAt: text('updated_at').notNull().default(ts()),
+  },
+  t => [index('comentarios_publicacion_idx').on(t.publicacionId)],
+)
+
+/** Un voto por usuario y publicación: +1 / -1 (votar 0 = borrar el voto) */
+export const votos = sqliteTable(
+  'votos',
+  {
+    publicacionId: integer('publicacion_id')
+      .notNull()
+      .references(() => publicaciones.id, { onDelete: 'cascade' }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    valor: integer('valor').notNull(),
+    createdAt: text('created_at').notNull().default(ts()),
+  },
+  t => [primaryKey({ columns: [t.publicacionId, t.userId] })],
+)

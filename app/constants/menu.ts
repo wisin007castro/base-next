@@ -2,7 +2,7 @@ import { AiOutlineHome } from 'react-icons/ai'
 import { GrProjects } from 'react-icons/gr'
 import { GoGear } from 'react-icons/go'
 import { MdOutlineWebAsset, MdWebStories } from 'react-icons/md'
-import { HiOutlineUsers } from 'react-icons/hi'
+import { HiOutlineUsers, HiOutlineViewGrid } from 'react-icons/hi'
 import { RiShieldKeyholeLine, RiLockPasswordLine } from 'react-icons/ri'
 
 export interface OptionMenu {
@@ -77,5 +77,19 @@ export const optionMenus: OptionMenu[] = [
     ],
   },
   // Módulos generados con `npm run gen:crud` (icono por defecto: HiOutlineViewGrid)
+  {
+    id: 'categorias',
+    label: 'Categorías',
+    href: '/categorias',
+    icon: HiOutlineViewGrid,
+    permission: 'categorias.view',
+  },
+  {
+    id: 'publicaciones',
+    label: 'Publicaciones',
+    href: '/publicaciones',
+    icon: HiOutlineViewGrid,
+    permission: 'publicaciones.view',
+  },
   // @gen:menu
 ]

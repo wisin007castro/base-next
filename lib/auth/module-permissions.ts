@@ -26,6 +26,8 @@ const ACTION_LABELS: Record<ModuleAction, string> = {
 }
 
 export const MODULES: ModulePermissions[] = [
+  { path: '/categorias', prefix: 'categorias', label: 'Categorías' },
+  { path: '/publicaciones', prefix: 'publicaciones', label: 'Publicaciones' },
   // @gen:modules
 ]
 
