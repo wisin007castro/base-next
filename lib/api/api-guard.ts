@@ -23,10 +23,10 @@ function buildGuard(session: { user?: RawUser | null } | null): GuardSession {
   const u = session!.user as RawUser
   return {
     user: {
-      id:          u.id!,
-      name:        u.name,
-      email:       u.email,
-      roles:       u.roles       ?? [],
+      id: u.id!,
+      name: u.name,
+      email: u.email,
+      roles: u.roles ?? [],
       permissions: u.permissions ?? [],
     },
   }
@@ -46,6 +46,20 @@ export async function requireAdmin(): Promise<GuardSession | NextResponse> {
   const result = await requireAuth()
   if (isGuardError(result)) return result
   if (!result.user.roles.includes('admin')) {
+    return NextResponse.json({ message: 'Acceso no autorizado' }, { status: 403 })
+  }
+  return result
+}
+
+/**
+ * Requiere un permiso concreto (p. ej. `productos.edit`). El rol `admin` pasa siempre.
+ * Los permisos vienen del JWT: un cambio de permisos se aplica al volver a iniciar sesión.
+ */
+export async function requirePermission(permission: string): Promise<GuardSession | NextResponse> {
+  const result = await requireAuth()
+  if (isGuardError(result)) return result
+  const { roles, permissions } = result.user
+  if (!roles.includes('admin') && !permissions.includes(permission)) {
     return NextResponse.json({ message: 'Acceso no autorizado' }, { status: 403 })
   }
   return result

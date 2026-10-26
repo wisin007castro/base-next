@@ -1,20 +1,9 @@
 import type { User, CreateUserDto, UpdateUserDto, PaginatedResponse, UserFilters } from '@/lib/types/user.types'
 import type { Permission } from '@/lib/types/rbac.types'
 import type { BulkUserAction } from '@/lib/api/schemas/user.schema'
-import { request } from './http'
+import { request, toQueryString } from './http'
 
 export { ApiError } from './http'
-
-function buildQuery(filters: UserFilters): string {
-  const params = new URLSearchParams()
-  Object.entries(filters).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== '') {
-      params.set(k, String(v))
-    }
-  })
-  const qs = params.toString()
-  return qs ? `?${qs}` : ''
-}
 
 // -------------------------------------------------------------------
 // Endpoints
@@ -22,7 +11,7 @@ function buildQuery(filters: UserFilters): string {
 export const usersApi = {
   /** Listado paginado */
   getAll: (filters: UserFilters = {}, signal?: AbortSignal) =>
-    request<PaginatedResponse<User>>(`/users${buildQuery(filters)}`, { signal }),
+    request<PaginatedResponse<User>>(`/users${toQueryString(filters)}`, { signal }),
 
   /** Usuario por ID (incluye profile) */
   getById: (id: number, signal?: AbortSignal) => request<User>(`/users/${id}`, { signal }),

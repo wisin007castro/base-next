@@ -19,7 +19,9 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install",
+    "gen:crud": "tsx scripts/gen-crud/index.ts",
+    "db:permissions": "tsx scripts/sync-permissions.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1004.0",

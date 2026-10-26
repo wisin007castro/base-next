@@ -7,11 +7,14 @@ type DB = BetterSQLite3Database<typeof schema>
 // Singleton para evitar múltiples conexiones en hot-reload de Next.js
 const globalForDb = global as unknown as { _db: DB | undefined }
 
-export const db: DB =
-  globalForDb._db ??
-  (globalForDb._db = drizzle(new Database(process.env.DATABASE_URL ?? './dev.db'), { schema }))
+function createDb(): DB {
+  const sqlite = new Database(process.env.DATABASE_URL ?? './dev.db')
+  // SQLite no aplica las FOREIGN KEY por defecto: sin esto los onDelete del schema no hacen nada
+  sqlite.pragma('foreign_keys = ON')
+  return drizzle(sqlite, { schema })
+}
 
-
+export const db: DB = globalForDb._db ?? (globalForDb._db = createDb())
 
 // Exportar esquema para usarlo con db.query.*
 export { schema }

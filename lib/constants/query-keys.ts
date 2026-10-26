@@ -30,3 +30,6 @@ export const meKeys = {
 export const dashboardKeys = {
   all: ['dashboard'] as const,
 }
+
+// Módulos generados con `npm run gen:crud`
+// @gen:query-keys

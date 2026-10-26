@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq, like, isNull, and, or, count, asc, desc, inArray, gte, lte } from 'drizzle-orm'
+import { eq, like, isNull, and, or, count, desc, inArray, gte, lte } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { users, userProfiles, userRoles as userRolesTable, roles as rolesTable } from '@/lib/db/schema'
@@ -7,6 +7,7 @@ import { serializeUser } from '@/lib/api/serializers/user.serializer'
 import { syncRoles } from '@/lib/auth/rbac'
 import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
 import { createUserSchema } from '@/lib/api/schemas/user.schema'
+import { paginated, parsePagination, parseSort } from '@/lib/api/list-params'
 
 const withRoles = { profile: true, userRoles: { with: { role: true } } } as const
 
@@ -18,25 +19,13 @@ const SORTABLE = {
   last_login_at: users.lastLoginAt,
 } as const
 
-function parseSort(raw: string | null) {
-  const key = (raw ?? '-created_at').replace(/^-/, '') as keyof typeof SORTABLE
-  const column = SORTABLE[key] ?? users.createdAt
-  return raw && !raw.startsWith('-') && SORTABLE[key] ? asc(column) : desc(column)
-}
-
-const toInt = (raw: string | null, fallback: number, max = Infinity) => {
-  const n = Number(raw)
-  return Number.isInteger(n) && n > 0 ? Math.min(n, max) : fallback
-}
-
 // GET /api/users
 export async function GET(req: NextRequest) {
   const guard = await requireAdmin()
   if (isGuardError(guard)) return guard
 
   const { searchParams } = req.nextUrl
-  const page = toInt(searchParams.get('page'), 1)
-  const perPage = toInt(searchParams.get('per_page'), 15, 100)
+  const pagination = parsePagination(searchParams)
   const search = searchParams.get('search') ?? ''
   const role = searchParams.get('role') ?? ''
   const isActive = searchParams.get('is_active')
@@ -45,8 +34,6 @@ export async function GET(req: NextRequest) {
   const createdTo = searchParams.get('created_to') ?? ''
   const loginFrom = searchParams.get('login_from') ?? ''
   const loginTo = searchParams.get('login_to') ?? ''
-
-  const offset = (page - 1) * perPage
 
   const conditions = []
   if (!withTrashed) conditions.push(isNull(users.deletedAt))
@@ -86,25 +73,14 @@ export async function GET(req: NextRequest) {
     db.query.users.findMany({
       where,
       with: withRoles,
-      orderBy: parseSort(searchParams.get('sort')),
-      limit: perPage,
-      offset,
+      orderBy: parseSort(searchParams.get('sort'), SORTABLE, desc(users.createdAt)),
+      limit: pagination.perPage,
+      offset: pagination.offset,
     }),
     db.select({ total: count() }).from(users).where(where),
   ])
 
-  const lastPage = Math.ceil(total / perPage)
-
-  return NextResponse.json({
-    data: rows.map(serializeUser),
-    current_page: page,
-    per_page: perPage,
-    total,
-    last_page: lastPage,
-    from: offset + 1,
-    to: Math.min(offset + perPage, total),
-    links: { first: null, last: null, prev: null, next: null },
-  })
+  return NextResponse.json(paginated(rows.map(serializeUser), total, pagination))
 }
 
 // POST /api/users

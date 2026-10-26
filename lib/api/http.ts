@@ -44,3 +44,13 @@ export async function request<T>(endpoint: string, init?: RequestInit): Promise<
 
   return res.json() as Promise<T>
 }
+
+/** Objeto de filtros → `?a=1&b=x` (omite undefined, null y '') */
+export function toQueryString(params: object): string {
+  const qs = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') qs.set(key, String(value))
+  }
+  const str = qs.toString()
+  return str ? `?${str}` : ''
+}

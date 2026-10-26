@@ -17,6 +17,10 @@ npm run db:generate   # Generate migrations from schema changes in lib/db/schema
 npm run db:migrate    # Apply pending migrations to dev.db
 npm run db:studio     # Open Drizzle Studio GUI (browser-based DB explorer)
 npm run db:seed       # Seed initial data (roles, admin user, permissions)
+npm run db:permissions # Create missing CRUD-module permissions and assign them to admin (idempotent)
+
+# Code generator
+npm run gen:crud -- <entity> <field:type>...   # full CRUD module — see "CRUD Generator" below
 
 # Infrastructure (Docker: MailDev + MinIO)
 npm run docker:up     # Start MailDev (port 1080/1025) and MinIO (port 9000/9001)
@@ -161,6 +165,27 @@ Upload flow: client → `POST /api/upload/avatar` (get presigned URL) → PUT di
 ### Email
 
 `lib/mail/mail.service.ts` exports typed send functions (`sendVerificationLinkEmail`, `sendWelcomeEmail`, `sendPasswordResetEmail`). In dev, all mail is caught by MailDev (UI at `http://localhost:1080`).
+
+### CRUD Generator
+
+```bash
+npm run gen:crud -- categoria "nombre!:string=Nombre" "descripcion?:text=Descripción" --fem --label="Categorías" --label-singular="categoría"
+npm run gen:crud -- publicacion "titulo:string=Título" "contenido:text" "categoria_id:ref(categorias)=Categoría" publicada:boolean --owner --fem
+```
+
+- Field syntax `name[?][!]:type[=Label]` — `?` optional, `!` unique, `=Label` UI label (use it for accents). Types: `string, text, int, number, boolean, date, enum(a|b), ref(<module>)`.
+- `ref(<plural>)`: FK to another **generated** module (looked up in `scripts/gen-crud/modules.json`, so generate the target first). Gives: FK (`restrict`, or `set null` if optional), existence check → 422 on the field, a select fed by `/api/<target>/options`, the related label in the table (sortable by it) and a filter. The API returns `<rel>: { id, label }`.
+- `--owner`: adds `autor_id` (FK users, cascade). Set server-side from the session, never from the body; shown and sortable in the table.
+- Options: `--plural=`, `--label=`, `--label-singular=`, `--fem`, `--owner`, `--dry-run`, `--force`.
+- Generates: Drizzle table, enum constants, types, Zod schema, serializer + base SELECT with joins, API (`list` with search/filters/sort, `[id]`, `bulk`, `options`), API client, hooks, form schema, URL filters, Form, Table (selection + bulk delete), list/new/edit pages.
+- Inserts into existing files before markers — never remove them: `// @gen:tables` (schema), `// @gen:query-keys`, `// @gen:modules` (`lib/auth/module-permissions.ts`), `// @gen:menu`. Re-running skips what is already registered. Only new files are formatted.
+- After generating: `db:generate` → `db:migrate` → `db:permissions` → log in again (permissions travel in the JWT).
+- Module security: API routes use `requirePermission('<plural>.view|create|edit|delete')` (admin always passes); the middleware maps `/<plural>` → view, `/nuevo` → create, `/editar` → edit; the menu entry needs `.view`; UI buttons use `useCan()`. Deleting a row others depend on returns 409 (`foreignKeyViolationResponse`).
+- Generated code is a starting point: edit it freely. Templates live in `scripts/gen-crud/templates/`.
+
+### Database notes
+
+- `lib/db/index.ts` enables `PRAGMA foreign_keys = ON`: `onDelete` rules in the schema are enforced (SQLite ignores them otherwise). `ON DELETE RESTRICT` surfaces as `SQLITE_CONSTRAINT_TRIGGER`.
 
 ### Environment Variables
 
