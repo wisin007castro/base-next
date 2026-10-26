@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useController, type Control, type FieldValues, type Path } from 'react-hook-form'
-import { FormField } from './FormField'
+import { FormField, useFieldId } from './FormField'
 
 export interface CheckboxOption<V extends string | number> {
   value: V
@@ -36,6 +36,7 @@ export function FieldCheckboxGroup<T extends FieldValues, V extends string | num
   optionClassName = 'flex flex-wrap gap-4',
 }: Props<T, V>) {
   const { field, fieldState } = useController({ control, name })
+  const id = useFieldId(name)
   const [search, setSearch] = useState('')
   const selected: V[] = field.value ?? []
   const error = fieldState.error?.message
@@ -59,7 +60,7 @@ export function FieldCheckboxGroup<T extends FieldValues, V extends string | num
   }
 
   return (
-    <FormField id={name} label={label} hint={hint} error={error} className={className}>
+    <FormField id={id} label={label} hint={hint} error={error} className={className}>
       {searchable && (
         <div className="mb-3 flex items-center gap-3">
           <input

@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useController, type Control, type FieldValues, type Path } from 'react-hook-form'
 import { FiEye, FiEyeOff } from 'react-icons/fi'
-import { FormField, fieldClass } from './FormField'
+import { FormField, fieldClass, useFieldId } from './FormField'
 
 interface Props<T extends FieldValues> {
   control: Control<T>
@@ -29,26 +29,27 @@ export function FieldText<T extends FieldValues>({
   className,
 }: Props<T>) {
   const { field, fieldState } = useController({ control, name })
+  const id = useFieldId(name)
   const [reveal, setReveal] = useState(false)
   const error = fieldState.error?.message
   const isPassword = type === 'password'
 
   const input = (
     <input
-      id={name}
+      id={id}
       {...field}
       value={field.value ?? ''}
       type={isPassword && reveal ? 'text' : type}
       placeholder={placeholder}
       autoComplete={autoComplete}
       aria-invalid={!!error}
-      aria-describedby={error ? `${name}-error` : undefined}
+      aria-describedby={error ? `${id}-error` : undefined}
       className={fieldClass(error) + (isPassword ? ' pr-10' : '')}
     />
   )
 
   return (
-    <FormField id={name} label={label} required={required} hint={hint} error={error} className={className}>
+    <FormField id={id} label={label} required={required} hint={hint} error={error} className={className}>
       {isPassword ? (
         <div className="relative">
           {input}

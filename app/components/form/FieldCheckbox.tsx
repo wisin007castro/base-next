@@ -1,5 +1,6 @@
 'use client'
 import { useController, type Control, type FieldValues, type Path } from 'react-hook-form'
+import { useFieldId } from './FormField'
 
 interface Props<T extends FieldValues> {
   control: Control<T>
@@ -12,13 +13,14 @@ interface Props<T extends FieldValues> {
 /** Casilla para un booleano */
 export function FieldCheckbox<T extends FieldValues>({ control, name, label, hint, className }: Props<T>) {
   const { field, fieldState } = useController({ control, name })
+  const id = useFieldId(name)
   const error = fieldState.error?.message
 
   return (
     <div className={className}>
-      <label htmlFor={name} className="flex cursor-pointer select-none items-center gap-2 text-sm text-ink-2">
+      <label htmlFor={id} className="flex cursor-pointer select-none items-center gap-2 text-sm text-ink-2">
         <input
-          id={name}
+          id={id}
           ref={field.ref}
           name={field.name}
           onBlur={field.onBlur}
