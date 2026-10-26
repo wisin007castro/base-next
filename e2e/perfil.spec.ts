@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { readUsers } from './support/db'
 
 test.describe('Perfil', () => {
   test('sesiones activas: marca la actual y muestra el último acceso', async ({ page }) => {
@@ -16,6 +17,18 @@ test.describe('Perfil', () => {
     await page.getByLabel(/^Fecha de nacimiento/).fill('1990-01-01')
     await page.getByRole('button', { name: 'Actualizar datos personales' }).click()
     await expect(page.getByText('Datos personales actualizados')).toBeVisible()
+  })
+
+  test('datos personales: el documento de otro usuario se rechaza', async ({ page }) => {
+    const { user } = readUsers()
+    await page.goto('/perfil')
+    await page.getByLabel(/^Nombre/).fill('Prueba')
+    await page.getByLabel(/^Primer apellido/).fill('E2E')
+    await page.getByLabel(/^Tipo de documento/).selectOption({ label: 'DNI' })
+    await page.getByLabel(/^Número de documento/).fill(user.documento)
+    await page.getByLabel(/^Fecha de nacimiento/).fill('1990-01-01')
+    await page.getByRole('button', { name: 'Actualizar datos personales' }).click()
+    await expect(page.getByText('Este documento ya está registrado')).toBeVisible()
   })
 
   test('cambiar contraseña exige la actual correcta', async ({ page }) => {

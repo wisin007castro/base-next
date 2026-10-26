@@ -41,32 +41,40 @@ export const users = sqliteTable(
 // -------------------------------------------------------------------
 // user_profiles
 // -------------------------------------------------------------------
-export const userProfiles = sqliteTable('user_profiles', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: integer('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  nombre: text('nombre').notNull(),
-  primerApellido: text('primer_apellido'),
-  segundoApellido: text('segundo_apellido'),
-  tipoDocumento: text('tipo_documento').notNull(),
-  numeroDocumento: text('numero_documento').notNull(),
-  fechaNacimiento: text('fecha_nacimiento').notNull(),
-  genero: text('genero').notNull().default('prefiero_no_decir'),
-  telefono: text('telefono'),
-  telefonoAlternativo: text('telefono_alternativo'),
-  pais: text('pais'),
-  departamento: text('departamento'),
-  ciudad: text('ciudad'),
-  direccion: text('direccion'),
-  codigoPostal: text('codigo_postal'),
-  avatarKey: text('avatar_key'),
-  avatarUrl: text('avatar_url'),
-  avatarThumbKey: text('avatar_thumb_key'),
-  avatarThumbUrl: text('avatar_thumb_url'),
-  createdAt: text('created_at').notNull().default(ts()),
-  updatedAt: text('updated_at').notNull().default(ts()),
-})
+export const userProfiles = sqliteTable(
+  'user_profiles',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    nombre: text('nombre').notNull(),
+    primerApellido: text('primer_apellido'),
+    segundoApellido: text('segundo_apellido'),
+    tipoDocumento: text('tipo_documento').notNull(),
+    numeroDocumento: text('numero_documento').notNull(),
+    fechaNacimiento: text('fecha_nacimiento').notNull(),
+    genero: text('genero').notNull().default('prefiero_no_decir'),
+    telefono: text('telefono'),
+    telefonoAlternativo: text('telefono_alternativo'),
+    pais: text('pais'),
+    departamento: text('departamento'),
+    ciudad: text('ciudad'),
+    direccion: text('direccion'),
+    codigoPostal: text('codigo_postal'),
+    avatarKey: text('avatar_key'),
+    avatarUrl: text('avatar_url'),
+    avatarThumbKey: text('avatar_thumb_key'),
+    avatarThumbUrl: text('avatar_thumb_url'),
+    createdAt: text('created_at').notNull().default(ts()),
+    updatedAt: text('updated_at').notNull().default(ts()),
+  },
+  t => [
+    // Un documento = una persona. Incluye usuarios eliminados (el índice parcial no puede mirar
+    // users.deleted_at): restaurarlo recupera el suyo; el borrado definitivo lo libera.
+    uniqueIndex('user_profiles_documento_unique').on(t.tipoDocumento, t.numeroDocumento),
+  ],
+)
 
 // -------------------------------------------------------------------
 // roles  (equivalente a tabla roles de Spatie)

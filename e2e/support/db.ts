@@ -6,7 +6,7 @@ import path from 'node:path'
 /** Usuarios creados por global-setup (emails únicos por ejecución: el rate limit de login es por email). */
 export interface E2EUsers {
   admin: { email: string; password: string }
-  user: { email: string; password: string }
+  user: { email: string; password: string; documento: string }
 }
 
 export const USERS_FILE = path.join(__dirname, '..', '.auth', 'users.json')
@@ -22,7 +22,13 @@ export const openDb = () => {
 
 export const readUsers = (): E2EUsers => JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'))
 
-export function createUser(db: Database.Database, email: string, username: string, role: string) {
+export function createUser(
+  db: Database.Database,
+  email: string,
+  username: string,
+  role: string,
+  documento?: string, // DNI del perfil; sin él, el usuario no tiene perfil
+) {
   const now = new Date().toISOString()
   const { lastInsertRowid } = db
     .prepare(
@@ -32,6 +38,11 @@ export function createUser(db: Database.Database, email: string, username: strin
   const roleRow = db.prepare('SELECT id FROM roles WHERE name = ?').get(role) as { id: number } | undefined
   if (!roleRow) throw new Error(`No existe el rol "${role}": corre npm run db:seed`)
   db.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)').run(lastInsertRowid, roleRow.id)
+  if (documento) {
+    db.prepare(
+      "INSERT INTO user_profiles (user_id, nombre, primer_apellido, tipo_documento, numero_documento, fecha_nacimiento) VALUES (?, 'Usuario', 'E2E', 'dni', ?, '1990-01-01')",
+    ).run(lastInsertRowid, documento)
+  }
 }
 
 /** Borra usuarios e2e (cascada: perfil, sesiones, publicaciones, comentarios, votos) y datos con el prefijo. */

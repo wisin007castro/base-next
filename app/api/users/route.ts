@@ -8,6 +8,7 @@ import { syncRoles } from '@/lib/auth/rbac'
 import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
 import { createUserSchema } from '@/lib/api/schemas/user.schema'
 import { paginated, parsePagination, parseSort } from '@/lib/api/list-params'
+import { documentoDuplicadoResponse, documentoEnUso } from '@/lib/api/user-profile'
 
 const withRoles = { profile: true, userRoles: { with: { role: true } } } as const
 
@@ -119,22 +120,8 @@ export async function POST(req: NextRequest) {
       { status: 422 },
     )
   }
-  if (profile?.numero_documento) {
-    const docConflict = await db.query.userProfiles.findFirst({
-      where: eq(userProfiles.numeroDocumento, profile.numero_documento),
-    })
-    if (docConflict) {
-      return NextResponse.json(
-        {
-          message: 'Datos inválidos',
-          errors: {
-            fieldErrors: { numero_documento: ['Este número de documento ya está registrado'] },
-            formErrors: [],
-          },
-        },
-        { status: 422 },
-      )
-    }
+  if (profile && (await documentoEnUso(profile.tipo_documento, profile.numero_documento))) {
+    return documentoDuplicadoResponse()
   }
   // ───────────────────────────────────────────────────────────────────────────
 

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `user_profiles_documento_unique` ON `user_profiles` (`tipo_documento`,`numero_documento`);

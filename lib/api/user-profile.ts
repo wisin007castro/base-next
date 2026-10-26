@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { userProfiles } from '@/lib/db/schema'
 import { profileSchema, type UpdateUserInput } from '@/lib/api/schemas/user.schema'
@@ -23,6 +23,24 @@ const COLUMNS = {
   direccion: 'direccion',
   codigo_postal: 'codigoPostal',
 } as const satisfies Record<keyof ProfileInput, keyof typeof userProfiles.$inferInsert>
+
+export const documentoDuplicadoResponse = () =>
+  NextResponse.json(
+    {
+      message: 'Datos inválidos',
+      errors: { formErrors: [], fieldErrors: { numero_documento: ['Este documento ya está registrado'] } },
+    },
+    { status: 422 },
+  )
+
+/** ¿Otro usuario (también eliminado: el índice único los incluye) tiene ese documento? */
+export async function documentoEnUso(tipo: string, numero: string, exceptUserId?: number) {
+  const row = await db.query.userProfiles.findFirst({
+    where: and(eq(userProfiles.tipoDocumento, tipo), eq(userProfiles.numeroDocumento, numero)),
+    columns: { userId: true },
+  })
+  return !!row && row.userId !== exceptUserId
+}
 
 /**
  * Si el usuario aún no tiene perfil, el PATCH parcial lo crearía: entonces se exige el perfil
@@ -57,6 +75,7 @@ export async function saveProfile(userId: number, profile: ProfileInput, now: st
       await db.insert(userProfiles).values({ userId, ...values, createdAt: now } as typeof userProfiles.$inferInsert)
     }
   } catch (err) {
+    if ((err as Error).message?.includes('user_profiles.numero_documento')) return documentoDuplicadoResponse()
     const res = uniqueViolationResponse(err)
     if (res) return res
     throw err

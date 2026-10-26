@@ -3,12 +3,14 @@ import { NextResponse } from 'next/server'
 /**
  * Convierte una violación de UNIQUE de SQLite en un 422 con el error en el campo:
  * "UNIQUE constraint failed: productos.codigo" → { fieldErrors: { codigo: [...] } }.
- * Devuelve null si el error es otro (que el handler lo relance).
+ * En índices compuestos ("…: t.tipo_documento, t.numero_documento") se usa la última columna,
+ * la más específica. Devuelve null si el error es otro (que el handler lo relance).
  */
 export function uniqueViolationResponse(err: unknown): NextResponse | null {
   const e = err as { code?: string; message?: string }
   if (e?.code !== 'SQLITE_CONSTRAINT_UNIQUE') return null
-  const column = e.message?.match(/UNIQUE constraint failed: \w+\.(\w+)/)?.[1] ?? 'id'
+  const columns = e.message?.match(/UNIQUE constraint failed: (.+)$/)?.[1].split(',') ?? []
+  const column = columns.at(-1)?.trim().split('.').at(-1) || 'id'
   return NextResponse.json(
     {
       message: 'Datos inválidos',
