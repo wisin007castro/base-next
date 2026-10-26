@@ -44,6 +44,24 @@ export function useInvalidateMe() {
   return () => qc.invalidateQueries({ queryKey: meKeys.detail(), exact: true })
 }
 
+// ─── 2FA ──────────────────────────────────────────────────────────────────────
+
+/** Genera el secreto + QR. Los datos viven en `mutation.data` hasta activar o cancelar (`reset()`). */
+export const useSetupTwoFactor = () => useMutation({ mutationFn: meApi.setupTwoFactor })
+
+/** Activar/desactivar marcan `twoFactorEnabled` en la caché de `me`: la sección cambia sin refetch */
+function useToggleTwoFactor<T>(mutationFn: (dto: T) => Promise<void>, enabled: boolean) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn,
+    onSuccess: () =>
+      qc.setQueryData<MeUser>(meKeys.detail(), old => (old ? { ...old, twoFactorEnabled: enabled } : old)),
+  })
+}
+
+export const useEnableTwoFactor = () => useToggleTwoFactor(meApi.enableTwoFactor, true)
+export const useDisableTwoFactor = () => useToggleTwoFactor(meApi.disableTwoFactor, false)
+
 export function useMySessions() {
   return useQuery(meQueries.sessions())
 }
