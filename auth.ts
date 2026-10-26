@@ -7,6 +7,7 @@ import { db } from '@/lib/db'
 import { users, userSessions } from '@/lib/db/schema'
 import { getUserRoles, getUserPermissions } from '@/lib/auth/rbac'
 import { rateLimit } from '@/lib/api/rate-limiter'
+import { verifyTotp } from '@/lib/auth/two-factor'
 
 /** Llega al cliente como `res.code === 'rate_limited'` en signIn(). */
 class RateLimitedError extends CredentialsSignin {
@@ -101,9 +102,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return token
       }
 
-      // ---- update: 2FA verificado ----
-      if (trigger === 'update' && session?.twoFactorVerified === true) {
+      // ---- update: completar el 2FA ----
+      // El cliente manda el código, nunca un "ya verifiqué": `update()` acepta cualquier dato del
+      // navegador, así que el código se comprueba aquí, en el servidor, antes de conceder la sesión.
+      if (trigger === 'update' && token.twoFactorPending && typeof session?.twoFactorCode === 'string') {
         const userId = Number(token.id)
+        if ((await verifyTotp(userId, session.twoFactorCode)) !== 'ok') return token
         const [roles, perms] = await Promise.all([getUserRoles(userId), getUserPermissions(userId)])
 
         // Insertar sesión ahora que está verificado
@@ -139,6 +143,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!sess || sess.revokedAt !== null) {
           return null
         }
+
+        // Usuario desactivado o eliminado después de iniciar sesión → fuera
+        const userId = Number(token.id)
+        const user = await db.query.users.findFirst({
+          where: eq(users.id, userId),
+          columns: { isActive: true, deletedAt: true },
+        })
+        if (!user || !user.isActive || user.deletedAt) {
+          return null
+        }
+
+        // Roles y permisos frescos: un cambio de rol aplica sin volver a iniciar sesión.
+        // En API y páginas del servidor, al instante; el middleware (lee la cookie) cuando
+        // la cookie se reescribe, es decir, en el siguiente refresco de useSession (foco de ventana).
+        const [roles, perms] = await Promise.all([getUserRoles(userId), getUserPermissions(userId)])
+        token.roles = roles
+        token.permissions = perms
 
         // Actualizar lastUsedAt (fire-and-forget, sin bloquear)
         db.update(userSessions).set({ lastUsedAt: new Date().toISOString() }).where(eq(userSessions.jti, sidStr)).run()
