@@ -15,8 +15,9 @@ async function crear(page: Page, nombre: string) {
   await page.goto('/categorias/nuevo')
   await nombreInput(page).fill(nombre)
   await page.getByRole('button', { name: 'Crear categoría' }).click()
-  await page.waitForURL(url => url.pathname === '/categorias')
+  // El toast dura 4 s: comprobarlo antes de esperar la navegación (que puede compilar en dev)
   await expect(page.getByText('Categoría creada').last()).toBeVisible()
+  await page.waitForURL(url => url.pathname === '/categorias')
 }
 
 test.describe('Categorías (CRUD generado con soft delete)', () => {
