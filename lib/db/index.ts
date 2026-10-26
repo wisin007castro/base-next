@@ -5,17 +5,19 @@ import { env } from '@/lib/env'
 
 type DB = BetterSQLite3Database<typeof schema>
 
-// Singleton para evitar múltiples conexiones en hot-reload de Next.js
-const globalForDb = global as unknown as { _db: DB | undefined }
+// Se cachea la CONEXIÓN (una sola en hot-reload), no el wrapper de Drizzle: el wrapper se crea
+// en cada carga del módulo con el schema actual. Si se cacheara, una tabla nueva no aparecería
+// en db.query.* hasta reiniciar el servidor ("Cannot read properties of undefined (reading 'findMany')").
+const globalForDb = global as unknown as { _sqlite: Database.Database | undefined }
 
-function createDb(): DB {
+function connect() {
   const sqlite = new Database(env.DATABASE_URL)
   // SQLite no aplica las FOREIGN KEY por defecto: sin esto los onDelete del schema no hacen nada
   sqlite.pragma('foreign_keys = ON')
-  return drizzle(sqlite, { schema })
+  return sqlite
 }
 
-export const db: DB = globalForDb._db ?? (globalForDb._db = createDb())
+export const db: DB = drizzle((globalForDb._sqlite ??= connect()), { schema })
 
 // Exportar esquema para usarlo con db.query.*
 export { schema }
