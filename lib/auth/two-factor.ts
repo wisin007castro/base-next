@@ -33,7 +33,9 @@ export async function verifyTotp(userId: number, code: string): Promise<TotpResu
   const user = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { twoFactorSecret: true } })
   if (!user?.twoFactorSecret) return 'not_configured'
 
-  const { valid } = await verify({ token: code, secret: user.twoFactorSecret })
+  // ±30 s: sin margen, un código escrito justo al cambiar la ventana de 30 s (o con el reloj del
+  // móvil algo desfasado) se rechazaba. Es la tolerancia habitual (RFC 6238 recomienda 1 paso).
+  const { valid } = await verify({ token: code, secret: user.twoFactorSecret, epochTolerance: 30 })
   if (!valid) logger.info({ module: 'auth', userId }, '2FA: código incorrecto')
   return valid ? 'ok' : 'invalid'
 }
