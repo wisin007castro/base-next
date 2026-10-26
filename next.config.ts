@@ -1,14 +1,15 @@
 import type { NextConfig } from 'next'
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 
 // ── Storage origin dinámico ─────────────────────────────────────────────────
 // Lee STORAGE_ENDPOINT del entorno para que next.config respete los puertos
 // definidos en .env.local sin tener que cambiar este archivo.
 const storageEndpoint = process.env.STORAGE_ENDPOINT ?? 'http://localhost:9000'
-const storageUrl      = new URL(storageEndpoint)
+const storageUrl = new URL(storageEndpoint)
 const storageProtocol = storageUrl.protocol.replace(':', '') as 'http' | 'https'
-const storageHostname = storageUrl.hostname          // 'localhost' | '127.0.0.1' | ...
-const storagePort     = storageUrl.port || (storageProtocol === 'https' ? '443' : '80')
-const storageOrigin   = storageUrl.origin            // ej. http://localhost:9000
+const storageHostname = storageUrl.hostname // 'localhost' | '127.0.0.1' | ...
+const storagePort = storageUrl.port || (storageProtocol === 'https' ? '443' : '80')
+const storageOrigin = storageUrl.origin // ej. http://localhost:9000
 
 // ── Security headers ────────────────────────────────────────────────────────
 const securityHeaders = [
@@ -33,7 +34,7 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",   // unsafe-eval requerido por Next.js dev
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval requerido por Next.js dev
       "style-src 'self' 'unsafe-inline'",
       `img-src 'self' data: blob: ${storageOrigin}`,
       "font-src 'self'",
@@ -43,14 +44,17 @@ const securityHeaders = [
   },
 ]
 
-const nextConfig: NextConfig = {
+const nextConfig = (phase: string): NextConfig => ({
+  // `next dev` y `next build` en carpetas distintas: un build con el dev corriendo
+  // pisaba sus archivos y el dev empezaba a responder 500.
+  distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
   images: {
     remotePatterns: [
       {
         // MinIO — puerto leído desde STORAGE_ENDPOINT (.env / .env.local)
         protocol: storageProtocol,
         hostname: storageHostname,
-        port:     storagePort,
+        port: storagePort,
         pathname: '/**',
       },
     ],
@@ -64,6 +68,6 @@ const nextConfig: NextConfig = {
       },
     ]
   },
-}
+})
 
 export default nextConfig

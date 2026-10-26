@@ -9,7 +9,16 @@ const compat = new FlatCompat({ baseDirectory: __dirname })
 // eslint-config-next 15 exporta config "legacy" → se adapta con FlatCompat
 const eslintConfig = [
   {
-    ignores: ['.next/**', 'out/**', 'build/**', 'next-env.d.ts', 'drizzle/migrations/**', '.claude/**', '.agents/**'],
+    ignores: [
+      '.next/**',
+      '.next-dev/**',
+      'out/**',
+      'build/**',
+      'next-env.d.ts',
+      'drizzle/migrations/**',
+      '.claude/**',
+      '.agents/**',
+    ],
   },
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   // Reglas de TanStack Query: exhaustive-deps en queryKey, no rest destructuring, etc.
