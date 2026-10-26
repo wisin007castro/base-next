@@ -7,6 +7,7 @@ import { findInvitation, serializeInvitation } from '@/lib/api/serializers/invit
 import { invitationExpiry, newInvitationToken } from '@/lib/auth/invitations'
 import { sendInvitationEmail } from '@/lib/mail/mail.service'
 import { logger } from '@/lib/logger'
+import { getSettings } from '@/lib/settings'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -21,7 +22,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
   if (invitation.acceptedAt) return NextResponse.json({ message: 'La invitación ya fue aceptada' }, { status: 409 })
 
   const { token, tokenHash } = newInvitationToken()
-  const expiresAt = invitationExpiry()
+  const expiresAt = invitationExpiry((await getSettings('access')).invitationDays)
   await db
     .update(invitations)
     .set({ tokenHash, expiresAt, updatedAt: new Date().toISOString() })

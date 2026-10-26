@@ -3,7 +3,7 @@ import { and, desc, eq, gt, isNull } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { invitations } from '@/lib/db/schema'
 
-/** Días que vale una invitación */
+/** Días que vale una invitación si no se indica (se configura en Configuración → Acceso) */
 export const INVITATION_DAYS = 7
 
 /** Token del enlace (256 bits). En la BD solo se guarda su hash. */

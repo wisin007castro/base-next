@@ -5,7 +5,7 @@ import { styles } from './styles'
 /**
  * Plantillas de correo (react-email). Cada una recibe `branding` y sus datos; mail.service
  * las renderiza a HTML + texto plano. Vista previa: renderiza con `render()` y ábrelo, o usa
- * /api/debug/mail para enviar una de prueba a MailDev.
+ * Configuración → Correo → "Enviar correo de prueba".
  */
 
 const fmtDate = (iso: string) =>

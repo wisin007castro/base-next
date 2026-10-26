@@ -8,6 +8,7 @@ import { findInvitation, listInvitations, serializeInvitation } from '@/lib/api/
 import { invitationExpiry, newInvitationToken } from '@/lib/auth/invitations'
 import { sendInvitationEmail } from '@/lib/mail/mail.service'
 import { logger } from '@/lib/logger'
+import { getSettings } from '@/lib/settings'
 
 const log = logger.child({ module: 'invitations' })
 
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { token, tokenHash } = newInvitationToken()
-  const expiresAt = invitationExpiry()
+  const expiresAt = invitationExpiry((await getSettings('access')).invitationDays)
   const id = db.transaction(tx => {
     tx.delete(invitations)
       .where(and(eq(invitations.email, email), isNull(invitations.acceptedAt)))

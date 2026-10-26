@@ -47,6 +47,7 @@ jobs:
     env:
       MAIL_PORT: 1025
       E2E_MAILDEV_URL: http://localhost:1080
+      E2E_SMTP_PORT: 1025
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

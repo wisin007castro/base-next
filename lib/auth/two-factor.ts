@@ -4,8 +4,19 @@ import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { rateLimit } from '@/lib/api/rate-limiter'
 import { logger } from '@/lib/logger'
+import { getSettings } from '@/lib/settings'
 
 export type TotpResult = 'ok' | 'invalid' | 'rate_limited' | 'not_configured'
+
+/**
+ * ¿La política (Configuración → Acceso) obliga a este usuario a activar 2FA y aún no lo tiene?
+ * Si es así, la sesión queda limitada a /configurar-2fa hasta que lo active.
+ */
+export async function twoFactorSetupRequired(roles: string[], twoFactorEnabled: boolean): Promise<boolean> {
+  if (twoFactorEnabled) return false
+  const { twoFactorPolicy } = await getSettings('access')
+  return twoFactorPolicy === 'everyone' || (twoFactorPolicy === 'admins' && roles.includes('admin'))
+}
 
 /**
  * Verifica un código TOTP contra el secreto guardado del usuario.

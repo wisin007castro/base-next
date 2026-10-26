@@ -1,7 +1,8 @@
 import type { ReactElement } from 'react'
 import { render } from '@react-email/render'
 import { env } from '@/lib/env'
-import { transporter } from './mail.client'
+import { getSettings } from '@/lib/settings'
+import { getMailer } from './mail.client'
 import type { Branding } from './templates/EmailLayout'
 import {
   AccountVerifiedEmail,
@@ -12,15 +13,17 @@ import {
   VerificationLinkEmail,
 } from './templates'
 
-/** Nombre y logo que firman los correos */
+/** Nombre y logo que firman los correos (Configuración → Sistema) */
 async function branding(): Promise<Branding> {
-  return { appName: 'Panel', logoUrl: null }
+  const { systemName, logoUrl } = await getSettings('system')
+  return { appName: systemName, logoUrl: logoUrl || null }
 }
 
 /** Renderiza la plantilla (HTML + texto plano, para clientes sin HTML y filtros de spam) y la envía */
 async function send(to: string, subject: string, email: ReactElement) {
   const [html, text] = await Promise.all([render(email), render(email, { plainText: true })])
-  await transporter.sendMail({ from: env.MAIL_FROM, to, subject, html, text })
+  const { transporter, from } = await getMailer()
+  await transporter.sendMail({ from, to, subject, html, text })
 }
 
 const url = (path: string) => `${env.NEXTAUTH_URL}${path}`

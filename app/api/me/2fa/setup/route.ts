@@ -10,7 +10,7 @@ const APP_NAME = 'MyApp'
 
 // POST /api/me/2fa/setup — genera secret y QR para configurar 2FA
 export async function POST() {
-  const guard = await requireAuth()
+  const guard = await requireAuth({ allowTwoFactorSetup: true })
   if (isGuardError(guard)) return guard
 
   const userId = Number(guard.user.id)

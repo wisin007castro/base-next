@@ -9,6 +9,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { MenuContext } from '../context/MenuContext'
 import { useTheme } from 'next-themes'
 import { useMe } from '@/lib/hooks/me.hooks'
+import { Brand } from './components/Brand'
 
 // Header is always dark (navy in light mode, deep-navy in dark) — white text throughout
 function Avatar({ thumbUrl, initials, size = 8 }: { thumbUrl?: string | null; initials: string; size?: number }) {
@@ -147,7 +148,10 @@ const Header = () => {
 
           {/* Brand */}
           <div className="flex flex-grow items-center lg:flex-grow-0">
-            <div className="px-4 text-sm font-semibold uppercase tracking-widest text-white">Brand</div>
+            {/* En escritorio el nombre ya está en el sidebar */}
+            <div className="px-4 text-sm font-semibold uppercase tracking-widest text-white lg:hidden">
+              <Brand />
+            </div>
           </div>
 
           <div className="flex-grow" />

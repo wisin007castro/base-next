@@ -200,6 +200,17 @@ export const invitationRoles = sqliteTable(
 )
 
 // -------------------------------------------------------------------
+// settings — configuración editable desde /configuracion (una fila por sección, JSON validado
+// con Zod en lib/settings). Los secretos (contraseña SMTP) van cifrados.
+// -------------------------------------------------------------------
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedById: integer('updated_by_id').references(() => users.id, { onDelete: 'set null' }),
+  updatedAt: text('updated_at').notNull().default(ts()),
+})
+
+// -------------------------------------------------------------------
 // Relaciones
 // -------------------------------------------------------------------
 export const usersRelations = relations(users, ({ one, many }) => ({

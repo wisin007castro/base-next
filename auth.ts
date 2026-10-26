@@ -7,7 +7,7 @@ import { db } from '@/lib/db'
 import { users, userSessions } from '@/lib/db/schema'
 import { getUserRoles, getUserPermissions } from '@/lib/auth/rbac'
 import { rateLimit } from '@/lib/api/rate-limiter'
-import { verifyTotp } from '@/lib/auth/two-factor'
+import { twoFactorSetupRequired, verifyTotp } from '@/lib/auth/two-factor'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'auth' })
@@ -86,6 +86,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           roles,
           permissions: perms,
           sid,
+          twoFactorSetupRequired: await twoFactorSetupRequired(roles, false),
         }
       },
     }),
@@ -102,6 +103,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           permissions?: string[]
           sid?: string
           twoFactorPending?: boolean
+          twoFactorSetupRequired?: boolean
         }
         token.id = u.id
 
@@ -112,6 +114,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.roles = u.roles ?? []
           token.permissions = u.permissions ?? []
           token.sid = u.sid
+          token.twoFactorSetupRequired = u.twoFactorSetupRequired
         }
         return token
       }
@@ -166,7 +169,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const userId = Number(token.id)
         const user = await db.query.users.findFirst({
           where: eq(users.id, userId),
-          columns: { isActive: true, deletedAt: true },
+          columns: { isActive: true, deletedAt: true, twoFactorEnabled: true },
         })
         if (!user || !user.isActive || user.deletedAt) {
           log.info({ userId }, 'sesión cerrada: usuario desactivado o eliminado')
@@ -179,6 +182,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const [roles, perms] = await Promise.all([getUserRoles(userId), getUserPermissions(userId)])
         token.roles = roles
         token.permissions = perms
+        // Política de 2FA obligatorio (Configuración → Acceso): se recalcula al activar 2FA o cambiar rol
+        token.twoFactorSetupRequired = await twoFactorSetupRequired(roles, user.twoFactorEnabled)
 
         // Actualizar lastUsedAt (fire-and-forget, sin bloquear)
         db.update(userSessions).set({ lastUsedAt: new Date().toISOString() }).where(eq(userSessions.jti, sidStr)).run()
@@ -193,12 +198,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           roles?: string[]
           permissions?: string[]
           twoFactorPending?: boolean
+          twoFactorSetupRequired?: boolean
           sid?: string
         }
         user.id = token.id as string
         user.roles = (token.roles as string[]) ?? []
         user.permissions = (token.permissions as string[]) ?? []
         user.twoFactorPending = token.twoFactorPending as boolean | undefined
+        user.twoFactorSetupRequired = token.twoFactorSetupRequired as boolean | undefined
         // Para marcar "Sesión actual" en /api/me/sessions (es un id, no una credencial)
         user.sid = token.sid as string | undefined
       }

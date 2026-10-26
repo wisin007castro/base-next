@@ -236,6 +236,19 @@ Template: `.env.example` (copy to `.env`; personal overrides in `.env.local`).
 
 `lib/env.ts` validates them with Zod when the server boots (`instrumentation.ts`): a missing/invalid variable stops startup with a message naming it. **Read config through `env.X`, never `process.env.X`** (except `NODE_ENV`/`NEXT_RUNTIME`). Only `AUTH_SECRET` (≥ 32 chars) is mandatory; the rest default to the docker-compose dev setup. Storage is optional: `storageEnv()` throws a clear error only when uploading. Add new variables to the schema in `lib/env.ts` and to `.env.example`.
 
+### Settings (`/configuracion`, admin)
+
+`settings` table, one row per section (`system`, `access`, `mail`) holding JSON validated by the Zod schemas in `lib/settings/schemas.ts` (shared by API and forms). Read with `getSettings('access')` (`lib/settings/index.ts`; in-memory cache with 10 s TTL, defaults fill missing keys), write with `saveSettings`. API: `GET|PUT /api/settings/:section` (admin), `POST /api/settings/mail/test`, `GET /api/settings/public` (name, logo, `loginCodeEnabled`; no auth).
+
+- **system**: name + logo URL → sidebar/header (`<Brand />`) and email layout.
+- **access**: `twoFactorPolicy` (`off`/`admins`/`everyone`), invitation days, login-by-code toggle + minutes. With a policy that applies to the user and no 2FA, the JWT carries `twoFactorSetupRequired`: middleware sends pages to `/configurar-2fa`, `requireAuth()` answers 403 except routes declared with `requireAuth({ allowTwoFactorSetup: true })` (`GET /api/me`, `/api/me/2fa/setup|enable`); disabling 2FA is refused (409).
+- **mail**: `source: 'env'` (MAIL_* variables) or `'database'`. The SMTP password is stored AES-256-GCM-encrypted with a key derived from `AUTH_SECRET` (`lib/settings/secrets.ts`) and never returned (`hasPassword`). `getMailer()` (`lib/mail/mail.client.ts`) rebuilds the transport when the config changes.
+
+### Invitations & emails
+
+- `/usuarios/invitaciones` (admin): invite by email with roles; `/invitacion?token=` (public) creates the account (verified, with the roles) and signs in. Token = 256 bits, only its SHA-256 is stored; lifetime from settings; re-inviting replaces the pending one.
+- Emails are React components in `lib/mail/templates` (react-email, inline styles); `lib/mail/mail.service.tsx` renders HTML + plain text with the system branding. e2e read them from MailDev's REST API (`e2e/support/maildev.ts`).
+
 ### Logging
 
 `lib/logger.ts` (pino): pretty output in dev, JSON lines in production, level via `LOG_LEVEL`. Use `logger.child({ module: 'x' })` and `log.info({ userId }, 'mensaje fijo')` — data in the object, constant message. Never log passwords, tokens, secrets or 2FA codes (`redact` is only a safety net). Auth events (login ok/failed/locked, 2FA, expelled sessions) and mail failures are logged; unhandled request errors go through `onRequestError` in `instrumentation.ts`. Node-only imports in `instrumentation.ts` must sit inside `if (process.env.NEXT_RUNTIME === 'nodejs') { … }` (the Edge bundle has no `stream`).
