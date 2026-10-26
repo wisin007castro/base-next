@@ -31,12 +31,14 @@ npm run storage:setup # Initialize MinIO bucket after docker:up
 # E2E (Playwright, Chromium) — levanta/reutiliza `npm run dev` en :3005
 npm run e2e           # todas las pruebas (e2e/*.spec.ts)
 npm run e2e:ui        # modo interactivo
+npm run format:check  # lo que corre CI (el repo está formateado entero)
 ```
 
 ### E2E tests
 
 - `e2e/global-setup.ts` creates throwaway users in `dev.db` (`e2e-admin-<run>@test.local` with role admin, `e2e-user-<run>@test.local` with role usuario; emails change per run because the login rate limit is per email). `global-teardown.ts` deletes them (cascade) plus every row whose name starts with `e2e ` (`PREFIX` in `e2e/support/db.ts`). Real users are never touched.
-- `auth.setup.ts` logs in as the admin and saves `e2e/.auth/admin.json`; specs run with that session (`login.spec.ts` opts out). Data that isn't under test is created through the API with `request` (see `blog.spec.ts`).
+- `auth.setup.ts` logs in as the admin and saves `e2e/.auth/admin.json`; specs run with that session (`login.spec.ts`, `login-2fa.spec.ts`, `sesion.spec.ts` opt out). Data that isn't under test is created through the API with `request` (see `blog.spec.ts`); changes "made by another admin" go straight to the DB (`sesion.spec.ts`). TOTP codes: `generate({ secret })` from otplib.
+- CI (`.github/workflows/ci.yml`, on PRs and pushes to main): lint + `format:check` + `next build` (includes typecheck), and the e2e suite against a fresh `dev.db` (`db:migrate` + `db:seed`). Failures upload `playwright-report/` and `test-results/` as an artifact.
 - Serial (`workers: 1`): specs share `dev.db` and the admin session.
 - Selectors by role/label: `SearchFilter` is `searchbox`; `FieldSelect` uses option indices as values → `selectOption({ label })`; required labels end in ` *` → `getByLabel(/^Nombre/)`; icon buttons by `title`. Next's route announcer is also `role="alert"`.
 - URL-state gotchas: wait for the URL after typing in a search (debounce; changing filters clears row selection); URL-controlled checkboxes update async → `click()` + `toBeChecked()`, not `check()`. Wait for a mutation's response before `reload()`.
@@ -63,7 +65,15 @@ npm run e2e:ui        # modo interactivo
 3. Roles and permissions fetched from RBAC (`lib/auth/rbac.ts`) and embedded in the JWT
 4. `lastLoginAt` updated on success
 
-The JWT/session callbacks in `auth.config.ts` propagate `{ id, roles, permissions }` into every session. Middleware (`middleware.ts`) uses `auth()` to protect routes and redirect based on role.
+The JWT/session callbacks in `auth.config.ts` propagate `{ id, roles, permissions, twoFactorPending }` into every session. Middleware (`middleware.ts`) uses `auth()` to protect routes and redirect based on role.
+
+On every server-side `auth()` (API routes, server components) the `jwt` callback in `auth.ts` checks the session row (`user_sessions`, revocable from the profile), **kicks out deactivated/deleted users** and **reloads roles + permissions from the DB**: role changes apply without re-login. The middleware only reads the cookie, so it catches up when the cookie is rewritten (next `useSession` refresh). A 401 from the API makes the client `signOut()` (global handler in `TanStackProvider`).
+
+**2FA** (`lib/auth/two-factor.ts → verifyTotp`, the only TOTP check; shared rate limit of 10 / 15 min per user):
+
+- With 2FA enabled, `authorize` returns `twoFactorPending`: the middleware sends everything to `/verify-2fa` and `requireAuth()` answers 403. Only `requireAuthPending()` routes (`/api/auth/verify-2fa`) work.
+- `/verify-2fa` calls `update({ twoFactorCode })`; the `jwt` callback verifies the code **on the server** before granting roles + session. Never trust a client flag like `twoFactorVerified` — `update()` accepts any data from the browser.
+- otplib v13 `verify()` returns `{ valid }`, not a boolean (`if (!result)` is always false).
 
 Protected admin routes: `/usuarios`, `/roles`, `/permisos`. All other routes just require a valid session.
 
@@ -167,6 +177,8 @@ const form = useForm<RoleFormValues>({ resolver: zodResolver(roleFormSchema), de
   <FormActions submitLabel="Guardar" />
 </Form>
 ```
+
+Field ids are unique per instance (`useFieldId(name)` in `FormField.tsx`): two forms on one page can both have a `password` field without the labels pointing at the wrong input.
 
 Reusable field groups that read `control` from context: `UserAccountFields`, `PersonalDataFields` (`app/components/users/UserFields.tsx`).
 

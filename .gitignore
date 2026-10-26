@@ -46,3 +46,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# herramientas de IA locales (config de Claude Code, skills instaladas, notas de diseño)
+/.claude/
+/.agents/
+/.interface-design/
+skills-lock.json
