@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { transporter } from '@/lib/mail/mail.client'
+import { env } from '@/lib/env'
 import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
 
 // GET /api/debug/mail — verifica la conexión SMTP y envía un correo de prueba
@@ -15,7 +16,7 @@ export async function GET() {
   try {
     await transporter.verify()
     await transporter.sendMail({
-      from: process.env.MAIL_FROM ?? 'noreply@localhost',
+      from: env.MAIL_FROM,
       to: 'test@ejemplo.com',
       subject: 'Test de conexión SMTP',
       html: '<h1>Correo de prueba</h1><p>La conexión SMTP funciona correctamente.</p>',

@@ -1,6 +1,7 @@
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import Database from 'better-sqlite3'
 import * as schema from './schema'
+import { env } from '@/lib/env'
 
 type DB = BetterSQLite3Database<typeof schema>
 
@@ -8,7 +9,7 @@ type DB = BetterSQLite3Database<typeof schema>
 const globalForDb = global as unknown as { _db: DB | undefined }
 
 function createDb(): DB {
-  const sqlite = new Database(process.env.DATABASE_URL ?? './dev.db')
+  const sqlite = new Database(env.DATABASE_URL)
   // SQLite no aplica las FOREIGN KEY por defecto: sin esto los onDelete del schema no hacen nada
   sqlite.pragma('foreign_keys = ON')
   return drizzle(sqlite, { schema })

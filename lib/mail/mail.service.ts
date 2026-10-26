@@ -1,9 +1,10 @@
+import { env } from '@/lib/env'
 import { transporter } from './mail.client'
 
-const FROM = process.env.MAIL_FROM ?? 'noreply@localhost'
+const FROM = env.MAIL_FROM
 
 export async function sendVerificationLinkEmail(to: string, username: string, token: string) {
-  const url = `${process.env.NEXTAUTH_URL}/api/verify-email?token=${token}`
+  const url = `${env.NEXTAUTH_URL}/api/verify-email?token=${token}`
   await transporter.sendMail({
     from: FROM,
     to,
@@ -48,7 +49,7 @@ export async function sendWelcomeEmail(to: string, username: string) {
 }
 
 export async function sendPasswordResetEmail(to: string, username: string, token: string) {
-  const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`
+  const resetUrl = `${env.NEXTAUTH_URL}/reset-password?token=${token}`
   await transporter.sendMail({
     from: FROM,
     to,

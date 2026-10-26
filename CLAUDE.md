@@ -232,12 +232,8 @@ Example of what the generator does **not** cover, built by hand on top of the ge
 
 ### Environment Variables
 
-Required in `.env.local`:
+Template: `.env.example` (copy to `.env`; personal overrides in `.env.local`).
 
-```
-AUTH_SECRET=
-DATABASE_URL=./dev.db
-MAIL_HOST=  MAIL_PORT=  MAIL_USER=  MAIL_PASS=  MAIL_FROM=
-STORAGE_ENDPOINT=  STORAGE_ACCESS_KEY=  STORAGE_SECRET_KEY=
-STORAGE_BUCKET=  STORAGE_PUBLIC_URL=
-```
+`lib/env.ts` validates them with Zod when the server boots (`instrumentation.ts`): a missing/invalid variable stops startup with a message naming it. **Read config through `env.X`, never `process.env.X`** (except `NODE_ENV`/`NEXT_RUNTIME`). Only `AUTH_SECRET` (≥ 32 chars) is mandatory; the rest default to the docker-compose dev setup. Storage is optional: `storageEnv()` throws a clear error only when uploading. Add new variables to the schema in `lib/env.ts` and to `.env.example`.
+
+Standalone scripts (`tsx scripts/…`, `drizzle/seed.ts`) don't load `.env` and must not import `lib/env` / `lib/db`: they open SQLite with `process.env.DATABASE_URL ?? './dev.db'`.
