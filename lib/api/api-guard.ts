@@ -65,6 +65,17 @@ export async function requirePermission(permission: string): Promise<GuardSessio
   return result
 }
 
+/** Requiere al menos uno de los permisos. El rol `admin` pasa siempre. */
+export async function requireAnyPermission(permissions: string[]): Promise<GuardSession | NextResponse> {
+  const result = await requireAuth()
+  if (isGuardError(result)) return result
+  const { roles, permissions: has } = result.user
+  if (!roles.includes('admin') && !permissions.some(p => has.includes(p))) {
+    return NextResponse.json({ message: 'Acceso no autorizado' }, { status: 403 })
+  }
+  return result
+}
+
 /**
  * Requiere que exista un token con id, aunque tenga twoFactorPending.
  * Útil para rutas que se llaman durante el flujo de verificación 2FA.

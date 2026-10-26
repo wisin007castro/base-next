@@ -1,7 +1,7 @@
-import { enumOptions, formFieldJsx, isFilterable, refOptionsVar, tableColumn } from '../fields'
-import { displayExpr, formFields, refModules, words, type Ctx } from './context'
+import { enumOptions, formFieldJsx, isFilterable, refOptionsVar, tableColumn, type FieldType } from '../fields'
+import { displayExpr, formFields, refFields, manyFields, refModules, words, type Ctx } from './context'
 
-const FIELD_COMPONENT = {
+const FIELD_COMPONENT: Record<FieldType, string> = {
   string: 'FieldText',
   date: 'FieldText',
   text: 'FieldTextarea',
@@ -10,7 +10,13 @@ const FIELD_COMPONENT = {
   boolean: 'FieldCheckbox',
   enum: 'FieldSelect',
   ref: 'FieldSelect',
-} as const
+  many: 'FieldCheckboxGroup',
+}
+
+const optionsHookImports = (mods: ReturnType<typeof refModules>) =>
+  mods.map(m => `import { use${m.PascalPlural}Options } from '@/lib/hooks/${m.kebabPlural}.hooks'\n`).join('')
+const optionsHookCalls = (mods: ReturnType<typeof refModules>) =>
+  mods.map(m => `  const { data: ${m.camelPlural}Options = [] } = use${m.PascalPlural}Options()`).join('\n')
 
 // ─── app/components/<plural>/<Entity>Form.tsx ─────────────────────────────────
 export const formComponentFile = (c: Ctx) => {
@@ -24,7 +30,7 @@ export const formComponentFile = (c: Ctx) => {
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormActions, FormSection, FormStatus, ${components.join(', ')} } from '@/app/components/form'
-${enums.length ? `import { ${enums.map(f => enumOptions(c.n.CONST, f)).join(', ')} } from '@/lib/constants/${c.n.kebabPlural}'\n` : ''}${mods.map(m => `import { use${m.PascalPlural}Options } from '@/lib/hooks/${m.kebabPlural}.hooks'\n`).join('')}import {
+${enums.length ? `import { ${enums.map(f => enumOptions(c.n.CONST, f)).join(', ')} } from '@/lib/constants/${c.n.kebabPlural}'\n` : ''}${optionsHookImports(mods)}import {
   ${c.n.camel}FormDefaults,
   ${c.n.camel}FormSchema,
   to${P}Dto,
@@ -45,7 +51,7 @@ export function ${P}Form({ ${c.n.camel}, onSubmit }: Props) {
     defaultValues: ${c.n.camel}FormDefaults(${c.n.camel}),
   })
   const { control } = form
-${mods.map(m => `  const { data: ${m.camelPlural}Options = [] } = use${m.PascalPlural}Options()`).join('\n')}
+${optionsHookCalls(mods)}
 
   return (
     <Form form={form} onSubmit={values => onSubmit(to${P}Dto(values))} className="space-y-6">
@@ -65,6 +71,7 @@ ${fields.map(f => `          ${formFieldJsx(f, c.n.CONST)}`).join('\n')}
 // ─── app/components/<plural>/<Entities>Table.tsx ──────────────────────────────
 export const tableComponentFile = (c: Ctx) => {
   const { Pascal: P, PascalPlural: PP, snakePlural } = c.n
+  const sd = c.softDelete
   const usesYesNo = c.fields.some(f => f.type === 'boolean')
   const usesDate = c.fields.some(f => f.type === 'date')
   const enums = c.fields.filter(f => f.type === 'enum')
@@ -80,15 +87,52 @@ export const tableComponentFile = (c: Ctx) => {
   if (usesYesNo) dt.push('YesNoBadge')
   if (usesDate) dt.push('formatDate')
   if (enums.length) dt.push('labelOf')
+  if (manyFields(c).length) dt.push('RefBadges')
+  if (sd) dt.push('DeletedBadge')
+  const icons = ['FiEdit2', 'FiTrash2', ...(sd ? ['FiRotateCcw', 'FiXCircle'] : [])].sort()
+  const hooks = [
+    `useBulk${PP}`,
+    `useDelete${P}`,
+    `usePrefetch${P}`,
+    ...(sd ? [`useForceDelete${P}`, `useRestore${P}`] : []),
+  ].sort()
   const w = words(c)
+  const label = c.n.label.toLowerCase()
+
+  const deletedActions = `
+          {item.deleted_at ? (
+            <>
+              {canDelete && (
+                <button
+                  onClick={() => restore.mutate(item.id)}
+                  disabled={restore.isPending}
+                  title="Restaurar"
+                  className={\`\${iconBtn} text-ok hover:bg-[var(--ok-bg)]\`}
+                >
+                  <FiRotateCcw className="h-4 w-4" />
+                </button>
+              )}
+              {canForceDelete && (
+                <button
+                  onClick={() => setToForceDelete(item)}
+                  title="Eliminar definitivamente"
+                  className={\`\${iconBtn} text-risk hover:bg-[var(--risk-bg)]\`}
+                >
+                  <FiXCircle className="h-4 w-4" />
+                </button>
+              )}
+            </>
+          ) : (
+            <>`
 
   return `'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { FiEdit2, FiTrash2 } from 'react-icons/fi'
+import { ${icons.join(', ')} } from 'react-icons/fi'
 import type { ${P} } from '@/lib/types/${c.n.kebab}.types'
+import type { Bulk${P}Action } from '@/lib/api/schemas/${c.n.kebab}.schema'
 import { ${dt.sort().join(', ')}, type RowSelectionState } from '@/app/components/data-table'
-${enums.length ? `import { ${enums.map(f => enumOptions(c.n.CONST, f)).join(', ')} } from '@/lib/constants/${c.n.kebabPlural}'\n` : ''}import { useBulkDelete${PP}, useDelete${P}, usePrefetch${P} } from '@/lib/hooks/${c.n.kebabPlural}.hooks'
+${enums.length ? `import { ${enums.map(f => enumOptions(c.n.CONST, f)).join(', ')} } from '@/lib/constants/${c.n.kebabPlural}'\n` : ''}import { ${hooks.join(', ')} } from '@/lib/hooks/${c.n.kebabPlural}.hooks'
 import { useCan } from '@/lib/hooks/use-can'
 
 interface Props {
@@ -102,18 +146,32 @@ interface Props {
   selectionResetKey?: string
 }
 
-const iconBtn = 'rounded p-1.5 transition-colors'
+const iconBtn = 'rounded p-1.5 transition-colors disabled:opacity-50'
 const col = createColumnHelper<${P}>()
+
+const BULK_TEXT: Record<Bulk${P}Action, { title: string; label: string; body: string }> = {
+  delete: { title: 'Eliminar ${label}', label: 'Eliminar', body: '${sd ? 'Podrás restaurarlos desde "Incluir eliminados".' : 'Esta acción no se puede deshacer.'}' },${
+    sd
+      ? `
+  restore: { title: 'Restaurar ${label}', label: 'Restaurar', body: 'Volverán a estar activos.' },
+  force_delete: {
+    title: 'Eliminar definitivamente',
+    label: 'Eliminar definitivamente',
+    body: 'Solo se borran los ya eliminados. No se puede deshacer.',
+  },`
+      : ''
+  }
+}
 
 export function ${PP}Table({ items, selectionResetKey, ...tableProps }: Props) {
   const canEdit = useCan('${snakePlural}.edit')
-  const canDelete = useCan('${snakePlural}.delete')
-  const remove = useDelete${P}()
-  const bulkDelete = useBulkDelete${PP}()
+  const canDelete = useCan('${snakePlural}.delete')${sd ? `\n  const canForceDelete = useCan('${snakePlural}.force_delete')` : ''}
+  const remove = useDelete${P}()${sd ? `\n  const restore = useRestore${P}()\n  const forceDelete = useForceDelete${P}()` : ''}
+  const bulk = useBulk${PP}()
   const prefetch = usePrefetch${P}()
 
-  const [toDelete, setToDelete] = useState<${P} | null>(null)
-  const [confirmBulk, setConfirmBulk] = useState(false)
+  const [toDelete, setToDelete] = useState<${P} | null>(null)${sd ? `\n  const [toForceDelete, setToForceDelete] = useState<${P} | null>(null)` : ''}
+  const [pendingBulk, setPendingBulk] = useState<Bulk${P}Action | null>(null)
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
   // Limpiar la selección cuando cambian filtros/página (sin efecto)
@@ -123,7 +181,13 @@ export function ${PP}Table({ items, selectionResetKey, ...tableProps }: Props) {
     setRowSelection({})
   }
 
-  const selected = (items ?? []).filter(i => rowSelection[String(i.id)])
+  const selected = (items ?? []).filter(i => rowSelection[String(i.id)])${
+    sd
+      ? `
+  const anyDeleted = selected.some(i => i.deleted_at)
+  const anyAlive = selected.some(i => !i.deleted_at)`
+      : ''
+  }
 ${
   needsLink
     ? `
@@ -138,13 +202,18 @@ ${
   const columns = [
     ...(canDelete ? [selectionColumn<${P}>()] : []),
     col.accessor('id', { header: '#', meta: { className: 'text-ink-3' } }),
-${c.fields.map(f => `    ${tableColumn(f, c.n.CONST, f === c.display)},`).join('\n')}
+${c.fields.map(f => `    ${tableColumn(f, c.n.CONST, f === c.display)},`).join('\n')}${
+    sd
+      ? `
+    col.display({ id: 'estado', header: 'Estado', cell: ({ row }) => (row.original.deleted_at ? <DeletedBadge /> : null) }),`
+      : ''
+  }
     col.display({
       id: 'actions',
       header: 'Acciones',
       meta: { align: 'right' },
       cell: ({ row: { original: item } }) => (
-        <div className="flex items-center justify-end gap-1">
+        <div className="flex items-center justify-end gap-1">${sd ? deletedActions : ''}
           {canEdit && (
             <Link
               href={\`/${c.n.kebabPlural}/\${item.id}/editar\`}
@@ -164,18 +233,43 @@ ${c.fields.map(f => `    ${tableColumn(f, c.n.CONST, f === c.display)},`).join('
             >
               <FiTrash2 className="h-4 w-4" />
             </button>
-          )}
+          )}${sd ? '\n            </>\n          )}' : ''}
         </div>
       ),
     }),
   ]
 
+  const bulkText = pendingBulk ? BULK_TEXT[pendingBulk] : null
+
   return (
     <div className="space-y-3">
-      <BulkActionsBar count={selected.length} onClear={() => setRowSelection({})}>
-        <BulkActionButton onClick={() => setConfirmBulk(true)} tone="danger" icon={<FiTrash2 className="h-4 w-4" />}>
+      <BulkActionsBar count={selected.length} onClear={() => setRowSelection({})}>${
+        sd
+          ? `
+        {anyAlive && (
+          <BulkActionButton onClick={() => setPendingBulk('delete')} tone="danger" icon={<FiTrash2 className="h-4 w-4" />}>
+            Eliminar
+          </BulkActionButton>
+        )}
+        {anyDeleted && (
+          <BulkActionButton onClick={() => setPendingBulk('restore')} icon={<FiRotateCcw className="h-4 w-4" />}>
+            Restaurar
+          </BulkActionButton>
+        )}
+        {anyDeleted && canForceDelete && (
+          <BulkActionButton
+            onClick={() => setPendingBulk('force_delete')}
+            tone="danger"
+            icon={<FiXCircle className="h-4 w-4" />}
+          >
+            Eliminar definitivamente
+          </BulkActionButton>
+        )}`
+          : `
+        <BulkActionButton onClick={() => setPendingBulk('delete')} tone="danger" icon={<FiTrash2 className="h-4 w-4" />}>
           Eliminar
-        </BulkActionButton>
+        </BulkActionButton>`
+      }
       </BulkActionsBar>
 
       <DataTable
@@ -186,8 +280,8 @@ ${c.fields.map(f => `    ${tableColumn(f, c.n.CONST, f === c.display)},`).join('
         rowSelection={rowSelection}
         onRowSelectionChange={setRowSelection}
         enableRowSelection={canDelete}
-        errorMessage="Error al cargar ${w.el === 'la' ? 'las' : 'los'} ${c.n.label.toLowerCase()}."
-        emptyMessage="No se encontraron ${c.n.label.toLowerCase()}."
+        errorMessage="Error al cargar ${w.el === 'la' ? 'las' : 'los'} ${label}."
+        emptyMessage="No se encontraron ${label}."
         {...tableProps}
       />
 
@@ -202,33 +296,55 @@ ${c.fields.map(f => `    ${tableColumn(f, c.n.CONST, f === c.display)},`).join('
         }}
         onConfirm={() => toDelete && remove.mutate(toDelete.id, { onSuccess: () => setToDelete(null) })}
       >
-        ¿Eliminar ${w.el} ${c.n.labelSingular} <strong className="text-ink-1">{toDelete && ${displayExpr(c, 'toDelete')}}</strong>? Esta acción no se
-        puede deshacer.
+        ¿Eliminar ${w.el} ${c.n.labelSingular} <strong className="text-ink-1">{toDelete && ${displayExpr(c, 'toDelete')}}</strong>?${sd ? ' Podrás restaurarl' + (c.n.fem ? 'a' : 'o') + ' después.' : ' Esta acción no se puede deshacer.'}
       </ConfirmDialog>
-
+${
+  sd
+    ? `
       <ConfirmDialog
-        open={confirmBulk}
-        title="Eliminar ${c.n.label.toLowerCase()}"
-        isPending={bulkDelete.isPending}
-        error={bulkDelete.error?.message}
+        open={!!toForceDelete}
+        title="Eliminar definitivamente"
+        confirmLabel="Eliminar definitivamente"
+        isPending={forceDelete.isPending}
+        error={forceDelete.error?.message}
         onCancel={() => {
-          setConfirmBulk(false)
-          bulkDelete.reset()
+          setToForceDelete(null)
+          forceDelete.reset()
         }}
         onConfirm={() =>
-          bulkDelete.mutate(
-            selected.map(i => i.id),
+          toForceDelete && forceDelete.mutate(toForceDelete.id, { onSuccess: () => setToForceDelete(null) })
+        }
+      >
+        ¿Borrar para siempre <strong className="text-ink-1">{toForceDelete && ${displayExpr(c, 'toForceDelete')}}</strong>? No se puede
+        deshacer.
+      </ConfirmDialog>
+`
+    : ''
+}
+      <ConfirmDialog
+        open={!!bulkText}
+        title={bulkText?.title ?? ''}
+        confirmLabel={bulkText?.label}
+        isPending={bulk.isPending}
+        error={bulk.error?.message}
+        onCancel={() => {
+          setPendingBulk(null)
+          bulk.reset()
+        }}
+        onConfirm={() =>
+          pendingBulk &&
+          bulk.mutate(
+            { action: pendingBulk, ids: selected.map(i => i.id) },
             {
               onSuccess: () => {
-                setConfirmBulk(false)
+                setPendingBulk(null)
                 setRowSelection({})
               },
             },
           )
         }
       >
-        Se eliminarán <strong className="text-ink-1">{selected.length}</strong> registro(s). Esta acción no se puede
-        deshacer.
+        Se aplicará a <strong className="text-ink-1">{selected.length}</strong> registro(s). {bulkText?.body}
       </ConfirmDialog>
     </div>
   )
@@ -241,10 +357,45 @@ export const listPageFile = (c: Ctx) => {
   const { Pascal: P, PascalPlural: PP, camel, camelPlural: cp } = c.n
   const filterable = c.fields.filter(isFilterable)
   const enums = filterable.filter(f => f.type === 'enum')
-  const refFilterFields = filterable.filter(f => f.type === 'ref')
-  const mods = refModules(c, refFilterFields)
-  const usesSelect = filterable.length > 0
+  const mods = refModules(
+    c,
+    filterable.filter(f => f.type === 'ref' || f.type === 'many'),
+  )
+  const dtImports = ['DataTablePagination', 'FilterBar', 'SearchFilter']
+  if (filterable.length) dtImports.push('SelectFilter')
+  if (c.softDelete) dtImports.push('ToggleFilter')
   const w = words(c)
+
+  const filterJsx = filterable
+    .map(f => {
+      if (f.type === 'boolean') {
+        return `        <SelectFilter
+          value={search.${f.name} ?? ''}
+          onChange={value => setSearch({ ${f.name}: value })}
+          allLabel="${f.label}: todos"
+          options={[
+            { value: 'true', label: 'Sí' },
+            { value: 'false', label: 'No' },
+          ]}
+        />`
+      }
+      if (f.type === 'ref' || f.type === 'many') {
+        return `        <SelectFilter
+          value={search.${f.name} ? String(search.${f.name}) : ''}
+          onChange={value => setSearch({ ${f.name}: value })}
+          allLabel="Cualquier ${f.label.toLowerCase()}"
+          options={${refOptionsVar(f)}.map(o => ({ value: String(o.value), label: o.label }))}
+        />`
+      }
+      return `        <SelectFilter
+          value={search.${f.name} ?? ''}
+          onChange={value => setSearch({ ${f.name}: value })}
+          allLabel="${f.label}: todos"
+          options={[...${enumOptions(c.n.CONST, f)}]}
+        />`
+    })
+    .join('\n')
+
   return `'use client'
 import Link from 'next/link'
 import { Suspense, useMemo } from 'react'
@@ -254,16 +405,16 @@ import { use${PP}, ${camel}Queries } from '@/lib/hooks/${c.n.kebabPlural}.hooks'
 import { useUrlState } from '@/lib/hooks/use-url-state'
 import { useCan } from '@/lib/hooks/use-can'
 import { hasAnyFilter, ${cp}SearchSchema, to${P}Filters } from '@/lib/filters/${c.n.kebabPlural}.filters'
-${enums.length ? `import { ${enums.map(f => enumOptions(c.n.CONST, f)).join(', ')} } from '@/lib/constants/${c.n.kebabPlural}'\n` : ''}${mods.map(m => `import { use${m.PascalPlural}Options } from '@/lib/hooks/${m.kebabPlural}.hooks'\n`).join('')}import { ${PP}Table } from '@/app/components/${c.n.kebabPlural}/${PP}Table'
-import { DataTablePagination, FilterBar, SearchFilter${usesSelect ? ', SelectFilter' : ''} } from '@/app/components/data-table'
+${enums.length ? `import { ${enums.map(f => enumOptions(c.n.CONST, f)).join(', ')} } from '@/lib/constants/${c.n.kebabPlural}'\n` : ''}${optionsHookImports(mods)}import { ${PP}Table } from '@/app/components/${c.n.kebabPlural}/${PP}Table'
+import { ${dtImports.join(', ')} } from '@/app/components/data-table'
 
 function ${PP}Content() {
   const qc = useQueryClient()
-  const canCreate = useCan('${c.n.snakePlural}.create')
+  const canCreate = useCan('${c.n.snakePlural}.create')${c.softDelete ? `\n  const canDelete = useCan('${c.n.snakePlural}.delete')` : ''}
   const [search, setSearch, resetSearch] = useUrlState(${cp}SearchSchema)
   const filters = useMemo(() => to${P}Filters(search), [search])
   const { data, isLoading, isError, isPlaceholderData } = use${PP}(filters)
-${mods.map(m => `  const { data: ${m.camelPlural}Options = [] } = use${m.PascalPlural}Options()`).join('\n')}
+${optionsHookCalls(mods)}
 
   return (
     <div className="space-y-6">
@@ -287,33 +438,18 @@ ${mods.map(m => `  const { data: ${m.camelPlural}Options = [] } = use${m.PascalP
 
       <FilterBar hasActive={hasAnyFilter(search)} onClear={resetSearch}>
         <SearchFilter value={search.search} onChange={value => setSearch({ search: value })} placeholder="Buscar..." />
-${filterable
-  .map(f =>
-    f.type === 'boolean'
-      ? `        <SelectFilter
-          value={search.${f.name} ?? ''}
-          onChange={value => setSearch({ ${f.name}: value })}
-          allLabel="${f.label}: todos"
-          options={[
-            { value: 'true', label: 'Sí' },
-            { value: 'false', label: 'No' },
-          ]}
-        />`
-      : f.type === 'ref'
-        ? `        <SelectFilter
-          value={search.${f.name} ? String(search.${f.name}) : ''}
-          onChange={value => setSearch({ ${f.name}: value })}
-          allLabel="Cualquier ${f.label.toLowerCase()}"
-          options={${refOptionsVar(f)}.map(o => ({ value: String(o.value), label: o.label }))}
-        />`
-        : `        <SelectFilter
-          value={search.${f.name} ?? ''}
-          onChange={value => setSearch({ ${f.name}: value })}
-          allLabel="${f.label}: todos"
-          options={[...${enumOptions(c.n.CONST, f)}]}
-        />`,
-  )
-  .join('\n')}
+${filterJsx}${
+    c.softDelete
+      ? `
+        {canDelete && (
+          <ToggleFilter
+            checked={!!search.with_trashed}
+            onChange={checked => setSearch({ with_trashed: checked ? 'true' : undefined })}
+            label="Incluir ${w.eliminados}"
+          />
+        )}`
+      : ''
+  }
       </FilterBar>
 
       <${PP}Table
@@ -413,7 +549,7 @@ export default function Editar${P}Page({ params }: { params: Promise<{ id: strin
   if (isError || !${camel}) {
     return (
       <div className="rounded-lg bg-[var(--risk-bg)] px-4 py-3 text-sm text-risk">
-        No se encontró ${words(c).el} ${c.n.labelSingular}.
+        No se encontró ${words(c).el} ${c.n.labelSingular}${c.softDelete ? ' (si está eliminad' + (c.n.fem ? 'a' : 'o') + ', restáurel' + (c.n.fem ? 'a' : 'o') + ' primero)' : ''}.
       </div>
     )
   }
@@ -441,5 +577,22 @@ export const menuEntry = (c: Ctx) => `  {
   },
 `
 
-export const moduleEntry = (c: Ctx) =>
-  `  { path: '/${c.n.kebabPlural}', prefix: '${c.n.snakePlural}', label: '${c.n.label}' },\n`
+/** Destinos de ref/many (por prefijo): para permisos de /options e invalidación de caché */
+export const refTargets = (c: Ctx) => [
+  ...new Set([...refFields(c), ...manyFields(c)].filter(f => f.ref!.module).map(f => f.ref!.plural)),
+]
+
+export const moduleEntry = (c: Ctx) => {
+  const refs = refTargets(c)
+  const extra = [
+    refs.length ? `refs: [${refs.map(r => `'${r}'`).join(', ')}]` : '',
+    c.softDelete ? 'softDelete: true' : '',
+  ].filter(Boolean)
+  return `  { path: '/${c.n.kebabPlural}', prefix: '${c.n.snakePlural}', label: '${c.n.label}'${extra.length ? `, ${extra.join(', ')}` : ''} },\n`
+}
+
+/** lib/constants/query-dependencies.ts: [destino, este módulo] por cada ref/many (y el autor) */
+export const dependencyEntries = (c: Ctx) =>
+  [...refTargets(c), ...(c.fields.some(f => f.owner) ? ['users'] : [])]
+    .map(target => `  ['${target}', '${c.n.snakePlural}'],\n`)
+    .join('')

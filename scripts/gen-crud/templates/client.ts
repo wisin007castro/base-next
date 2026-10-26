@@ -2,36 +2,46 @@ import { enumConst, formDefault, isFilterable, toDtoValue, zodForm } from '../fi
 import { formFields, type Ctx } from './context'
 
 // ─── lib/api/<plural>.api.ts ──────────────────────────────────────────────────
-export const apiClientFile = (c: Ctx) => `import { request, toQueryString } from './http'
+export const apiClientFile = (c: Ctx) => {
+  const P = c.n.Pascal
+  return `import { request, toQueryString } from './http'
 import type { PaginatedResponse } from '@/lib/types/user.types'
-import type { ${c.n.Pascal}, ${c.n.Pascal}Filters } from '@/lib/types/${c.n.kebab}.types'
-import type { Create${c.n.Pascal}Input, Update${c.n.Pascal}Input } from '@/lib/api/schemas/${c.n.kebab}.schema'
+import type { ${P}, ${P}Filters } from '@/lib/types/${c.n.kebab}.types'
+import type { Bulk${P}Action, Create${P}Input, Update${P}Input } from '@/lib/api/schemas/${c.n.kebab}.schema'
 
 export const ${c.n.camelPlural}Api = {
-  getAll: (filters: ${c.n.Pascal}Filters = {}, signal?: AbortSignal) =>
-    request<PaginatedResponse<${c.n.Pascal}>>(\`/${c.n.kebabPlural}\${toQueryString(filters)}\`, { signal }),
+  getAll: (filters: ${P}Filters = {}, signal?: AbortSignal) =>
+    request<PaginatedResponse<${P}>>(\`/${c.n.kebabPlural}\${toQueryString(filters)}\`, { signal }),
 
-  getById: (id: number, signal?: AbortSignal) => request<${c.n.Pascal}>(\`/${c.n.kebabPlural}/\${id}\`, { signal }),
+  getById: (id: number, signal?: AbortSignal) => request<${P}>(\`/${c.n.kebabPlural}/\${id}\`, { signal }),
 
   /** [{ value, label }] para selects (p. ej. el campo ref de otro módulo) */
   getOptions: (signal?: AbortSignal) =>
     request<{ value: number; label: string }[]>('/${c.n.kebabPlural}/options', { signal }),
 
-  create: (dto: Create${c.n.Pascal}Input) =>
-    request<${c.n.Pascal}>('/${c.n.kebabPlural}', { method: 'POST', body: JSON.stringify(dto) }),
+  create: (dto: Create${P}Input) => request<${P}>('/${c.n.kebabPlural}', { method: 'POST', body: JSON.stringify(dto) }),
 
-  update: (id: number, dto: Update${c.n.Pascal}Input) =>
-    request<${c.n.Pascal}>(\`/${c.n.kebabPlural}/\${id}\`, { method: 'PATCH', body: JSON.stringify(dto) }),
+  update: (id: number, dto: Update${P}Input) =>
+    request<${P}>(\`/${c.n.kebabPlural}/\${id}\`, { method: 'PATCH', body: JSON.stringify(dto) }),
 
   remove: (id: number) => request<void>(\`/${c.n.kebabPlural}/\${id}\`, { method: 'DELETE' }),
+${
+  c.softDelete
+    ? `
+  restore: (id: number) => request<${P}>(\`/${c.n.kebabPlural}/\${id}/restore\`, { method: 'POST' }),
 
-  bulkDelete: (ids: number[]) =>
+  forceDelete: (id: number) => request<void>(\`/${c.n.kebabPlural}/\${id}/force\`, { method: 'DELETE' }),
+`
+    : ''
+}
+  bulk: (action: Bulk${P}Action, ids: number[]) =>
     request<{ affected: number; skipped: number[] }>('/${c.n.kebabPlural}/bulk', {
       method: 'POST',
-      body: JSON.stringify({ action: 'delete', ids }),
+      body: JSON.stringify({ action, ids }),
     }),
 }
 `
+}
 
 // ─── Claves de caché (se insertan en lib/constants/query-keys.ts) ─────────────
 export const queryKeysSnippet = (c: Ctx) => `export const ${c.n.camel}Keys = {
@@ -51,8 +61,9 @@ export const hooksFile = (c: Ctx) => {
 import { useQuery, useMutation, useQueryClient, queryOptions, keepPreviousData } from '@tanstack/react-query'
 import { ${cp}Api } from '@/lib/api/${c.n.kebabPlural}.api'
 import { ${camel}Keys } from '@/lib/constants/query-keys'
+import { invalidateDependents } from '@/lib/hooks/invalidate-dependents'
 import type { ${P}Filters } from '@/lib/types/${c.n.kebab}.types'
-import type { Create${P}Input, Update${P}Input } from '@/lib/api/schemas/${c.n.kebab}.schema'
+import type { Bulk${P}Action, Create${P}Input, Update${P}Input } from '@/lib/api/schemas/${c.n.kebab}.schema'
 
 export const ${camel}Queries = {
   list: (filters: ${P}Filters) =>
@@ -76,12 +87,16 @@ export const ${camel}Queries = {
     }),
 }
 
-/** Lista y opciones de select quedan obsoletas tras cualquier cambio */
+/**
+ * Tras cualquier cambio: listas y opciones quedan obsoletas, y también las cachés de otros
+ * módulos que muestran datos de este (QUERY_DEPENDENCIES: etiquetas en joins, blog…)
+ */
 function useInvalidate${PP}() {
   const qc = useQueryClient()
   return () => {
     qc.invalidateQueries({ queryKey: ${camel}Keys.lists() })
     qc.invalidateQueries({ queryKey: ${camel}Keys.options() })
+    invalidateDependents(qc, '${c.n.snakePlural}')
   }
 }
 
@@ -150,13 +165,42 @@ export function useDelete${P}() {
     },
   })
 }
-
-export function useBulkDelete${PP}() {
+${
+  c.softDelete
+    ? `
+export function useRestore${P}() {
   const qc = useQueryClient()
   const invalidate = useInvalidate${PP}()
   return useMutation({
-    mutationFn: (ids: number[]) => ${cp}Api.bulkDelete(ids),
-    onSuccess: (_, ids) => {
+    mutationFn: (id: number) => ${cp}Api.restore(id),
+    onSuccess: item => {
+      qc.setQueryData(${camel}Keys.detail(item.id), item)
+      invalidate()
+    },
+  })
+}
+
+export function useForceDelete${P}() {
+  const qc = useQueryClient()
+  const invalidate = useInvalidate${PP}()
+  return useMutation({
+    mutationFn: (id: number) => ${cp}Api.forceDelete(id),
+    onSuccess: (_, id) => {
+      qc.removeQueries({ queryKey: ${camel}Keys.detail(id) })
+      invalidate()
+    },
+  })
+}
+`
+    : ''
+}
+/** Acción en lote (${c.softDelete ? 'delete / restore / force_delete' : 'delete'}) */
+export function useBulk${PP}() {
+  const qc = useQueryClient()
+  const invalidate = useInvalidate${PP}()
+  return useMutation({
+    mutationFn: ({ action, ids }: { action: Bulk${P}Action; ids: number[] }) => ${cp}Api.bulk(action, ids),
+    onSuccess: (_, { ids }) => {
       ids.forEach(id => qc.removeQueries({ queryKey: ${camel}Keys.detail(id) }))
       invalidate()
     },
@@ -177,7 +221,7 @@ import { z${needsDate ? ', DATE_RE' : ''} } from '@/lib/validation/zod-config'
 import { ${schemaVar}, type Create${P}Input } from '@/lib/api/schemas/${c.n.kebab}.schema'
 ${optionalEnums.length ? `import { ${optionalEnums.map(f => enumConst(c.n.CONST, f)).join(', ')} } from '@/lib/constants/${c.n.kebabPlural}'\n` : ''}import type { ${P} } from '@/lib/types/${c.n.kebab}.types'
 
-// Requeridos: la regla del servidor tal cual. Opcionales: aceptan '' / null del form.
+// Requeridos: la regla del servidor tal cual. Opcionales: aceptan '' / null / [] del form.
 export const ${c.n.camel}FormSchema = z.object({
 ${fields.map(f => `  ${f.name}: ${zodForm(f, c.n.CONST, schemaVar)},`).join('\n')}
 })
@@ -200,6 +244,7 @@ export const filtersFile = (c: Ctx) => {
   const P = c.n.Pascal
   const filterable = c.fields.filter(isFilterable)
   const enums = filterable.filter(f => f.type === 'enum')
+  const keys = [...filterable.map(f => f.name), ...(c.softDelete ? ['with_trashed'] : [])]
   return `import { z } from '@/lib/validation/zod-config'
 import { PER_PAGE_OPTIONS } from '@/lib/constants/pagination'
 ${enums.length ? `import { ${enums.map(f => enumConst(c.n.CONST, f)).join(', ')} } from '@/lib/constants/${c.n.kebabPlural}'\n` : ''}import type { ${P}Filters } from '@/lib/types/${c.n.kebab}.types'
@@ -217,11 +262,11 @@ ${filterable
   .map(f =>
     f.type === 'boolean'
       ? `  ${f.name}: z.enum(['true', 'false']).optional().catch(undefined),`
-      : f.type === 'ref'
+      : f.type === 'ref' || f.type === 'many'
         ? `  ${f.name}: z.coerce.number().int().positive().optional().catch(undefined),`
         : `  ${f.name}: z.enum(${enumConst(c.n.CONST, f)}).optional().catch(undefined),`,
   )
-  .join('\n')}
+  .join('\n')}${c.softDelete ? `\n  with_trashed: z.enum(['true']).optional().catch(undefined),` : ''}
 })
 
 export type ${c.n.PascalPlural}Search = z.output<typeof ${c.n.camelPlural}SearchSchema>
@@ -231,9 +276,9 @@ export const to${P}Filters = (s: ${c.n.PascalPlural}Search): ${P}Filters => ({
   per_page: s.per_page,
   sort: s.sort,
   search: s.search || undefined,
-${filterable.map(f => `  ${f.name}: s.${f.name},`).join('\n')}
+${filterable.map(f => `  ${f.name}: s.${f.name},`).join('\n')}${c.softDelete ? `\n  with_trashed: s.with_trashed === 'true' || undefined,` : ''}
 })
 
-export const hasAnyFilter = (s: ${c.n.PascalPlural}Search) => !!(s.search${filterable.map(f => ` || s.${f.name}`).join('')})
+export const hasAnyFilter = (s: ${c.n.PascalPlural}Search) => !!(s.search${keys.map(k => ` || s.${k}`).join('')})
 `
 }

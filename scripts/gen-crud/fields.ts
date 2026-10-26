@@ -1,16 +1,23 @@
 import { humanize, toCamel } from './names'
 
-export const FIELD_TYPES = ['string', 'text', 'int', 'number', 'boolean', 'date', 'enum', 'ref'] as const
+export const FIELD_TYPES = ['string', 'text', 'int', 'number', 'boolean', 'date', 'enum', 'ref', 'many'] as const
 export type FieldType = (typeof FIELD_TYPES)[number]
 
-/** Módulo al que apunta un campo `ref` (resuelto desde el registro de módulos generados) */
+export const ON_DELETE = ['restrict', 'cascade', 'set null'] as const
+export type OnDelete = (typeof ON_DELETE)[number]
+
+/** Módulo al que apunta un campo `ref` / `many` (resuelto desde el registro de módulos generados) */
 export interface RefTarget {
   /** snake plural del módulo: `categorias` */
   plural: string
+  /** snake singular: `categoria` (para nombrar la FK en tablas intermedias) */
+  entity: string
   /** Identificador de la tabla Drizzle: `categorias`, `users` */
   table: string
   /** Columna Drizzle (camelCase) que se muestra como etiqueta, o null → `#id` */
   displayCamel: string | null
+  /** El destino tiene soft delete: sus eliminados no se ofrecen ni se muestran */
+  softDelete: boolean
   /** Módulo generado (tiene hook de opciones); null para `users` (solo owner) */
   module: { PascalPlural: string; camelPlural: string; kebabPlural: string } | null
 }
@@ -26,30 +33,43 @@ export interface Field {
   unique: boolean
   /** Solo `enum` */
   values: string[]
-  /** Solo `ref`: módulo destino tal como se escribió (`categorias`), se resuelve en `ref` */
+  /** Solo `ref` / `many`: módulo destino tal como se escribió (`categorias`), se resuelve en `ref` */
   refPlural?: string
   ref?: RefTarget
+  /** Solo `ref`: qué hacer con este registro cuando se elimina el destino */
+  onDelete?: OnDelete
   /** Campo de sistema: el autor, lo pone el servidor desde la sesión (no está en el form) */
   owner?: boolean
 }
 
-const RESERVED = ['id', 'created_at', 'updated_at', 'search', 'page', 'per_page', 'sort', 'autor_id']
+const RESERVED = [
+  'id',
+  'created_at',
+  'updated_at',
+  'deleted_at',
+  'search',
+  'page',
+  'per_page',
+  'sort',
+  'with_trashed',
+  'autor_id',
+]
 
 /**
  * Parsea `nombre[?][!]:tipo[=Etiqueta]`:
  *   `nombre:string`  `descripcion?:text`  `codigo!:string`  `estado:enum(borrador|publicado)`
- *   `categoria_id:ref(categorias)`  `titulo:string=Título`
+ *   `categoria_id:ref(categorias)`  `categoria_id:ref(categorias,cascade)`  `etiqueta_ids:many(etiquetas)`
  *   `?` = opcional, `!` = único, `=…` = etiqueta en la UI (por defecto se deriva del nombre)
  */
 export function parseField(spec: string): Field {
   const m = spec.match(/^([a-z][a-z0-9_]*)([?!]*):([a-z]+)(?:\(([^)]*)\))?(?:=(.+))?$/)
   if (!m) throw new Error(`Campo inválido "${spec}". Formato: nombre[?][!]:tipo  (ej. precio:number, estado:enum(a|b))`)
   const [, name, flags, type, args, customLabel] = m
-  if (customLabel?.includes("'")) throw new Error(`"${name}": la etiqueta no puede contener comillas simples`)
   if (!FIELD_TYPES.includes(type as FieldType)) {
     throw new Error(`Tipo "${type}" no soportado en "${spec}". Tipos: ${FIELD_TYPES.join(', ')}`)
   }
   if (RESERVED.includes(name)) throw new Error(`"${name}" es un nombre reservado`)
+  if (customLabel?.includes("'")) throw new Error(`"${name}": la etiqueta no puede contener comillas simples`)
   const values =
     type === 'enum'
       ? (args ?? '')
@@ -63,23 +83,44 @@ export function parseField(spec: string): Field {
     throw new Error(`Valores de "${name}" en snake_case: ${values.join('|')}`)
   if (type === 'boolean' && flags.includes('?'))
     throw new Error(`"${name}": un boolean no puede ser opcional (usa default false)`)
-  if (type === 'ref') {
-    if (!name.endsWith('_id'))
-      throw new Error(`"${name}": un ref debe terminar en _id (ej. categoria_id:ref(categorias))`)
-    if (!args || !/^[a-z][a-z0-9_]*$/.test(args))
-      throw new Error(`"${name}": indica el módulo destino: ${name}:ref(categorias)`)
-    if (flags.includes('!')) throw new Error(`"${name}": un ref no puede ser único`)
+
+  let refPlural: string | undefined
+  let onDelete: OnDelete | undefined
+  if (type === 'ref' || type === 'many') {
+    const [target, policy] = (args ?? '').split(',').map(s => s.trim())
+    if (!target || !/^[a-z][a-z0-9_]*$/.test(target))
+      throw new Error(`"${name}": indica el módulo destino: ${name}:${type}(categorias)`)
+    if (flags.includes('!')) throw new Error(`"${name}": un ${type} no puede ser único`)
+    refPlural = target
+    if (type === 'ref') {
+      if (!name.endsWith('_id'))
+        throw new Error(`"${name}": un ref debe terminar en _id (ej. categoria_id:ref(categorias))`)
+      if (policy && !ON_DELETE.includes(policy as OnDelete)) {
+        throw new Error(`"${name}": política "${policy}" inválida. Usa: ${ON_DELETE.join(', ')}`)
+      }
+      if (policy === 'set null' && !flags.includes('?'))
+        throw new Error(`"${name}": "set null" exige un ref opcional (${name}?:ref(...))`)
+      // Por defecto: requerido → no se puede borrar el destino con hijos; opcional → se desvincula
+      onDelete = (policy as OnDelete) ?? (flags.includes('?') ? 'set null' : 'restrict')
+    } else {
+      if (!name.endsWith('_ids'))
+        throw new Error(`"${name}": un many debe terminar en _ids (ej. etiqueta_ids:many(etiquetas))`)
+      if (policy) throw new Error(`"${name}": many no admite política (la tabla intermedia se borra en cascada)`)
+    }
   }
 
   return {
     name,
     camel: toCamel(name),
-    label: customLabel?.trim() || humanize(type === 'ref' ? name.slice(0, -3) : name),
+    label:
+      customLabel?.trim() ||
+      humanize(type === 'ref' ? name.slice(0, -3) : type === 'many' ? (refPlural as string) : name),
     type: type as FieldType,
     optional: flags.includes('?'),
     unique: flags.includes('!'),
     values,
-    refPlural: type === 'ref' ? args : undefined,
+    refPlural,
+    onDelete,
   }
 }
 
@@ -93,12 +134,16 @@ export const ownerField = (users: RefTarget): Field => ({
   unique: false,
   values: [],
   ref: users,
+  onDelete: 'cascade',
   owner: true,
 })
 
-/** Nombre de la relación: `categoria_id` → `categoria` (prop con `{ id, label }` en la API) */
-export const relName = (f: Field) => f.name.slice(0, -3)
-export const relCamel = (f: Field) => f.camel.slice(0, -2)
+/**
+ * Nombre de la relación en la API:
+ * `categoria_id` (ref) → `categoria: { id, label }`; `etiqueta_ids` (many) → `etiquetas: [{ id, label }]`
+ */
+export const relName = (f: Field) => (f.type === 'many' ? f.ref!.plural : f.name.slice(0, -3))
+export const relCamel = (f: Field) => toCamel(relName(f))
 /** Alias de la tabla destino en los joins (soporta varios refs a la misma tabla) */
 export const refAlias = (f: Field) => `${relCamel(f)}Ref`
 /** Variable con las opciones del select en el form/listado */
@@ -106,10 +151,13 @@ export const refOptionsVar = (f: Field) => `${f.ref!.module!.camelPlural}Options
 
 const STRING_MAX = { string: 255, text: 5000 } as const
 const isStringLike = (f: Field) => f.type === 'string' || f.type === 'text' || f.type === 'date' || f.type === 'enum'
+/** Columna propia de la tabla (many vive en la tabla intermedia) */
+export const isColumn = (f: Field) => f.type !== 'many'
 export const isSearchable = (f: Field) => f.type === 'string' || f.type === 'text'
 export const isFilterable = (f: Field) =>
-  f.type === 'boolean' || f.type === 'enum' || (f.type === 'ref' && !f.owner && !!f.ref?.module)
-export const isSortable = (f: Field) => f.type !== 'text' && (f.type !== 'ref' || !!f.ref?.displayCamel)
+  f.type === 'boolean' || f.type === 'enum' || ((f.type === 'ref' || f.type === 'many') && !f.owner && !!f.ref?.module)
+export const isSortable = (f: Field) =>
+  f.type !== 'text' && f.type !== 'many' && (f.type !== 'ref' || !!f.ref?.displayCamel)
 export const enumConst = (entityConst: string, f: Field) => `${entityConst}_${f.name.toUpperCase()}_VALUES`
 export const enumOptions = (entityConst: string, f: Field) => `${entityConst}_${f.name.toUpperCase()}_OPTIONS`
 
@@ -128,17 +176,16 @@ export function drizzleColumn(f: Field, entityConst: string): string {
     case 'enum':
       col = `text('${f.name}', { enum: ${enumConst(entityConst, f)} })`
       break
-    case 'ref': {
-      // owner: se borra con su autor; opcional: se desvincula; requerido: impide borrar el destino
-      const onDelete = f.owner ? 'cascade' : f.optional ? 'set null' : 'restrict'
-      col = `integer('${f.name}').references(() => ${f.ref!.table}.id, { onDelete: '${onDelete}' })`
+    case 'ref':
+      // La misma política en la FK: aplica a los borrados físicos (y al soft delete vía lib/api/dependents)
+      col = `integer('${f.name}').references(() => ${f.ref!.table}.id, { onDelete: '${f.onDelete}' })`
       break
-    }
+    case 'many':
+      throw new Error('many no es una columna')
     default:
       col = `text('${f.name}')`
   }
   if (!f.optional) col += '.notNull()'
-  if (f.unique) col += '.unique()'
   return col
 }
 
@@ -171,12 +218,16 @@ export function zodServer(f: Field, entityConst: string): string {
     case 'ref':
       z = 'z.number().int().positive()'
       break
+    case 'many':
+      return f.optional
+        ? 'z.array(z.number().int().positive()).max(100).optional()'
+        : "z.array(z.number().int().positive()).min(1, 'Selecciona al menos uno').max(100)"
   }
   return f.optional ? `${z}.nullish()` : z
 }
 
 // ─── Formulario ───────────────────────────────────────────────────────────────
-/** Regla del form: requerido = la del servidor; opcional = versión que acepta '' / null */
+/** Regla del form: requerido = la del servidor; opcional = versión que acepta '' / null / [] */
 export function zodForm(f: Field, entityConst: string, schemaVar: string): string {
   if (!f.optional) return `${schemaVar}.shape.${f.name}`
   switch (f.type) {
@@ -189,6 +240,8 @@ export function zodForm(f: Field, entityConst: string, schemaVar: string): strin
       return `z.union([z.literal(''), z.enum(${enumConst(entityConst, f)})])`
     case 'ref':
       return 'z.number().int().positive().nullable()'
+    case 'many':
+      return 'z.array(z.number().int().positive()).max(100)'
     default:
       return `z.number()${f.type === 'int' ? '.int()' : ''}.nullable()`
   }
@@ -197,6 +250,7 @@ export function zodForm(f: Field, entityConst: string, schemaVar: string): strin
 /** Valor inicial del form a partir de la entidad (`e`) */
 export function formDefault(f: Field): string {
   if (f.type === 'boolean') return `e?.${f.name} ?? false`
+  if (f.type === 'many') return `e?.${f.name} ?? []`
   // Requerido vacío = undefined (DefaultValues no admite null); el input lo muestra vacío
   if (f.type === 'int' || f.type === 'number' || f.type === 'ref') {
     return f.optional ? `e?.${f.name} ?? null` : `e?.${f.name}`
@@ -228,6 +282,8 @@ export function formFieldJsx(f: Field, entityConst: string): string {
       return `<FieldSelect ${base}${req} options={${f.optional ? `[{ value: '', label: 'Sin especificar' }, ...${enumOptions(entityConst, f)}]` : enumOptions(entityConst, f)}} />`
     case 'ref':
       return `<FieldSelect ${base}${req} options={${f.optional ? `[{ value: null, label: 'Sin especificar' }, ...${refOptionsVar(f)}]` : refOptionsVar(f)}} />`
+    case 'many':
+      return `<FieldCheckboxGroup control={control} name="${f.name}" label="${f.label}" options={${refOptionsVar(f)}} searchable className="sm:col-span-2" />`
     default:
       return `<FieldText ${base}${req} />`
   }
@@ -244,6 +300,8 @@ export function tsType(f: Field, entityConst: string): string {
       break
     case 'boolean':
       return 'boolean'
+    case 'many':
+      return 'number[]'
     case 'enum':
       t = `(typeof ${enumConst(entityConst, f)})[number]`
       break
@@ -296,6 +354,10 @@ export function tableColumn(f: Field, entityConst: string, isDisplay: boolean): 
       opts.push(`id: '${f.name}'`)
       opts.push(`cell: ({ getValue }) => getValue() ?? <span className="italic text-ink-4">—</span>`)
       return `col.accessor(r => r.${relName(f)}?.label ?? null, { ${opts.join(', ')} })`
+    case 'many':
+      opts.push(`id: '${f.name}'`)
+      opts.push(`cell: ({ getValue }) => <RefBadges items={getValue()} />`)
+      return `col.accessor(r => r.${relName(f)}, { ${opts.join(', ')} })`
   }
   return `col.accessor('${f.name}', { ${opts.join(', ')} })`
 }
