@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { transporter } from '@/lib/mail/mail.client'
-import { env } from '@/lib/env'
+import { sendTestEmail } from '@/lib/mail/mail.service'
 import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
 
-// GET /api/debug/mail — verifica la conexión SMTP y envía un correo de prueba
+// GET /api/debug/mail — verifica la conexión SMTP y envía un correo de prueba (plantilla react-email)
 // Solo disponible en desarrollo y para administradores
 export async function GET() {
   if (process.env.NODE_ENV === 'production') {
@@ -15,16 +15,8 @@ export async function GET() {
 
   try {
     await transporter.verify()
-    await transporter.sendMail({
-      from: env.MAIL_FROM,
-      to: 'test@ejemplo.com',
-      subject: 'Test de conexión SMTP',
-      html: '<h1>Correo de prueba</h1><p>La conexión SMTP funciona correctamente.</p>',
-    })
-    return NextResponse.json({
-      ok: true,
-      msg: 'Correo enviado — revisá http://localhost:1080',
-    })
+    await sendTestEmail('test@ejemplo.com')
+    return NextResponse.json({ ok: true, msg: 'Correo enviado: revísalo en MailDev' })
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err))
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 })

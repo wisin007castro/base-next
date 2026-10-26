@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { Suspense, useMemo, useState } from 'react'
-import { FiPlus, FiChevronDown, FiChevronUp, FiDownload } from 'react-icons/fi'
+import { FiPlus, FiChevronDown, FiChevronUp, FiDownload, FiMail } from 'react-icons/fi'
 import { useQueryClient } from '@tanstack/react-query'
 import { useUsers, userQueries } from '@/lib/hooks/users.hooks'
 import { useRoles } from '@/lib/hooks/roles.hooks'
@@ -64,6 +64,13 @@ function UsuariosContent() {
             <FiDownload className="h-4 w-4" />
             Exportar CSV
           </a>
+          <Link
+            href="/usuarios/invitaciones"
+            className="inline-flex items-center gap-2 rounded-lg border border-[var(--line-2)] bg-surface px-4 py-2 text-sm font-medium text-ink-2 transition-colors hover:bg-[var(--line-1)]"
+          >
+            <FiMail className="h-4 w-4" />
+            Invitar
+          </Link>
           <Link
             href="/usuarios/nuevo"
             className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-[var(--accent-fg)] transition-colors hover:bg-[var(--accent-hover)]"

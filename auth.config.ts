@@ -21,7 +21,7 @@ export const authConfig: NextAuthConfig = {
       const adminPaths = ['/usuarios', '/roles', '/permisos']
       const userPaths = ['/perfil', '/blog']
       const authPaths = ['/'] // home sólo autenticados
-      const publicPaths = ['/login', '/forgot-password', '/reset-password']
+      const publicPaths = ['/login', '/forgot-password', '/reset-password', '/invitacion']
 
       const isAdminPath = adminPaths.some(p => nextUrl.pathname.startsWith(p))
       const isUserPath = userPaths.some(p => nextUrl.pathname.startsWith(p))

@@ -37,6 +37,16 @@ jobs:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # MailDev recibe los correos (invitaciones…); las pruebas los leen por su API REST
+    services:
+      maildev:
+        image: maildev/maildev:2.1.0
+        ports:
+          - 1025:1025
+          - 1080:1080
+    env:
+      MAIL_PORT: 1025
+      E2E_MAILDEV_URL: http://localhost:1080
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

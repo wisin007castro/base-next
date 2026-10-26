@@ -64,6 +64,13 @@
       "when": 1792990723071,
       "tag": "0008_talented_wolfpack",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1793016249245,
+      "tag": "0009_nifty_silver_surfer",
+      "breakpoints": true
     }
   ]
 }

@@ -166,6 +166,40 @@ export const userSessions = sqliteTable('user_sessions', {
 })
 
 // -------------------------------------------------------------------
+// invitations — el admin invita por email; la persona crea su cuenta con el enlace
+// -------------------------------------------------------------------
+export const invitations = sqliteTable(
+  'invitations',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    email: text('email').notNull(),
+    // SHA-256 del token del enlace: con la BD filtrada no se pueden usar las invitaciones
+    tokenHash: text('token_hash').notNull().unique(),
+    invitedById: integer('invited_by_id').references(() => users.id, { onDelete: 'set null' }),
+    expiresAt: text('expires_at').notNull(),
+    acceptedAt: text('accepted_at'),
+    // Cuenta creada al aceptar (null si el usuario se borró después)
+    acceptedUserId: integer('accepted_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull().default(ts()),
+    updatedAt: text('updated_at').notNull().default(ts()),
+  },
+  t => [index('invitations_email_idx').on(t.email)],
+)
+
+export const invitationRoles = sqliteTable(
+  'invitation_roles',
+  {
+    invitationId: integer('invitation_id')
+      .notNull()
+      .references(() => invitations.id, { onDelete: 'cascade' }),
+    roleId: integer('role_id')
+      .notNull()
+      .references(() => roles.id, { onDelete: 'cascade' }),
+  },
+  t => [primaryKey({ columns: [t.invitationId, t.roleId] })],
+)
+
+// -------------------------------------------------------------------
 // Relaciones
 // -------------------------------------------------------------------
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -206,6 +240,16 @@ export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => 
 
 export const userSessionsRelations = relations(userSessions, ({ one }) => ({
   user: one(users, { fields: [userSessions.userId], references: [users.id] }),
+}))
+
+export const invitationsRelations = relations(invitations, ({ one, many }) => ({
+  invitedBy: one(users, { fields: [invitations.invitedById], references: [users.id] }),
+  roles: many(invitationRoles),
+}))
+
+export const invitationRolesRelations = relations(invitationRoles, ({ one }) => ({
+  invitation: one(invitations, { fields: [invitationRoles.invitationId], references: [invitations.id] }),
+  role: one(roles, { fields: [invitationRoles.roleId], references: [roles.id] }),
 }))
 
 // -------------------------------------------------------------------
