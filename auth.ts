@@ -1,4 +1,4 @@
-import NextAuth from 'next-auth'
+import NextAuth, { CredentialsSignin } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { eq, and, isNull } from 'drizzle-orm'
@@ -8,12 +8,17 @@ import { users, userSessions } from '@/lib/db/schema'
 import { getUserRoles, getUserPermissions } from '@/lib/auth/rbac'
 import { rateLimit } from '@/lib/api/rate-limiter'
 
+/** Llega al cliente como `res.code === 'rate_limited'` en signIn(). */
+class RateLimitedError extends CredentialsSignin {
+  code = 'rate_limited'
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
       credentials: {
-        email:    { label: 'Email',      type: 'email'    },
+        email: { label: 'Email', type: 'email' },
         password: { label: 'Contraseña', type: 'password' },
       },
       async authorize(credentials, request) {
@@ -22,61 +27,47 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Rate limiting: 5 intentos por email cada 15 minutos
         const email = credentials.email as string
         const { allowed } = rateLimit(`login:${email}`, 5, 15 * 60 * 1000)
-        if (!allowed) return null
+        if (!allowed) throw new RateLimitedError()
 
         const user = await db.query.users.findFirst({
-          where: and(
-            eq(users.email, email),
-            eq(users.isActive, true),
-            isNull(users.deletedAt),
-          ),
+          where: and(eq(users.email, email), eq(users.isActive, true), isNull(users.deletedAt)),
         })
 
         if (!user) return null
 
-        const valid = await bcrypt.compare(
-          credentials.password as string,
-          user.password,
-        )
+        const valid = await bcrypt.compare(credentials.password as string, user.password)
         if (!valid) return null
 
         // FEAT 7: si 2FA está habilitado, retornar pendiente sin roles
         if (user.twoFactorEnabled) {
           return {
-            id:               String(user.id),
+            id: String(user.id),
             twoFactorPending: true,
           }
         }
 
-        const [roles, perms] = await Promise.all([
-          getUserRoles(user.id),
-          getUserPermissions(user.id),
-        ])
+        const [roles, perms] = await Promise.all([getUserRoles(user.id), getUserPermissions(user.id)])
 
-        await db
-          .update(users)
-          .set({ lastLoginAt: new Date().toISOString() })
-          .where(eq(users.id, user.id))
+        await db.update(users).set({ lastLoginAt: new Date().toISOString() }).where(eq(users.id, user.id))
 
         // FEAT 6: generar sid (session ID) e insertar sesión
-        const sid       = crypto.randomUUID()
-        const userAgent = (request as Request | undefined)
-          ?.headers?.get('user-agent') ?? 'unknown'
+        const sid = crypto.randomUUID()
+        const userAgent = (request as Request | undefined)?.headers?.get('user-agent') ?? 'unknown'
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
         await db.insert(userSessions).values({
-          userId:    user.id,
-          jti:       sid,
+          userId: user.id,
+          jti: sid,
           userAgent,
-          ip:        'unknown',
+          ip: 'unknown',
           expiresAt,
           revokedAt: null,
         })
 
         return {
-          id:          String(user.id),
-          name:        user.username,
-          email:       user.email,
+          id: String(user.id),
+          name: user.username,
+          email: user.email,
           roles,
           permissions: perms,
           sid,
@@ -103,9 +94,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.twoFactorPending = true
           // No añadir roles ni permisos hasta verificar 2FA
         } else {
-          token.roles       = u.roles       ?? []
+          token.roles = u.roles ?? []
           token.permissions = u.permissions ?? []
-          token.sid         = u.sid
+          token.sid = u.sid
         }
         return token
       }
@@ -113,32 +104,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // ---- update: 2FA verificado ----
       if (trigger === 'update' && session?.twoFactorVerified === true) {
         const userId = Number(token.id)
-        const [roles, perms] = await Promise.all([
-          getUserRoles(userId),
-          getUserPermissions(userId),
-        ])
+        const [roles, perms] = await Promise.all([getUserRoles(userId), getUserPermissions(userId)])
 
         // Insertar sesión ahora que está verificado
-        const sid       = crypto.randomUUID()
+        const sid = crypto.randomUUID()
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
         await db.insert(userSessions).values({
           userId,
-          jti:       sid,
+          jti: sid,
           userAgent: 'unknown',
-          ip:        'unknown',
+          ip: 'unknown',
           expiresAt,
           revokedAt: null,
         })
 
-        await db
-          .update(users)
-          .set({ lastLoginAt: new Date().toISOString() })
-          .where(eq(users.id, userId))
+        await db.update(users).set({ lastLoginAt: new Date().toISOString() }).where(eq(users.id, userId))
 
-        token.roles            = roles
-        token.permissions      = perms
-        token.sid              = sid
+        token.roles = roles
+        token.permissions = perms
+        token.sid = sid
         token.twoFactorPending = undefined
         return token
       }
@@ -156,10 +141,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         // Actualizar lastUsedAt (fire-and-forget, sin bloquear)
-        db.update(userSessions)
-          .set({ lastUsedAt: new Date().toISOString() })
-          .where(eq(userSessions.jti, sidStr))
-          .run()
+        db.update(userSessions).set({ lastUsedAt: new Date().toISOString() }).where(eq(userSessions.jti, sidStr)).run()
       }
 
       return token
@@ -168,21 +150,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
-        ;(session.user as {
-          roles?: string[]
-          permissions?: string[]
-          twoFactorPending?: boolean
-        }).roles            = token.roles       as string[] ?? []
-        ;(session.user as {
-          roles?: string[]
-          permissions?: string[]
-          twoFactorPending?: boolean
-        }).permissions      = token.permissions as string[] ?? []
-        ;(session.user as {
-          roles?: string[]
-          permissions?: string[]
-          twoFactorPending?: boolean
-        }).twoFactorPending = token.twoFactorPending as boolean | undefined
+        ;(
+          session.user as {
+            roles?: string[]
+            permissions?: string[]
+            twoFactorPending?: boolean
+          }
+        ).roles = (token.roles as string[]) ?? []
+        ;(
+          session.user as {
+            roles?: string[]
+            permissions?: string[]
+            twoFactorPending?: boolean
+          }
+        ).permissions = (token.permissions as string[]) ?? []
+        ;(
+          session.user as {
+            roles?: string[]
+            permissions?: string[]
+            twoFactorPending?: boolean
+          }
+        ).twoFactorPending = token.twoFactorPending as boolean | undefined
       }
       return session
     },

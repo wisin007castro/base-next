@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Development
-npm run dev           # Start dev server on port 3000
+npm run dev           # Start dev server on port 3005
 npm run build         # Production build
 npm run lint          # ESLint 9 (flat config + reglas de TanStack Query)
 npm run typecheck     # tsc --noEmit
