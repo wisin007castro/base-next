@@ -31,6 +31,8 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm test
+      # Las stories compilan (detecta componentes rotos aunque nadie abra Storybook)
+      - run: npm run build-storybook -- --quiet
       # next build también comprueba los tipos (tsconfig completo, e2e incluido)
       - run: npm run build
 

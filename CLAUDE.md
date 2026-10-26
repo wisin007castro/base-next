@@ -32,7 +32,18 @@ npm run storage:setup # Initialize MinIO bucket after docker:up
 npm run e2e           # todas las pruebas (e2e/*.spec.ts)
 npm run e2e:ui        # modo interactivo
 npm run format:check  # lo que corre CI (el repo está formateado entero)
+
+# Unit tests (Vitest) y catálogo de componentes (Storybook)
+npm test              # vitest run (también en pre-push y CI)
+npm run test:watch
+npm run storybook     # http://localhost:6008 (puerto del registro)
+npm run build-storybook
 ```
+
+### Unit tests & Storybook
+
+- Vitest (`vitest.config.ts`): Node environment, `*.test.ts` next to the code. Each file gets an **in-memory SQLite with the real migrations** (`vitest.setup.ts`, `DATABASE_URL=':memory:'`), so server logic like `getUserPermissions` is tested without touching `dev.db`. Good targets: pure helpers, Zod schemas, RBAC/settings logic. UI flows belong in e2e.
+- Storybook (`.storybook/`, `@storybook/nextjs-vite`): stories live next to the component (`*.stories.tsx` under `app/` or `lib/`). Existing: form fields (`Formularios/Campos`), `DataTable` with selection/bulk bar/states, and every email template rendered to its final HTML (`Correos`). Toolbar switches light/dark (`dark` class, like next-themes). Tailwind only scans `app/`, `pages/`, `components/` → stories under `lib/` use inline styles. `react-dom/server` is aliased to Next's compiled copy in `main.ts` (otherwise React error #527 with react-email).
 
 ### E2E tests
 
