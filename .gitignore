@@ -12,13 +12,20 @@
 
 # testing
 /coverage
+/playwright-report/
+/test-results/
 
-# next.js
+# next.js (dev usa .next-dev para no chocar con next build)
 /.next/
+/.next-dev/
 /out/
 
 # production
 /build
+
+# base de datos local (SQLite)
+/dev.db
+/dev.db-*
 
 # misc
 .DS_Store

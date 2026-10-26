@@ -17,18 +17,10 @@ export default function NuevoUsuarioPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-ink-1">Nuevo usuario</h1>
-        <p className="mt-0.5 text-sm text-ink-3">
-          Completa los datos de cuenta y perfil personal.
-        </p>
+        <p className="mt-0.5 text-sm text-ink-3">Completa los datos de cuenta y perfil personal.</p>
       </div>
 
-      {create.isError && (
-        <div className="rounded-lg bg-[var(--risk-bg)] px-4 py-3 text-sm text-risk">
-          {(create.error as Error)?.message ?? 'Error al crear el usuario.'}
-        </div>
-      )}
-
-      <UserForm mode="create" onSubmit={handleSubmit} isLoading={create.isPending} />
+      <UserForm onSubmit={handleSubmit} />
     </div>
   )
 }

@@ -1,9 +1,9 @@
 import { AiOutlineHome } from 'react-icons/ai'
 import { GrProjects } from 'react-icons/gr'
 import { GoGear } from 'react-icons/go'
-import { MdOutlineWebAsset, MdWebStories } from "react-icons/md";
-import { HiOutlineUsers } from 'react-icons/hi';
-import { RiShieldKeyholeLine, RiLockPasswordLine } from 'react-icons/ri';
+import { MdOutlineWebAsset, MdWebStories } from 'react-icons/md'
+import { HiOutlineUsers, HiOutlineViewGrid } from 'react-icons/hi'
+import { RiShieldKeyholeLine, RiLockPasswordLine } from 'react-icons/ri'
 
 export interface OptionMenu {
   id: string
@@ -13,6 +13,7 @@ export interface OptionMenu {
   submenu?: OptionMenu[]
   expandable?: boolean
   allowedRoles?: string[] // si se define, solo usuarios con alguno de esos roles lo ven
+  permission?: string // si se define, solo usuarios con ese permiso (o admin) lo ven
 }
 
 export const optionMenus: OptionMenu[] = [
@@ -45,7 +46,7 @@ export const optionMenus: OptionMenu[] = [
   {
     id: 'paginas',
     label: 'Páginas',
-    href: '/paginas',
+    href: '/',
     icon: AiOutlineHome,
   },
   {
@@ -75,4 +76,33 @@ export const optionMenus: OptionMenu[] = [
       },
     ],
   },
+  // Módulos generados con `npm run gen:crud` (icono por defecto: HiOutlineViewGrid)
+  // @gen:begin etiquetas
+  {
+    id: 'etiquetas',
+    label: 'Etiquetas',
+    href: '/etiquetas',
+    icon: HiOutlineViewGrid,
+    permission: 'etiquetas.view',
+  },
+  // @gen:end etiquetas
+  // @gen:begin categorias
+  {
+    id: 'categorias',
+    label: 'Categorías',
+    href: '/categorias',
+    icon: HiOutlineViewGrid,
+    permission: 'categorias.view',
+  },
+  // @gen:end categorias
+  // @gen:begin publicaciones
+  {
+    id: 'publicaciones',
+    label: 'Publicaciones',
+    href: '/publicaciones',
+    icon: HiOutlineViewGrid,
+    permission: 'publicaciones.view',
+  },
+  // @gen:end publicaciones
+  // @gen:menu
 ]

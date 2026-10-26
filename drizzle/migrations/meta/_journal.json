@@ -36,6 +36,34 @@
       "when": 1773109881087,
       "tag": "0004_lively_pete_wisdom",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1773284616439,
+      "tag": "0005_rapid_venus",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1792968239643,
+      "tag": "0006_round_shen",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1792976620929,
+      "tag": "0007_steady_hedge_knight",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792990723071,
+      "tag": "0008_talented_wolfpack",
+      "breakpoints": true
     }
   ]
 }

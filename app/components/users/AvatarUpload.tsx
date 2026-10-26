@@ -37,8 +37,10 @@ export default function AvatarUpload({ currentUrl, uploadUrl, onUploaded }: Prop
         throw new Error(data.message ?? 'Error al subir imagen')
       }
       const data: UploadResult = await res.json()
-      // Mostrar la versión full como preview local
-      setPreview(data.avatar_url)
+      // Bust the browser cache: same MinIO key → same URL, browser would show
+      // the old cached image without a cache-busting query param.
+      const bust = `?t=${Date.now()}`
+      setPreview(data.avatar_url + bust)
       onUploaded?.(data)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al subir imagen')

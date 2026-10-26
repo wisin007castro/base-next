@@ -8,8 +8,9 @@ export default function NuevoRolPage() {
   const router = useRouter()
   const create = useCreateRole()
 
-  function handleSubmit(data: CreateRoleDto) {
-    create.mutate(data, { onSuccess: () => router.push('/roles') })
+  async function handleSubmit(data: CreateRoleDto) {
+    await create.mutateAsync(data)
+    router.push('/roles')
   }
 
   return (
@@ -19,13 +20,7 @@ export default function NuevoRolPage() {
         <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Completa los datos para crear un nuevo rol</p>
       </div>
 
-      {create.isError && (
-        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-600 dark:text-red-400">
-          {create.error?.message ?? 'Error al crear el rol'}
-        </div>
-      )}
-
-      <RoleForm mode="create" onSubmit={handleSubmit} isLoading={create.isPending} />
+      <RoleForm onSubmit={handleSubmit} />
     </div>
   )
 }

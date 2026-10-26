@@ -1,9 +1,13 @@
-import { z } from 'zod'
+import { z } from '@/lib/validation/zod-config'
 
 export const createPermissionSchema = z.object({
-  name:        z.string().min(1).max(100).regex(/^[a-z_.]+$/, 'Formato esperado: recurso.accion'),
+  name: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(/^[a-z_.]+$/, 'Formato esperado: recurso.accion'),
   description: z.string().max(255).nullish(),
-  guard_name:  z.string().max(50).optional(),
+  guard_name: z.string().max(50).optional(),
 })
 
 export const updatePermissionSchema = createPermissionSchema.partial()

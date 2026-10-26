@@ -2,85 +2,105 @@
 import Link from 'next/link'
 import { FiEdit2, FiTrash2 } from 'react-icons/fi'
 import type { Role } from '@/lib/types/rbac.types'
+import { usePrefetchRole } from '@/lib/hooks/roles.hooks'
+import { DataTable, createColumnHelper } from '@/app/components/data-table'
 
 interface Props {
-  roles: Role[]
+  roles: Role[] | undefined
+  isLoading?: boolean
+  isError?: boolean
+  sort?: string
+  onSortChange?: (sort: string) => void
+  /** Búsqueda sobre nombre y descripción (en el cliente) */
+  globalFilter?: string
   onDelete: (role: Role) => void
 }
 
-export function RolesTable({ roles, onDelete }: Props) {
-  if (roles.length === 0) {
-    return (
-      <div className="py-16 text-center text-sm text-gray-500 dark:text-gray-400">
-        No hay roles registrados.
-      </div>
-    )
-  }
+const iconBtn = 'rounded p-1.5 transition-colors'
+const MAX_PERMS = 3
+const col = createColumnHelper<Role>()
+
+export function RolesTable({ roles, onDelete, ...tableProps }: Props) {
+  const prefetchRole = usePrefetchRole()
+
+  const columns = [
+    col.accessor('id', { header: '#', enableGlobalFilter: false, meta: { className: 'text-ink-3' } }),
+    col.accessor('name', { header: 'Nombre', meta: { className: 'font-medium capitalize text-ink-1' } }),
+    col.accessor('description', {
+      header: 'Descripción',
+      enableSorting: false,
+      meta: { className: 'text-ink-3' },
+      cell: ({ getValue }) => getValue() || <span className="italic text-ink-4">—</span>,
+    }),
+    col.display({
+      id: 'guard',
+      header: 'Guard',
+      cell: ({ row }) => (
+        <span className="inline-flex items-center rounded-full bg-[var(--line-2)] px-2.5 py-0.5 text-xs text-ink-3">
+          {row.original.guard_name}
+        </span>
+      ),
+    }),
+    // Se ordena por cantidad de permisos; se muestran los primeros como badges
+    col.accessor(r => r.permissions?.length ?? 0, {
+      id: 'permissions',
+      header: 'Permisos',
+      enableGlobalFilter: false,
+      cell: ({ row: { original: r } }) =>
+        r.permissions?.length ? (
+          <div className="flex flex-wrap gap-1">
+            {r.permissions.slice(0, MAX_PERMS).map(p => (
+              <span
+                key={p.id}
+                className="inline-flex items-center rounded-full bg-[var(--accent-subtle)] px-2 py-0.5 text-xs text-accent"
+              >
+                {p.name}
+              </span>
+            ))}
+            {r.permissions.length > MAX_PERMS && (
+              <span className="text-xs text-ink-4">+{r.permissions.length - MAX_PERMS}</span>
+            )}
+          </div>
+        ) : (
+          <span className="text-xs italic text-ink-4">Sin permisos</span>
+        ),
+    }),
+    col.display({
+      id: 'actions',
+      header: 'Acciones',
+      meta: { align: 'right' },
+      cell: ({ row: { original: r } }) => (
+        <div className="flex items-center justify-end gap-1">
+          <Link
+            href={`/roles/${r.id}/editar`}
+            onMouseEnter={() => prefetchRole(r.id)}
+            onFocus={() => prefetchRole(r.id)}
+            title="Editar"
+            className={`${iconBtn} text-accent hover:bg-[var(--accent-subtle)]`}
+          >
+            <FiEdit2 className="h-4 w-4" />
+          </Link>
+          <button
+            onClick={() => onDelete(r)}
+            title="Eliminar"
+            className={`${iconBtn} text-risk hover:bg-[var(--risk-bg)]`}
+          >
+            <FiTrash2 className="h-4 w-4" />
+          </button>
+        </div>
+      ),
+    }),
+  ]
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-        <thead className="bg-gray-50 dark:bg-gray-800">
-          <tr>
-            <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">#</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Nombre</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Descripción</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Guard</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Permisos</th>
-            <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Acciones</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-900">
-          {roles.map(role => (
-            <tr key={role.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-              <td className="px-4 py-3 text-gray-400 dark:text-gray-500">{role.id}</td>
-              <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100 capitalize">{role.name}</td>
-              <td className="px-4 py-3 text-gray-500 dark:text-gray-400">
-                {role.description ?? <span className="italic text-gray-300 dark:text-gray-600">—</span>}
-              </td>
-              <td className="px-4 py-3">
-                <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2.5 py-0.5 text-xs text-gray-600 dark:text-gray-300">
-                  {role.guard_name}
-                </span>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex flex-wrap gap-1">
-                  {role.permissions && role.permissions.length > 0 ? (
-                    role.permissions.slice(0, 3).map(p => (
-                      <span key={p.id} className="inline-flex items-center rounded-full bg-sky-50 dark:bg-sky-900/30 px-2 py-0.5 text-xs text-sky-700 dark:text-sky-300">
-                        {p.name}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-gray-400 italic">Sin permisos</span>
-                  )}
-                  {role.permissions && role.permissions.length > 3 && (
-                    <span className="text-xs text-gray-400">+{role.permissions.length - 3}</span>
-                  )}
-                </div>
-              </td>
-              <td className="px-4 py-3 text-right">
-                <div className="flex items-center justify-end gap-2">
-                  <Link
-                    href={`/roles/${role.id}/editar`}
-                    className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sky-600 transition"
-                    title="Editar"
-                  >
-                    <FiEdit2 className="w-4 h-4" />
-                  </Link>
-                  <button
-                    onClick={() => onDelete(role)}
-                    className="rounded-lg p-1.5 text-gray-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition"
-                    title="Eliminar"
-                  >
-                    <FiTrash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      mode="client"
+      columns={columns}
+      data={roles}
+      getRowId={r => String(r.id)}
+      errorMessage="Error al cargar los roles."
+      emptyMessage="No hay roles que coincidan."
+      {...tableProps}
+    />
   )
 }

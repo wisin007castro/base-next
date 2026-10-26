@@ -1,29 +1,94 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient, queryOptions, keepPreviousData } from '@tanstack/react-query'
 import { usersApi } from '@/lib/api/users.api'
-import { userKeys } from '@/lib/constants/query-keys'
-import type { CreateUserDto, UpdateUserDto, UserFilters } from '@/lib/types/user.types'
+import { userKeys, permissionKeys } from '@/lib/constants/query-keys'
+import type { CreateUserDto, UpdateUserDto, User, UserFilters } from '@/lib/types/user.types'
+import type { Permission } from '@/lib/types/rbac.types'
+import type { BulkUserAction } from '@/lib/api/schemas/user.schema'
+
+// -------------------------------------------------------------------
+// Query options — una sola definición para useQuery, prefetchQuery,
+// ensureQueryData, etc.
+// -------------------------------------------------------------------
+export const userQueries = {
+  list: (filters: UserFilters) =>
+    queryOptions({
+      queryKey: userKeys.list(filters),
+      queryFn: ({ signal }) => usersApi.getAll(filters, signal),
+    }),
+
+  detail: (id: number) =>
+    queryOptions({
+      queryKey: userKeys.detail(id),
+      queryFn: ({ signal }) => usersApi.getById(id, signal),
+      enabled: !!id,
+    }),
+
+  directPermissions: (id: number) =>
+    queryOptions({
+      queryKey: userKeys.permissions(id),
+      queryFn: ({ signal }): Promise<Permission[]> => usersApi.getDirectPermissions(id, signal),
+      enabled: !!id,
+    }),
+}
 
 // -------------------------------------------------------------------
 // Queries
 // -------------------------------------------------------------------
 export function useUsers(filters: UserFilters = {}) {
-  return useQuery({
-    queryKey: userKeys.list(filters),
-    queryFn: () => usersApi.getAll(filters),
+  const qc = useQueryClient()
+  const query = useQuery({
+    ...userQueries.list(filters),
+    // Mantiene la página anterior visible mientras llega la nueva (sin parpadeo)
+    placeholderData: keepPreviousData,
   })
+
+  // Prefetch de la página siguiente para que "Siguiente" sea instantáneo
+  const page = filters.page ?? 1
+  const lastPage = query.data?.last_page
+  useEffect(() => {
+    if (query.isPlaceholderData || !lastPage || page >= lastPage) return
+    qc.prefetchQuery(userQueries.list({ ...filters, page: page + 1 }))
+  }, [qc, filters, page, lastPage, query.isPlaceholderData])
+
+  return query
 }
 
 export function useUser(id: number) {
-  return useQuery({
-    queryKey: userKeys.detail(id),
-    queryFn: () => usersApi.getById(id),
-    enabled: !!id,
-  })
+  return useQuery(userQueries.detail(id))
+}
+
+/** Precarga el detalle de un usuario (p. ej. al pasar el mouse por "Editar") */
+export function usePrefetchUser() {
+  const qc = useQueryClient()
+  return (id: number) => qc.prefetchQuery(userQueries.detail(id))
 }
 
 // -------------------------------------------------------------------
 // Mutations
 // -------------------------------------------------------------------
+
+/**
+ * Guarda la respuesta del servidor en el detalle y marca los listados como obsoletos.
+ * Solo para endpoints que devuelven el usuario completo (profile + roles).
+ */
+function useSyncUser() {
+  const qc = useQueryClient()
+  return (user: User) => {
+    qc.setQueryData(userKeys.detail(user.id), user)
+    qc.invalidateQueries({ queryKey: userKeys.lists() })
+  }
+}
+
+/** Para endpoints que devuelven el usuario sin roles: refrescar en vez de sobrescribir */
+function useInvalidateUser() {
+  const qc = useQueryClient()
+  return (_: unknown, id: number) => {
+    qc.invalidateQueries({ queryKey: userKeys.detail(id) })
+    qc.invalidateQueries({ queryKey: userKeys.lists() })
+  }
+}
+
 export function useCreateUser() {
   const qc = useQueryClient()
   return useMutation({
@@ -33,13 +98,10 @@ export function useCreateUser() {
 }
 
 export function useUpdateUser(id: number) {
-  const qc = useQueryClient()
+  const sync = useSyncUser()
   return useMutation({
     mutationFn: (dto: UpdateUserDto) => usersApi.update(id, dto),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: userKeys.lists() })
-      qc.invalidateQueries({ queryKey: userKeys.detail(id) })
-    },
+    onSuccess: sync,
   })
 }
 
@@ -47,15 +109,18 @@ export function useRemoveUser() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => usersApi.remove(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.lists() }),
+    onSuccess: (_, id) => {
+      qc.removeQueries({ queryKey: userKeys.detail(id) })
+      qc.invalidateQueries({ queryKey: userKeys.lists() })
+    },
   })
 }
 
 export function useRestoreUser() {
-  const qc = useQueryClient()
+  const invalidate = useInvalidateUser()
   return useMutation({
     mutationFn: (id: number) => usersApi.restore(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.lists() }),
+    onSuccess: invalidate,
   })
 }
 
@@ -63,18 +128,18 @@ export function useForceDeleteUser() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => usersApi.forceDelete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.lists() }),
+    onSuccess: (_, id) => {
+      qc.removeQueries({ queryKey: userKeys.detail(id) })
+      qc.invalidateQueries({ queryKey: userKeys.lists() })
+    },
   })
 }
 
 export function useToggleActive() {
-  const qc = useQueryClient()
+  const invalidate = useInvalidateUser()
   return useMutation({
     mutationFn: (id: number) => usersApi.toggleActive(id),
-    onSuccess: (_, id) => {
-      qc.invalidateQueries({ queryKey: userKeys.lists() })
-      qc.invalidateQueries({ queryKey: userKeys.detail(id) })
-    },
+    onSuccess: invalidate,
   })
 }
 
@@ -85,12 +150,71 @@ export function useResendVerification() {
 }
 
 export function useVerifyUser() {
-  const qc = useQueryClient()
+  const sync = useSyncUser()
   return useMutation({
     mutationFn: (id: number) => usersApi.verify(id),
-    onSuccess: (_, id) => {
+    onSuccess: sync,
+  })
+}
+
+/** Activar / desactivar / eliminar / restaurar varios usuarios */
+export function useBulkUserAction() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ action, ids }: { action: BulkUserAction; ids: number[] }) => usersApi.bulk(action, ids),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: userKeys.lists() })
-      qc.invalidateQueries({ queryKey: userKeys.detail(id) })
+      qc.invalidateQueries({ queryKey: userKeys.details() })
     },
   })
+}
+
+// -------------------------------------------------------------------
+// Permisos directos del usuario (con actualización optimista)
+// -------------------------------------------------------------------
+export function useUserDirectPermissions(userId: number) {
+  return useQuery(userQueries.directPermissions(userId))
+}
+
+function useOptimisticDirectPermission(
+  userId: number,
+  mutationFn: (permissionId: number) => Promise<void>,
+  apply: (current: Permission[], permissionId: number, all: Permission[]) => Permission[],
+) {
+  const qc = useQueryClient()
+  const key = userKeys.permissions(userId)
+
+  return useMutation({
+    mutationFn,
+    onMutate: async permissionId => {
+      await qc.cancelQueries({ queryKey: key })
+      const previous = qc.getQueryData<Permission[]>(key)
+      const all = qc.getQueryData<Permission[]>(permissionKeys.lists()) ?? []
+      qc.setQueryData<Permission[]>(key, old => apply(old ?? [], permissionId, all))
+      return { previous }
+    },
+    onError: (_err, _permissionId, ctx) => {
+      if (ctx?.previous) qc.setQueryData(key, ctx.previous)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: key }),
+  })
+}
+
+export function useGiveDirectPermission(userId: number) {
+  return useOptimisticDirectPermission(
+    userId,
+    permissionId => usersApi.givePermission(userId, permissionId),
+    (current, permissionId, all) => {
+      const perm = all.find(p => p.id === permissionId)
+      return perm && !current.some(p => p.id === permissionId) ? [...current, perm] : current
+    },
+  )
+}
+
+export function useRevokeDirectPermission(userId: number) {
+  return useOptimisticDirectPermission(
+    userId,
+    permissionId => usersApi.revokePermission(userId, permissionId),
+    (current, permissionId) => current.filter(p => p.id !== permissionId),
+  )
 }

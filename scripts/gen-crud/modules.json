@@ -1,0 +1,29 @@
+{
+  "categorias": {
+    "entity": "categoria",
+    "table": "categorias",
+    "display": "nombre",
+    "softDelete": true,
+    "PascalPlural": "Categorias",
+    "camelPlural": "categorias",
+    "kebabPlural": "categorias"
+  },
+  "publicaciones": {
+    "entity": "publicacion",
+    "table": "publicaciones",
+    "display": "titulo",
+    "softDelete": true,
+    "PascalPlural": "Publicaciones",
+    "camelPlural": "publicaciones",
+    "kebabPlural": "publicaciones"
+  },
+  "etiquetas": {
+    "entity": "etiqueta",
+    "table": "etiquetas",
+    "display": "nombre",
+    "softDelete": false,
+    "PascalPlural": "Etiquetas",
+    "camelPlural": "etiquetas",
+    "kebabPlural": "etiquetas"
+  }
+}

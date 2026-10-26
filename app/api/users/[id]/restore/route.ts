@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { serializeUser } from '@/lib/api/serializers/user.serializer'
 import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
+import { uniqueViolationResponse } from '@/lib/api/db-errors'
 
 // POST /api/users/:id/restore
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -11,16 +12,23 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   if (isGuardError(guard)) return guard
 
   const { id } = await params
-  const now    = new Date().toISOString()
+  const now = new Date().toISOString()
 
-  await db
-    .update(users)
-    .set({ deletedAt: null, updatedAt: now })
-    .where(eq(users.id, Number(id)))
+  try {
+    await db
+      .update(users)
+      .set({ deletedAt: null, updatedAt: now })
+      .where(eq(users.id, Number(id)))
+  } catch (err) {
+    // Otro usuario activo tomó su username/email mientras estaba eliminado
+    const res = uniqueViolationResponse(err)
+    if (res) return res
+    throw err
+  }
 
   const user = await db.query.users.findFirst({
     where: eq(users.id, Number(id)),
-    with:  { profile: true },
+    with: { profile: true },
   })
   return NextResponse.json(serializeUser(user!))
 }

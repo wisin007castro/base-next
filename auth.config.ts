@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from 'next-auth'
+import { permissionForPath } from '@/lib/auth/module-permissions'
 
 /**
  * Config Edge-compatible (sin imports de Node.js nativos).
@@ -12,18 +13,42 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user
-      const userRoles  = ((auth?.user as { roles?: string[] })?.roles) ?? []
-      const isAdmin    = userRoles.includes('admin')
+      const userRoles = (auth?.user as { roles?: string[] })?.roles ?? []
+      const userPerms = (auth?.user as { permissions?: string[] })?.permissions ?? []
+      const isAdmin = userRoles.includes('admin')
+      const twoFactorPending = !!(auth?.user as { twoFactorPending?: boolean })?.twoFactorPending
 
       const adminPaths = ['/usuarios', '/roles', '/permisos']
-      const userPaths  = ['/perfil']
+      const userPaths = ['/perfil', '/blog']
+      const authPaths = ['/'] // home sólo autenticados
+      const publicPaths = ['/login', '/forgot-password', '/reset-password']
 
-      const isAdminPath = adminPaths.some((p) => nextUrl.pathname.startsWith(p))
-      const isUserPath  = userPaths.some((p)  => nextUrl.pathname.startsWith(p))
+      const isAdminPath = adminPaths.some(p => nextUrl.pathname.startsWith(p))
+      const isUserPath = userPaths.some(p => nextUrl.pathname.startsWith(p))
+      const isAuthPath = authPaths.some(p => nextUrl.pathname === p)
+      const isPublicPath = publicPaths.some(p => nextUrl.pathname.startsWith(p))
+      const is2faPath = nextUrl.pathname.startsWith('/verify-2fa')
+      // Módulos CRUD (generados): `<modulo>.view`, `.create` en /nuevo, `.edit` en /editar
+      const modulePerm = permissionForPath(nextUrl.pathname)
+
+      // FEAT 7: si 2FA está pendiente, redirigir a /verify-2fa (excepto si ya está ahí)
+      if (isLoggedIn && twoFactorPending && !is2faPath) {
+        return Response.redirect(new URL('/verify-2fa', nextUrl))
+      }
+
+      // Si 2FA pendiente y está en /verify-2fa, permitir
+      if (isLoggedIn && twoFactorPending && is2faPath) {
+        return true
+      }
 
       // Sin sesión → login
-      if ((isAdminPath || isUserPath) && !isLoggedIn) {
+      if ((isAdminPath || isUserPath || isAuthPath || modulePerm) && !isLoggedIn) {
         return Response.redirect(new URL('/login', nextUrl))
+      }
+
+      // Sesión activa intentando ir a login/registro → redirigir a home
+      if (isLoggedIn && isPublicPath) {
+        return Response.redirect(new URL('/', nextUrl))
       }
 
       // Con sesión pero sin rol admin → home
@@ -31,12 +56,17 @@ export const authConfig: NextAuthConfig = {
         return Response.redirect(new URL('/', nextUrl))
       }
 
+      // Con sesión pero sin permiso para esa página del módulo → home
+      if (modulePerm && !isAdmin && !userPerms.includes(modulePerm)) {
+        return Response.redirect(new URL('/', nextUrl))
+      }
+
       return true
     },
     jwt({ token, user }) {
       if (user) {
-        token.id          = user.id
-        token.roles       = (user as { roles?: string[] }).roles       ?? []
+        token.id = user.id
+        token.roles = (user as { roles?: string[] }).roles ?? []
         token.permissions = (user as { permissions?: string[] }).permissions ?? []
       }
       return token
@@ -44,7 +74,7 @@ export const authConfig: NextAuthConfig = {
     session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
-        ;(session.user as { roles?: string[]; permissions?: string[] }).roles       = token.roles as string[]
+        ;(session.user as { roles?: string[]; permissions?: string[] }).roles = token.roles as string[]
         ;(session.user as { roles?: string[]; permissions?: string[] }).permissions = token.permissions as string[]
       }
       return session

@@ -1,15 +1,20 @@
-import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import Database from 'better-sqlite3'
 import * as schema from './schema'
 
+type DB = BetterSQLite3Database<typeof schema>
+
 // Singleton para evitar múltiples conexiones en hot-reload de Next.js
-const globalForDb = global as unknown as { _db: ReturnType<typeof drizzle> }
+const globalForDb = global as unknown as { _db: DB | undefined }
 
-export const db =
-  globalForDb._db ??
-  drizzle(new Database(process.env.DATABASE_URL ?? './dev.db'), { schema })
+function createDb(): DB {
+  const sqlite = new Database(process.env.DATABASE_URL ?? './dev.db')
+  // SQLite no aplica las FOREIGN KEY por defecto: sin esto los onDelete del schema no hacen nada
+  sqlite.pragma('foreign_keys = ON')
+  return drizzle(sqlite, { schema })
+}
 
-if (process.env.NODE_ENV !== 'production') globalForDb._db = db
+export const db: DB = globalForDb._db ?? (globalForDb._db = createDb())
 
 // Exportar esquema para usarlo con db.query.*
 export { schema }
