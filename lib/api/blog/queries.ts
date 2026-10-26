@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, getTableName, inArray, isNull, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/sqlite-core'
 import { db } from '@/lib/db'
 import { categorias, comentarios, etiquetas, publicaciones, publicacionesEtiquetas, users } from '@/lib/db/schema'
@@ -22,10 +22,13 @@ export const comentarioVisible = isNull(users.deletedAt)
 
 // Agregados por publicación como subconsultas correlacionadas (una sola query por página).
 // Comentarios y votos de usuarios eliminados no cuentan.
-const comentariosCount = sql<number>`(select count(*) from comentarios c join users u on u.id = c.autor_id where c.publicacion_id = ${publicaciones.id} and u.deleted_at is null)`
-const puntaje = sql<number>`coalesce((select sum(v.valor) from votos v join users u on u.id = v.user_id where v.publicacion_id = ${publicaciones.id} and u.deleted_at is null), 0)`
+// `postId` va calificado a mano: en un SELECT de una sola tabla Drizzle escribe solo "id", y dentro
+// de la subconsulta "id" se resolvía como users.id (el JOIN) → puntaje 0 tras votar.
+const postId = sql`${sql.identifier(getTableName(publicaciones))}.${sql.identifier('id')}`
+const comentariosCount = sql<number>`(select count(*) from comentarios c join users u on u.id = c.autor_id where c.publicacion_id = ${postId} and u.deleted_at is null)`
+const puntaje = sql<number>`coalesce((select sum(v.valor) from votos v join users u on u.id = v.user_id where v.publicacion_id = ${postId} and u.deleted_at is null), 0)`
 const miVoto = (userId: number) =>
-  sql<number>`coalesce((select v.valor from votos v where v.publicacion_id = ${publicaciones.id} and v.user_id = ${userId}), 0)`
+  sql<number>`coalesce((select v.valor from votos v where v.publicacion_id = ${postId} and v.user_id = ${userId}), 0)`
 
 export const blogOrder = {
   recientes: [
