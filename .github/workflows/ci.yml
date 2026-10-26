@@ -60,6 +60,7 @@ jobs:
         run: |
           npm run db:migrate
           npm run db:seed
+          npm run db:permissions
       # playwright.config levanta `npm run dev` (en CI no reutiliza servidores)
       - run: npm run e2e
       - name: Reporte y trazas de los fallos

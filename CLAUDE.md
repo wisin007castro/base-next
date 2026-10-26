@@ -123,7 +123,7 @@ Drizzle singleton lives in `lib/db/index.ts` using `globalThis` to survive hot-r
 - `syncRoles(userId, roleIds[])` — replaces all roles atomically (used in user update)
 - `assignRole` / `removeRole` / `givePermissionTo` / `revokePermission` — individual mutations
 
-Permissions are additive: a user's effective permissions = direct permissions ∪ permissions from all assigned roles.
+Effective permissions = (permissions from roles ∪ active **grant** privileges) − active **deny** privileges. Privileges live in `user_permissions` (`effect` grant/deny, `reason`, `expires_at`, `granted_by_id`; one per user+permission, `setPrivilege` upserts) and are managed in the user edit page (`PrivilegesSection`, API `GET|POST /api/users/:id/permissions`, `DELETE …/:permId`). Expired ones stay listed but don't count (`privilegeActive()`). The `admin` role passes every check, so denials don't affect admins.
 
 ### Frontend Data Layer
 

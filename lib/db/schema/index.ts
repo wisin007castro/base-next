@@ -128,6 +128,14 @@ export const userPermissions = sqliteTable(
     permissionId: integer('permission_id')
       .notNull()
       .references(() => permissions.id, { onDelete: 'cascade' }),
+    // Privilegio: concede (suma a los roles) o deniega (quita aunque un rol lo dé)
+    effect: text('effect', { enum: ['grant', 'deny'] })
+      .notNull()
+      .default('grant'),
+    reason: text('reason'),
+    expiresAt: text('expires_at'), // null = sin caducidad
+    grantedById: integer('granted_by_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull().default(ts()),
   },
   t => [primaryKey({ columns: [t.userId, t.permissionId] })],
 )

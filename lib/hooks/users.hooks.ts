@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient, queryOptions, keepPreviousData } from '@tanstack/react-query'
 import { usersApi } from '@/lib/api/users.api'
-import { userKeys, permissionKeys } from '@/lib/constants/query-keys'
+import { userKeys } from '@/lib/constants/query-keys'
 import type { CreateUserDto, UpdateUserDto, User, UserFilters } from '@/lib/types/user.types'
-import type { Permission } from '@/lib/types/rbac.types'
+import type { PrivilegeInput } from '@/lib/api/schemas/privilege.schema'
 import type { BulkUserAction } from '@/lib/api/schemas/user.schema'
 import { crudToasts, bulkToast } from '@/lib/toast'
 
@@ -27,10 +27,10 @@ export const userQueries = {
       enabled: !!id,
     }),
 
-  directPermissions: (id: number) =>
+  privileges: (id: number) =>
     queryOptions({
       queryKey: userKeys.permissions(id),
-      queryFn: ({ signal }): Promise<Permission[]> => usersApi.getDirectPermissions(id, signal),
+      queryFn: ({ signal }) => usersApi.getPrivileges(id, signal),
       enabled: !!id,
     }),
 }
@@ -182,53 +182,27 @@ export function useBulkUserAction() {
 }
 
 // -------------------------------------------------------------------
-// Permisos directos del usuario (con actualización optimista)
+// Privilegios del usuario (conceder / denegar un permiso, con motivo y caducidad)
 // -------------------------------------------------------------------
-export function useUserDirectPermissions(userId: number) {
-  return useQuery(userQueries.directPermissions(userId))
+export function useUserPrivileges(userId: number) {
+  return useQuery(userQueries.privileges(userId))
 }
 
-function useOptimisticDirectPermission(
-  userId: number,
-  mutationFn: (permissionId: number) => Promise<void>,
-  apply: (current: Permission[], permissionId: number, all: Permission[]) => Permission[],
-) {
+export function useSetPrivilege(userId: number) {
   const qc = useQueryClient()
-  const key = userKeys.permissions(userId)
-
   return useMutation({
-    mutationFn,
-    // Optimista: si falla se revierte el check en silencio, así que el error va en un toast
-    meta: { errorToast: true },
-    onMutate: async permissionId => {
-      await qc.cancelQueries({ queryKey: key })
-      const previous = qc.getQueryData<Permission[]>(key)
-      const all = qc.getQueryData<Permission[]>(permissionKeys.lists()) ?? []
-      qc.setQueryData<Permission[]>(key, old => apply(old ?? [], permissionId, all))
-      return { previous }
-    },
-    onError: (_err, _permissionId, ctx) => {
-      if (ctx?.previous) qc.setQueryData(key, ctx.previous)
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: key }),
+    meta: { successToast: 'Privilegio guardado' },
+    mutationFn: (dto: PrivilegeInput) => usersApi.setPrivilege(userId, dto),
+    // La respuesta ya trae la lista y los permisos efectivos recalculados
+    onSuccess: data => qc.setQueryData(userKeys.permissions(userId), data),
   })
 }
 
-export function useGiveDirectPermission(userId: number) {
-  return useOptimisticDirectPermission(
-    userId,
-    permissionId => usersApi.givePermission(userId, permissionId),
-    (current, permissionId, all) => {
-      const perm = all.find(p => p.id === permissionId)
-      return perm && !current.some(p => p.id === permissionId) ? [...current, perm] : current
-    },
-  )
-}
-
-export function useRevokeDirectPermission(userId: number) {
-  return useOptimisticDirectPermission(
-    userId,
-    permissionId => usersApi.revokePermission(userId, permissionId),
-    (current, permissionId) => current.filter(p => p.id !== permissionId),
-  )
+export function useRemovePrivilege(userId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    meta: { successToast: 'Privilegio quitado', errorToast: true },
+    mutationFn: (permissionId: number) => usersApi.removePrivilege(userId, permissionId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.permissions(userId) }),
+  })
 }
