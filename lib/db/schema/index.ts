@@ -208,6 +208,26 @@ export const invitationRoles = sqliteTable(
 )
 
 // -------------------------------------------------------------------
+// login_codes — inicio de sesión con código por correo (un solo uso, caduca, intentos limitados)
+// -------------------------------------------------------------------
+export const loginCodes = sqliteTable(
+  'login_codes',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    // HMAC-SHA256(código, AUTH_SECRET): 6 dígitos con un hash simple se sacarían por fuerza bruta
+    codeHash: text('code_hash').notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    expiresAt: text('expires_at').notNull(),
+    usedAt: text('used_at'),
+    createdAt: text('created_at').notNull().default(ts()),
+  },
+  t => [index('login_codes_user_idx').on(t.userId)],
+)
+
+// -------------------------------------------------------------------
 // settings — configuración editable desde /configuracion (una fila por sección, JSON validado
 // con Zod en lib/settings). Los secretos (contraseña SMTP) van cifrados.
 // -------------------------------------------------------------------

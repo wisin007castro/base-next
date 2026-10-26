@@ -9,6 +9,7 @@ import { getUserRoles, getUserPermissions } from '@/lib/auth/rbac'
 import { rateLimit } from '@/lib/api/rate-limiter'
 import { twoFactorSetupRequired, verifyTotp } from '@/lib/auth/two-factor'
 import { logger } from '@/lib/logger'
+import { consumeLoginCode } from '@/lib/auth/login-code'
 
 const log = logger.child({ module: 'auth' })
 
@@ -17,29 +18,69 @@ class RateLimitedError extends CredentialsSignin {
   code = 'rate_limited'
 }
 
+type DbUser = typeof users.$inferSelect
+
+/**
+ * Tras comprobar la credencial (contraseña o código por correo): si tiene 2FA, sesión pendiente
+ * sin roles; si no, roles, permisos y fila de sesión revocable.
+ */
+async function completeLogin(user: DbUser, request: Request | undefined, method: 'password' | 'code') {
+  if (user.twoFactorEnabled) {
+    log.info({ userId: user.id, method }, 'login: credencial correcta, falta el código 2FA')
+    return { id: String(user.id), twoFactorPending: true }
+  }
+
+  const [roles, perms] = await Promise.all([getUserRoles(user.id), getUserPermissions(user.id)])
+  await db.update(users).set({ lastLoginAt: new Date().toISOString() }).where(eq(users.id, user.id))
+
+  // sid = fila en user_sessions (revocable desde el perfil)
+  const sid = crypto.randomUUID()
+  await db.insert(userSessions).values({
+    userId: user.id,
+    jti: sid,
+    userAgent: request?.headers?.get('user-agent') ?? 'unknown',
+    ip: 'unknown',
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    revokedAt: null,
+  })
+
+  log.info({ userId: user.id, method }, 'login correcto')
+  return {
+    id: String(user.id),
+    name: user.username,
+    email: user.email,
+    roles,
+    permissions: perms,
+    sid,
+    twoFactorSetupRequired: await twoFactorSetupRequired(roles, false),
+  }
+}
+
+/** 5 intentos por email cada 15 min, compartidos entre contraseña y código */
+function checkRateLimit(email: string) {
+  if (!rateLimit(`login:${email.toLowerCase()}`, 5, 15 * 60 * 1000).allowed) {
+    log.warn({ email }, 'login bloqueado por límite de intentos')
+    throw new RateLimitedError()
+  }
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
+      id: 'credentials',
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Contraseña', type: 'password' },
       },
       async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null
-
-        // Rate limiting: 5 intentos por email cada 15 minutos
         const email = credentials.email as string
-        const { allowed } = rateLimit(`login:${email}`, 5, 15 * 60 * 1000)
-        if (!allowed) {
-          log.warn({ email }, 'login bloqueado por límite de intentos')
-          throw new RateLimitedError()
-        }
+        checkRateLimit(email)
 
         const user = await db.query.users.findFirst({
           where: and(eq(users.email, email), eq(users.isActive, true), isNull(users.deletedAt)),
         })
-
         if (!user) {
           log.info({ email }, 'login fallido: usuario inexistente o inactivo')
           return null
@@ -51,43 +92,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null
         }
 
-        // FEAT 7: si 2FA está habilitado, retornar pendiente sin roles
-        if (user.twoFactorEnabled) {
-          log.info({ userId: user.id }, 'login: contraseña correcta, falta el código 2FA')
-          return {
-            id: String(user.id),
-            twoFactorPending: true,
-          }
-        }
+        return completeLogin(user, request as Request | undefined, 'password')
+      },
+    }),
+    // Código de 6 dígitos enviado por correo (si está activado en Configuración → Acceso)
+    Credentials({
+      id: 'login-code',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        code: { label: 'Código', type: 'text' },
+      },
+      async authorize(credentials, request) {
+        if (!credentials?.email || !credentials?.code) return null
+        const email = credentials.email as string
+        checkRateLimit(email)
 
-        const [roles, perms] = await Promise.all([getUserRoles(user.id), getUserPermissions(user.id)])
-
-        await db.update(users).set({ lastLoginAt: new Date().toISOString() }).where(eq(users.id, user.id))
-
-        // FEAT 6: generar sid (session ID) e insertar sesión
-        const sid = crypto.randomUUID()
-        const userAgent = (request as Request | undefined)?.headers?.get('user-agent') ?? 'unknown'
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-
-        await db.insert(userSessions).values({
-          userId: user.id,
-          jti: sid,
-          userAgent,
-          ip: 'unknown',
-          expiresAt,
-          revokedAt: null,
-        })
-
-        log.info({ userId: user.id }, 'login correcto')
-        return {
-          id: String(user.id),
-          name: user.username,
-          email: user.email,
-          roles,
-          permissions: perms,
-          sid,
-          twoFactorSetupRequired: await twoFactorSetupRequired(roles, false),
-        }
+        const user = await consumeLoginCode(email, String(credentials.code).trim())
+        if (!user) return null
+        return completeLogin(user, request as Request | undefined, 'code')
       },
     }),
   ],
