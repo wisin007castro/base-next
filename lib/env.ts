@@ -37,7 +37,7 @@ const schema = z.object({
   STORAGE_PUBLIC_URL: z.url().optional(),
 
   // Logs (pino): trace | debug | info | warn | error | fatal
-  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).optional(),
+  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).optional(),
 })
 
 export type Env = z.output<typeof schema>

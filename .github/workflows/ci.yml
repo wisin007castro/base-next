@@ -18,7 +18,7 @@ env:
 
 jobs:
   check:
-    name: Lint + build (incluye typecheck)
+    name: Lint, unit tests y build (incluye typecheck)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -30,6 +30,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run format:check
+      - run: npm test
       # next build también comprueba los tipos (tsconfig completo, e2e incluido)
       - run: npm run build
 
