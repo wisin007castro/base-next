@@ -8,16 +8,19 @@ import { useUrlState } from '@/lib/hooks/use-url-state'
 import { useCan } from '@/lib/hooks/use-can'
 import { hasAnyFilter, publicacionesSearchSchema, toPublicacionFilters } from '@/lib/filters/publicaciones.filters'
 import { useCategoriasOptions } from '@/lib/hooks/categorias.hooks'
+import { useEtiquetasOptions } from '@/lib/hooks/etiquetas.hooks'
 import { PublicacionesTable } from '@/app/components/publicaciones/PublicacionesTable'
-import { DataTablePagination, FilterBar, SearchFilter, SelectFilter } from '@/app/components/data-table'
+import { DataTablePagination, FilterBar, SearchFilter, SelectFilter, ToggleFilter } from '@/app/components/data-table'
 
 function PublicacionesContent() {
   const qc = useQueryClient()
   const canCreate = useCan('publicaciones.create')
+  const canDelete = useCan('publicaciones.delete')
   const [search, setSearch, resetSearch] = useUrlState(publicacionesSearchSchema)
   const filters = useMemo(() => toPublicacionFilters(search), [search])
   const { data, isLoading, isError, isPlaceholderData } = usePublicaciones(filters)
   const { data: categoriasOptions = [] } = useCategoriasOptions()
+  const { data: etiquetasOptions = [] } = useEtiquetasOptions()
 
   return (
     <div className="space-y-6">
@@ -48,6 +51,12 @@ function PublicacionesContent() {
           options={categoriasOptions.map(o => ({ value: String(o.value), label: o.label }))}
         />
         <SelectFilter
+          value={search.etiqueta_ids ? String(search.etiqueta_ids) : ''}
+          onChange={value => setSearch({ etiqueta_ids: value })}
+          allLabel="Cualquier etiquetas"
+          options={etiquetasOptions.map(o => ({ value: String(o.value), label: o.label }))}
+        />
+        <SelectFilter
           value={search.publicada ?? ''}
           onChange={value => setSearch({ publicada: value })}
           allLabel="Publicada: todos"
@@ -56,6 +65,13 @@ function PublicacionesContent() {
             { value: 'false', label: 'No' },
           ]}
         />
+        {canDelete && (
+          <ToggleFilter
+            checked={!!search.with_trashed}
+            onChange={checked => setSearch({ with_trashed: checked ? 'true' : undefined })}
+            label="Incluir eliminadas"
+          />
+        )}
       </FilterBar>
 
       <PublicacionesTable

@@ -1,6 +1,6 @@
 /**
- * Datos de demostración para el blog: categorías, publicaciones, comentarios y votos.
- * Idempotente: si ya hay categorías no hace nada.
+ * Datos de demostración para el blog: categorías, publicaciones, comentarios, votos y etiquetas.
+ * Idempotente: no inserta publicaciones si ya hay categorías, ni etiquetas si ya hay etiquetas.
  *
  *   npm run db:seed:blog
  */
@@ -13,9 +13,32 @@ const sqlite = new Database(process.env.DATABASE_URL ?? './dev.db')
 sqlite.pragma('foreign_keys = ON')
 const db = drizzle(sqlite, { schema })
 
+/** Etiquetas de ejemplo repartidas entre las publicaciones (idempotente: solo si no hay etiquetas) */
+function seedEtiquetas() {
+  const [{ total }] = db.select({ total: count() }).from(schema.etiquetas).all()
+  if (total > 0) return console.log('Ya hay etiquetas: no se insertan.')
+  const tags = db
+    .insert(schema.etiquetas)
+    .values(['nextjs', 'tanstack', 'drizzle', 'ux', 'novedades', 'tutorial'].map(nombre => ({ nombre })))
+    .returning({ id: schema.etiquetas.id })
+    .all()
+  const posts = db.select({ id: schema.publicaciones.id }).from(schema.publicaciones).all()
+  let links = 0
+  posts.forEach((post, i) => {
+    const chosen = tags.filter((_, t) => (i + t) % 3 === 0).slice(0, 3)
+    if (!chosen.length) return
+    db.insert(schema.publicacionesEtiquetas)
+      .values(chosen.map(t => ({ publicacionId: post.id, etiquetaId: t.id })))
+      .run()
+    links += chosen.length
+  })
+  console.log(`✔ Etiquetas: ${tags.length} creadas, ${links} asignaciones a publicaciones.`)
+}
+
 const [{ total }] = db.select({ total: count() }).from(schema.categorias).all()
 if (total > 0) {
-  console.log('Ya hay categorías: no se insertan datos de demostración.')
+  console.log('Ya hay categorías: no se insertan publicaciones de demostración.')
+  seedEtiquetas()
   process.exit(0)
 }
 
@@ -105,6 +128,8 @@ created
       votos++
     })
   })
+
+seedEtiquetas()
 
 console.log(
   `✔ Blog: ${cats.length} categorías, ${created.length} publicaciones (1 borrador), ${comentarios} comentarios, ${votos} votos.`,

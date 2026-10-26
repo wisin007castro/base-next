@@ -6,6 +6,7 @@ export const blogSearchSchema = z.object({
   page: z.coerce.number().int().min(1).catch(1),
   search: z.string().catch(''),
   categoria_id: z.coerce.number().int().positive().optional().catch(undefined),
+  etiqueta_id: z.coerce.number().int().positive().optional().catch(undefined),
   orden: z.enum(['recientes', 'populares']).catch('recientes'),
 })
 
@@ -16,5 +17,6 @@ export const toBlogFilters = (s: BlogSearch): BlogFilters => ({
   per_page: 9,
   search: s.search || undefined,
   categoria_id: s.categoria_id,
+  etiqueta_id: s.etiqueta_id,
   orden: s.orden,
 })

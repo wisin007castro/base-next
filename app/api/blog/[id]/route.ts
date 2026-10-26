@@ -12,5 +12,5 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const id = Number((await params).id)
   const post = Number.isInteger(id) && id > 0 ? await findBlogPost(id, Number(guard.user.id)) : undefined
   if (!post) return NextResponse.json({ message: 'Publicación no encontrada' }, { status: 404 })
-  return NextResponse.json(serializeBlogPost(post))
+  return NextResponse.json(await serializeBlogPost(post))
 }

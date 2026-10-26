@@ -12,6 +12,7 @@ export interface BlogPost {
   created_at: string
   categoria: RefLabel
   autor: RefLabel
+  etiquetas: RefLabel[]
   comentarios_count: number
   /** Suma de votos (+1 / -1) */
   puntaje: number
@@ -40,5 +41,6 @@ export interface BlogFilters {
   per_page?: number
   search?: string
   categoria_id?: number
+  etiqueta_id?: number
   orden?: 'recientes' | 'populares'
 }

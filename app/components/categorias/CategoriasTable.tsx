@@ -1,18 +1,26 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { FiEdit2, FiTrash2 } from 'react-icons/fi'
+import { FiEdit2, FiRotateCcw, FiTrash2, FiXCircle } from 'react-icons/fi'
 import type { Categoria } from '@/lib/types/categoria.types'
+import type { BulkCategoriaAction } from '@/lib/api/schemas/categoria.schema'
 import {
   BulkActionButton,
   BulkActionsBar,
   ConfirmDialog,
   DataTable,
+  DeletedBadge,
   createColumnHelper,
   selectionColumn,
   type RowSelectionState,
 } from '@/app/components/data-table'
-import { useBulkDeleteCategorias, useDeleteCategoria, usePrefetchCategoria } from '@/lib/hooks/categorias.hooks'
+import {
+  useBulkCategorias,
+  useDeleteCategoria,
+  useForceDeleteCategoria,
+  usePrefetchCategoria,
+  useRestoreCategoria,
+} from '@/lib/hooks/categorias.hooks'
 import { useCan } from '@/lib/hooks/use-can'
 
 interface Props {
@@ -26,18 +34,32 @@ interface Props {
   selectionResetKey?: string
 }
 
-const iconBtn = 'rounded p-1.5 transition-colors'
+const iconBtn = 'rounded p-1.5 transition-colors disabled:opacity-50'
 const col = createColumnHelper<Categoria>()
+
+const BULK_TEXT: Record<BulkCategoriaAction, { title: string; label: string; body: string }> = {
+  delete: { title: 'Eliminar categorías', label: 'Eliminar', body: 'Podrás restaurarlos desde "Incluir eliminados".' },
+  restore: { title: 'Restaurar categorías', label: 'Restaurar', body: 'Volverán a estar activos.' },
+  force_delete: {
+    title: 'Eliminar definitivamente',
+    label: 'Eliminar definitivamente',
+    body: 'Solo se borran los ya eliminados. No se puede deshacer.',
+  },
+}
 
 export function CategoriasTable({ items, selectionResetKey, ...tableProps }: Props) {
   const canEdit = useCan('categorias.edit')
   const canDelete = useCan('categorias.delete')
+  const canForceDelete = useCan('categorias.force_delete')
   const remove = useDeleteCategoria()
-  const bulkDelete = useBulkDeleteCategorias()
+  const restore = useRestoreCategoria()
+  const forceDelete = useForceDeleteCategoria()
+  const bulk = useBulkCategorias()
   const prefetch = usePrefetchCategoria()
 
   const [toDelete, setToDelete] = useState<Categoria | null>(null)
-  const [confirmBulk, setConfirmBulk] = useState(false)
+  const [toForceDelete, setToForceDelete] = useState<Categoria | null>(null)
+  const [pendingBulk, setPendingBulk] = useState<BulkCategoriaAction | null>(null)
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
   // Limpiar la selección cuando cambian filtros/página (sin efecto)
@@ -48,6 +70,8 @@ export function CategoriasTable({ items, selectionResetKey, ...tableProps }: Pro
   }
 
   const selected = (items ?? []).filter(i => rowSelection[String(i.id)])
+  const anyDeleted = selected.some(i => i.deleted_at)
+  const anyAlive = selected.some(i => !i.deleted_at)
 
   const editLinkProps = (item: Categoria) => ({
     href: `/categorias/${item.id}/editar`,
@@ -73,42 +97,95 @@ export function CategoriasTable({ items, selectionResetKey, ...tableProps }: Pro
       cell: ({ getValue }) => getValue() || <span className="italic text-ink-4">—</span>,
     }),
     col.display({
+      id: 'estado',
+      header: 'Estado',
+      cell: ({ row }) => (row.original.deleted_at ? <DeletedBadge /> : null),
+    }),
+    col.display({
       id: 'actions',
       header: 'Acciones',
       meta: { align: 'right' },
       cell: ({ row: { original: item } }) => (
         <div className="flex items-center justify-end gap-1">
-          {canEdit && (
-            <Link
-              href={`/categorias/${item.id}/editar`}
-              onMouseEnter={() => prefetch(item.id)}
-              onFocus={() => prefetch(item.id)}
-              title="Editar"
-              className={`${iconBtn} text-accent hover:bg-[var(--accent-subtle)]`}
-            >
-              <FiEdit2 className="h-4 w-4" />
-            </Link>
-          )}
-          {canDelete && (
-            <button
-              onClick={() => setToDelete(item)}
-              title="Eliminar"
-              className={`${iconBtn} text-risk hover:bg-[var(--risk-bg)]`}
-            >
-              <FiTrash2 className="h-4 w-4" />
-            </button>
+          {item.deleted_at ? (
+            <>
+              {canDelete && (
+                <button
+                  onClick={() => restore.mutate(item.id)}
+                  disabled={restore.isPending}
+                  title="Restaurar"
+                  className={`${iconBtn} text-ok hover:bg-[var(--ok-bg)]`}
+                >
+                  <FiRotateCcw className="h-4 w-4" />
+                </button>
+              )}
+              {canForceDelete && (
+                <button
+                  onClick={() => setToForceDelete(item)}
+                  title="Eliminar definitivamente"
+                  className={`${iconBtn} text-risk hover:bg-[var(--risk-bg)]`}
+                >
+                  <FiXCircle className="h-4 w-4" />
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              {canEdit && (
+                <Link
+                  href={`/categorias/${item.id}/editar`}
+                  onMouseEnter={() => prefetch(item.id)}
+                  onFocus={() => prefetch(item.id)}
+                  title="Editar"
+                  className={`${iconBtn} text-accent hover:bg-[var(--accent-subtle)]`}
+                >
+                  <FiEdit2 className="h-4 w-4" />
+                </Link>
+              )}
+              {canDelete && (
+                <button
+                  onClick={() => setToDelete(item)}
+                  title="Eliminar"
+                  className={`${iconBtn} text-risk hover:bg-[var(--risk-bg)]`}
+                >
+                  <FiTrash2 className="h-4 w-4" />
+                </button>
+              )}
+            </>
           )}
         </div>
       ),
     }),
   ]
 
+  const bulkText = pendingBulk ? BULK_TEXT[pendingBulk] : null
+
   return (
     <div className="space-y-3">
       <BulkActionsBar count={selected.length} onClear={() => setRowSelection({})}>
-        <BulkActionButton onClick={() => setConfirmBulk(true)} tone="danger" icon={<FiTrash2 className="h-4 w-4" />}>
-          Eliminar
-        </BulkActionButton>
+        {anyAlive && (
+          <BulkActionButton
+            onClick={() => setPendingBulk('delete')}
+            tone="danger"
+            icon={<FiTrash2 className="h-4 w-4" />}
+          >
+            Eliminar
+          </BulkActionButton>
+        )}
+        {anyDeleted && (
+          <BulkActionButton onClick={() => setPendingBulk('restore')} icon={<FiRotateCcw className="h-4 w-4" />}>
+            Restaurar
+          </BulkActionButton>
+        )}
+        {anyDeleted && canForceDelete && (
+          <BulkActionButton
+            onClick={() => setPendingBulk('force_delete')}
+            tone="danger"
+            icon={<FiXCircle className="h-4 w-4" />}
+          >
+            Eliminar definitivamente
+          </BulkActionButton>
+        )}
       </BulkActionsBar>
 
       <DataTable
@@ -135,33 +212,52 @@ export function CategoriasTable({ items, selectionResetKey, ...tableProps }: Pro
         }}
         onConfirm={() => toDelete && remove.mutate(toDelete.id, { onSuccess: () => setToDelete(null) })}
       >
-        ¿Eliminar la categoría <strong className="text-ink-1">{toDelete && toDelete.nombre}</strong>? Esta acción no se
+        ¿Eliminar la categoría <strong className="text-ink-1">{toDelete && toDelete.nombre}</strong>? Podrás restaurarla
+        después.
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={!!toForceDelete}
+        title="Eliminar definitivamente"
+        confirmLabel="Eliminar definitivamente"
+        isPending={forceDelete.isPending}
+        error={forceDelete.error?.message}
+        onCancel={() => {
+          setToForceDelete(null)
+          forceDelete.reset()
+        }}
+        onConfirm={() =>
+          toForceDelete && forceDelete.mutate(toForceDelete.id, { onSuccess: () => setToForceDelete(null) })
+        }
+      >
+        ¿Borrar para siempre <strong className="text-ink-1">{toForceDelete && toForceDelete.nombre}</strong>? No se
         puede deshacer.
       </ConfirmDialog>
 
       <ConfirmDialog
-        open={confirmBulk}
-        title="Eliminar categorías"
-        isPending={bulkDelete.isPending}
-        error={bulkDelete.error?.message}
+        open={!!bulkText}
+        title={bulkText?.title ?? ''}
+        confirmLabel={bulkText?.label}
+        isPending={bulk.isPending}
+        error={bulk.error?.message}
         onCancel={() => {
-          setConfirmBulk(false)
-          bulkDelete.reset()
+          setPendingBulk(null)
+          bulk.reset()
         }}
         onConfirm={() =>
-          bulkDelete.mutate(
-            selected.map(i => i.id),
+          pendingBulk &&
+          bulk.mutate(
+            { action: pendingBulk, ids: selected.map(i => i.id) },
             {
               onSuccess: () => {
-                setConfirmBulk(false)
+                setPendingBulk(null)
                 setRowSelection({})
               },
             },
           )
         }
       >
-        Se eliminarán <strong className="text-ink-1">{selected.length}</strong> registro(s). Esta acción no se puede
-        deshacer.
+        Se aplicará a <strong className="text-ink-1">{selected.length}</strong> registro(s). {bulkText?.body}
       </ConfirmDialog>
     </div>
   )

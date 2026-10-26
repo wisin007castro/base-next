@@ -32,8 +32,21 @@ const ACTION_LABELS: Record<ModuleAction, string> = {
 }
 
 export const MODULES: ModulePermissions[] = [
-  { path: '/categorias', prefix: 'categorias', label: 'Categorías' },
-  { path: '/publicaciones', prefix: 'publicaciones', label: 'Publicaciones' },
+  // @gen:begin etiquetas
+  { path: '/etiquetas', prefix: 'etiquetas', label: 'Etiquetas' },
+  // @gen:end etiquetas
+  // @gen:begin categorias
+  { path: '/categorias', prefix: 'categorias', label: 'Categorías', softDelete: true },
+  // @gen:end categorias
+  // @gen:begin publicaciones
+  {
+    path: '/publicaciones',
+    prefix: 'publicaciones',
+    label: 'Publicaciones',
+    refs: ['categorias', 'etiquetas'],
+    softDelete: true,
+  },
+  // @gen:end publicaciones
   // @gen:modules
 ]
 

@@ -2,8 +2,13 @@ import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient, queryOptions, keepPreviousData } from '@tanstack/react-query'
 import { publicacionesApi } from '@/lib/api/publicaciones.api'
 import { publicacionKeys } from '@/lib/constants/query-keys'
+import { invalidateDependents } from '@/lib/hooks/invalidate-dependents'
 import type { PublicacionFilters } from '@/lib/types/publicacion.types'
-import type { CreatePublicacionInput, UpdatePublicacionInput } from '@/lib/api/schemas/publicacion.schema'
+import type {
+  BulkPublicacionAction,
+  CreatePublicacionInput,
+  UpdatePublicacionInput,
+} from '@/lib/api/schemas/publicacion.schema'
 
 export const publicacionQueries = {
   list: (filters: PublicacionFilters) =>
@@ -27,12 +32,16 @@ export const publicacionQueries = {
     }),
 }
 
-/** Lista y opciones de select quedan obsoletas tras cualquier cambio */
+/**
+ * Tras cualquier cambio: listas y opciones quedan obsoletas, y también las cachés de otros
+ * módulos que muestran datos de este (QUERY_DEPENDENCIES: etiquetas en joins, blog…)
+ */
 function useInvalidatePublicaciones() {
   const qc = useQueryClient()
   return () => {
     qc.invalidateQueries({ queryKey: publicacionKeys.lists() })
     qc.invalidateQueries({ queryKey: publicacionKeys.options() })
+    invalidateDependents(qc, 'publicaciones')
   }
 }
 
@@ -102,12 +111,38 @@ export function useDeletePublicacion() {
   })
 }
 
-export function useBulkDeletePublicaciones() {
+export function useRestorePublicacion() {
   const qc = useQueryClient()
   const invalidate = useInvalidatePublicaciones()
   return useMutation({
-    mutationFn: (ids: number[]) => publicacionesApi.bulkDelete(ids),
-    onSuccess: (_, ids) => {
+    mutationFn: (id: number) => publicacionesApi.restore(id),
+    onSuccess: item => {
+      qc.setQueryData(publicacionKeys.detail(item.id), item)
+      invalidate()
+    },
+  })
+}
+
+export function useForceDeletePublicacion() {
+  const qc = useQueryClient()
+  const invalidate = useInvalidatePublicaciones()
+  return useMutation({
+    mutationFn: (id: number) => publicacionesApi.forceDelete(id),
+    onSuccess: (_, id) => {
+      qc.removeQueries({ queryKey: publicacionKeys.detail(id) })
+      invalidate()
+    },
+  })
+}
+
+/** Acción en lote (delete / restore / force_delete) */
+export function useBulkPublicaciones() {
+  const qc = useQueryClient()
+  const invalidate = useInvalidatePublicaciones()
+  return useMutation({
+    mutationFn: ({ action, ids }: { action: BulkPublicacionAction; ids: number[] }) =>
+      publicacionesApi.bulk(action, ids),
+    onSuccess: (_, { ids }) => {
       ids.forEach(id => qc.removeQueries({ queryKey: publicacionKeys.detail(id) }))
       invalidate()
     },

@@ -2,8 +2,13 @@ import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient, queryOptions, keepPreviousData } from '@tanstack/react-query'
 import { categoriasApi } from '@/lib/api/categorias.api'
 import { categoriaKeys } from '@/lib/constants/query-keys'
+import { invalidateDependents } from '@/lib/hooks/invalidate-dependents'
 import type { CategoriaFilters } from '@/lib/types/categoria.types'
-import type { CreateCategoriaInput, UpdateCategoriaInput } from '@/lib/api/schemas/categoria.schema'
+import type {
+  BulkCategoriaAction,
+  CreateCategoriaInput,
+  UpdateCategoriaInput,
+} from '@/lib/api/schemas/categoria.schema'
 
 export const categoriaQueries = {
   list: (filters: CategoriaFilters) =>
@@ -27,12 +32,16 @@ export const categoriaQueries = {
     }),
 }
 
-/** Lista y opciones de select quedan obsoletas tras cualquier cambio */
+/**
+ * Tras cualquier cambio: listas y opciones quedan obsoletas, y también las cachés de otros
+ * módulos que muestran datos de este (QUERY_DEPENDENCIES: etiquetas en joins, blog…)
+ */
 function useInvalidateCategorias() {
   const qc = useQueryClient()
   return () => {
     qc.invalidateQueries({ queryKey: categoriaKeys.lists() })
     qc.invalidateQueries({ queryKey: categoriaKeys.options() })
+    invalidateDependents(qc, 'categorias')
   }
 }
 
@@ -102,12 +111,37 @@ export function useDeleteCategoria() {
   })
 }
 
-export function useBulkDeleteCategorias() {
+export function useRestoreCategoria() {
   const qc = useQueryClient()
   const invalidate = useInvalidateCategorias()
   return useMutation({
-    mutationFn: (ids: number[]) => categoriasApi.bulkDelete(ids),
-    onSuccess: (_, ids) => {
+    mutationFn: (id: number) => categoriasApi.restore(id),
+    onSuccess: item => {
+      qc.setQueryData(categoriaKeys.detail(item.id), item)
+      invalidate()
+    },
+  })
+}
+
+export function useForceDeleteCategoria() {
+  const qc = useQueryClient()
+  const invalidate = useInvalidateCategorias()
+  return useMutation({
+    mutationFn: (id: number) => categoriasApi.forceDelete(id),
+    onSuccess: (_, id) => {
+      qc.removeQueries({ queryKey: categoriaKeys.detail(id) })
+      invalidate()
+    },
+  })
+}
+
+/** Acción en lote (delete / restore / force_delete) */
+export function useBulkCategorias() {
+  const qc = useQueryClient()
+  const invalidate = useInvalidateCategorias()
+  return useMutation({
+    mutationFn: ({ action, ids }: { action: BulkCategoriaAction; ids: number[] }) => categoriasApi.bulk(action, ids),
+    onSuccess: (_, { ids }) => {
       ids.forEach(id => qc.removeQueries({ queryKey: categoriaKeys.detail(id) }))
       invalidate()
     },

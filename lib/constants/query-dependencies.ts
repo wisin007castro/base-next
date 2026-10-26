@@ -8,8 +8,12 @@
  */
 export const QUERY_DEPENDENCIES: [source: string, dependent: string][] = [
   ['users', 'blog'],
-  ['users', 'publicaciones'],
   ['categorias', 'blog'],
   ['publicaciones', 'blog'],
+  // @gen:begin publicaciones
+  ['categorias', 'publicaciones'],
+  ['etiquetas', 'publicaciones'],
+  ['users', 'publicaciones'],
+  // @gen:end publicaciones
   // @gen:dependencies
 ]

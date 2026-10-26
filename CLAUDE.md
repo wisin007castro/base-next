@@ -170,29 +170,39 @@ Upload flow: client → `POST /api/upload/avatar` (get presigned URL) → PUT di
 ### CRUD Generator
 
 ```bash
-npm run gen:crud -- categoria "nombre!:string=Nombre" "descripcion?:text=Descripción" --fem --label="Categorías" --label-singular="categoría"
-npm run gen:crud -- publicacion "titulo:string=Título" "contenido:text" "categoria_id:ref(categorias)=Categoría" publicada:boolean --owner --fem
+npm run gen:crud -- etiqueta "nombre!:string=Nombre" --fem
+npm run gen:crud -- categoria "nombre!:string=Nombre" "descripcion?:text=Descripción" --fem --soft-delete
+npm run gen:crud -- publicacion "titulo:string=Título" contenido:text "categoria_id:ref(categorias)=Categoría"   "etiqueta_ids?:many(etiquetas)=Etiquetas" publicada:boolean --owner --fem --soft-delete
 ```
 
-- Field syntax `name[?][!]:type[=Label]` — `?` optional, `!` unique, `=Label` UI label (use it for accents). Types: `string, text, int, number, boolean, date, enum(a|b), ref(<module>)`.
-- `ref(<plural>)`: FK to another **generated** module (looked up in `scripts/gen-crud/modules.json`, so generate the target first). Gives: FK (`restrict`, or `set null` if optional), existence check → 422 on the field, a select fed by `/api/<target>/options`, the related label in the table (sortable by it) and a filter. The API returns `<rel>: { id, label }`.
-- `--owner`: adds `autor_id` (FK users, cascade). Set server-side from the session, never from the body; shown and sortable in the table.
-- Options: `--plural=`, `--label=`, `--label-singular=`, `--fem`, `--owner`, `--dry-run`, `--force`.
-- Generates: Drizzle table, enum constants, types, Zod schema, serializer + base SELECT with joins, API (`list` with search/filters/sort, `[id]`, `bulk`, `options`), API client, hooks, form schema, URL filters, Form, Table (selection + bulk delete), list/new/edit pages.
-- Inserts into existing files before markers — never remove them: `// @gen:tables` (schema), `// @gen:query-keys`, `// @gen:modules` (`lib/auth/module-permissions.ts`), `// @gen:menu`. Re-running skips what is already registered. Only new files are formatted.
-- After generating: `db:generate` → `db:migrate` → `db:permissions` → log in again (permissions travel in the JWT).
-- Module security: API routes use `requirePermission('<plural>.view|create|edit|delete')` (admin always passes); the middleware maps `/<plural>` → view, `/nuevo` → create, `/editar` → edit; the menu entry needs `.view`; UI buttons use `useCan()`. Deleting a row others depend on returns 409 (`foreignKeyViolationResponse`).
+- Field syntax `name[?][!]:type[=Label]` — `?` optional, `!` unique, `=Label` UI label (use it for accents).
+- Types: `string, text, int, number, boolean, date, enum(a|b)`, plus relations:
+  - `x_id:ref(<module>[,restrict|cascade|set null])` — N:1. Default policy: `restrict` (required) / `set null` (optional). FK + existence check (422), select fed by `/options`, related label in the table (sortable), filter. API returns `<rel>: { id, label }`.
+  - `x_ids:many(<module>)` — N:M through a generated pivot table (`<plural>_<target>`, composite PK, cascade). API accepts/returns `x_ids: number[]` + `<target>: { id, label }[]`; synced in the same transaction as the row; loaded with one query per page (no N+1); checkbox group in the form; filter `?x_ids=3`.
+  - Targets must be **generated** modules (registry `scripts/gen-crud/modules.json`): generate them first. Self-references (trees) are not supported yet.
+- `--owner`: `autor_id` (FK users, cascade), set server-side from the session, never from the body.
+- `--soft-delete` (opt-in): `deleted_at`, partial unique indexes (`WHERE deleted_at IS NULL`), `POST /:id/restore`, `DELETE /:id/force` (permission `<plural>.force_delete`, only already-deleted rows), bulk `delete|restore|force_delete`, `?with_trashed=true`, "Incluir eliminados" toggle, Restore / Delete permanently buttons. Lists, `/options`, joins and ref validation exclude deleted rows; children of a deleted required parent are hidden. Votes / pivots stay hard-delete.
+- Delete policies under soft delete live in `lib/api/dependents.ts` (FKs only fire on hard deletes): `restrict` → 409 if active children; `cascade` → soft-deletes children with the same timestamp and restoring the parent restores exactly those; restoring a child whose required parent is deleted → 422.
+- Other options: `--plural=`, `--label=`, `--label-singular=`, `--fem`, `--dry-run`, `--force` (regenerate: overwrites the module files and **replaces** its blocks).
+- Generates: Drizzle table (+ pivots), enum constants, types, Zod schema, serializer (base SELECT with joins, visibility conditions, N:M loader/sync, ref validation), API (`list`, `[id]`, `restore`, `force`, `bulk`, `options`), API client, hooks, form schema, URL filters, Form, Table (selection + bulk actions), list/new/edit pages.
+- Writes into existing files as `// @gen:begin <module>` … `// @gen:end <module>` blocks before the markers — never remove them: `// @gen:tables` (schema), `// @gen:query-keys`, `// @gen:modules` (`lib/auth/module-permissions.ts`), `// @gen:menu`, `// @gen:dependents` (`lib/api/dependents.ts`), `// @gen:dependencies` (`lib/constants/query-dependencies.ts`). Re-running replaces the block. Only new files are formatted.
+- After generating: `db:generate` (review the SQL) → `db:migrate` → `db:permissions` → log in again (permissions travel in the JWT).
+- Security: API uses `requirePermission('<plural>.view|create|edit|delete|force_delete')` (admin always passes); `/options` uses `requireAnyPermission(optionsPermissions(prefix))` so whoever creates/edits a referencing module can load the select; middleware maps `/<plural>` → view, `/nuevo` → create, `/editar` → edit; menu needs `.view`; UI uses `useCan()`.
+- Cache: mutations call `invalidateDependents(qc, '<plural>')` (`lib/hooks/invalidate-dependents.ts` + `QUERY_DEPENDENCIES`) so renaming a category refreshes the posts list and the blog.
 - Generated code is a starting point: edit it freely. Templates live in `scripts/gen-crud/templates/`.
 
 ### Database notes
 
-- `lib/db/index.ts` enables `PRAGMA foreign_keys = ON`: `onDelete` rules in the schema are enforced (SQLite ignores them otherwise). `ON DELETE RESTRICT` surfaces as `SQLITE_CONSTRAINT_TRIGGER`.
+- `lib/db/index.ts` enables `PRAGMA foreign_keys = ON`: `onDelete` rules in the schema are enforced (SQLite ignores them otherwise). `ON DELETE RESTRICT` surfaces as `SQLITE_CONSTRAINT_TRIGGER` (`foreignKeyViolationResponse` handles both).
+- Soft-deleted tables use partial unique indexes; `users.username/email` too, so a deleted user doesn't block its username. Restoring into a taken value → 422 (`uniqueViolationResponse`).
+- Users: `DELETE /api/users/:id` soft-deletes, `DELETE /api/users/:id/force` hard-deletes (only already-deleted; cascades their content). Admins can't delete/deactivate themselves.
 
 ### Blog (reference for non-CRUD features)
 
 Example of what the generator does **not** cover, built by hand on top of the generated `categorias` / `publicaciones`:
 
 - `comentarios` and `votos` tables (vote = composite PK user+post, upsert with `onConflictDoUpdate`).
+- Visibility reuses the generated `publicacionActive` + `publicacionVisibleParents` (soft delete of post / category / author hides it). Content from deleted users (comments, votes) is excluded from lists and counters.
 - Reader API under `/api/blog` (`requireAuth`, only published posts): list with correlated subqueries for comment count / score / my vote (`lib/api/blog/queries.ts`), comments (author or moderator can delete), `PUT /voto`.
 - `lib/hooks/blog.hooks.ts`: optimistic vote that patches the detail **and** every cached list page, rollback on error; comment mutations update the counters in place.
 - `/blog` (cards + URL filters) and `/blog/[id]` (votes + comments). `npm run db:seed:blog` loads demo data (idempotent).

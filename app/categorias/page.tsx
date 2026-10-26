@@ -8,11 +8,12 @@ import { useUrlState } from '@/lib/hooks/use-url-state'
 import { useCan } from '@/lib/hooks/use-can'
 import { hasAnyFilter, categoriasSearchSchema, toCategoriaFilters } from '@/lib/filters/categorias.filters'
 import { CategoriasTable } from '@/app/components/categorias/CategoriasTable'
-import { DataTablePagination, FilterBar, SearchFilter } from '@/app/components/data-table'
+import { DataTablePagination, FilterBar, SearchFilter, ToggleFilter } from '@/app/components/data-table'
 
 function CategoriasContent() {
   const qc = useQueryClient()
   const canCreate = useCan('categorias.create')
+  const canDelete = useCan('categorias.delete')
   const [search, setSearch, resetSearch] = useUrlState(categoriasSearchSchema)
   const filters = useMemo(() => toCategoriaFilters(search), [search])
   const { data, isLoading, isError, isPlaceholderData } = useCategorias(filters)
@@ -39,6 +40,14 @@ function CategoriasContent() {
 
       <FilterBar hasActive={hasAnyFilter(search)} onClear={resetSearch}>
         <SearchFilter value={search.search} onChange={value => setSearch({ search: value })} placeholder="Buscar..." />
+
+        {canDelete && (
+          <ToggleFilter
+            checked={!!search.with_trashed}
+            onChange={checked => setSearch({ with_trashed: checked ? 'true' : undefined })}
+            label="Incluir eliminadas"
+          />
+        )}
       </FilterBar>
 
       <CategoriasTable

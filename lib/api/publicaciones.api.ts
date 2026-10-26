@@ -1,7 +1,11 @@
 import { request, toQueryString } from './http'
 import type { PaginatedResponse } from '@/lib/types/user.types'
 import type { Publicacion, PublicacionFilters } from '@/lib/types/publicacion.types'
-import type { CreatePublicacionInput, UpdatePublicacionInput } from '@/lib/api/schemas/publicacion.schema'
+import type {
+  BulkPublicacionAction,
+  CreatePublicacionInput,
+  UpdatePublicacionInput,
+} from '@/lib/api/schemas/publicacion.schema'
 
 export const publicacionesApi = {
   getAll: (filters: PublicacionFilters = {}, signal?: AbortSignal) =>
@@ -21,9 +25,13 @@ export const publicacionesApi = {
 
   remove: (id: number) => request<void>(`/publicaciones/${id}`, { method: 'DELETE' }),
 
-  bulkDelete: (ids: number[]) =>
+  restore: (id: number) => request<Publicacion>(`/publicaciones/${id}/restore`, { method: 'POST' }),
+
+  forceDelete: (id: number) => request<void>(`/publicaciones/${id}/force`, { method: 'DELETE' }),
+
+  bulk: (action: BulkPublicacionAction, ids: number[]) =>
     request<{ affected: number; skipped: number[] }>('/publicaciones/bulk', {
       method: 'POST',
-      body: JSON.stringify({ action: 'delete', ids }),
+      body: JSON.stringify({ action, ids }),
     }),
 }

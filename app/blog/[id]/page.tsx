@@ -62,6 +62,19 @@ export default function BlogPostPage({ params }: { params: Promise<{ id: string 
         </div>
         <h1 className="text-2xl font-semibold text-ink-1">{post.titulo}</h1>
         {post.resumen && <p className="text-base text-ink-2">{post.resumen}</p>}
+        {post.etiquetas.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {post.etiquetas.map(tag => (
+              <Link
+                key={tag.id}
+                href={`/blog?etiqueta_id=${tag.id}`}
+                className="rounded-md border border-[var(--line-2)] px-1.5 py-0.5 text-xs text-ink-3 hover:border-accent hover:text-accent"
+              >
+                #{tag.label}
+              </Link>
+            ))}
+          </div>
+        )}
         <div className="whitespace-pre-line text-sm leading-relaxed text-ink-2">{post.contenido}</div>
         <div className="border-t border-[var(--line-2)] pt-4">
           <VoteButtons postId={post.id} puntaje={post.puntaje} miVoto={post.mi_voto} />

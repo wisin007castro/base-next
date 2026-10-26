@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { and, asc, count, eq } from 'drizzle-orm'
+import { and, asc, count, eq, isNull } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { categorias, publicaciones } from '@/lib/db/schema'
 import { isVisible } from '@/lib/api/blog/queries'
@@ -15,6 +15,7 @@ export async function GET() {
     .select({ value: categorias.id, label: categorias.nombre, total: count(publicaciones.id) })
     .from(categorias)
     .innerJoin(publicaciones, and(eq(publicaciones.categoriaId, categorias.id), isVisible))
+    .where(isNull(categorias.deletedAt))
     .groupBy(categorias.id)
     .orderBy(asc(categorias.nombre))
 

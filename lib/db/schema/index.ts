@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, primaryKey, index } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, primaryKey, index, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { sql, relations } from 'drizzle-orm'
 
 const ts = () => sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`
@@ -6,25 +6,37 @@ const ts = () => sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`
 // -------------------------------------------------------------------
 // users
 // -------------------------------------------------------------------
-export const users = sqliteTable('users', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  username: text('username').notNull().unique(),
-  email: text('email').notNull().unique(),
-  emailVerifiedAt: text('email_verified_at'),
-  password: text('password').notNull(),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  rememberToken: text('remember_token'),
-  lastLoginAt: text('last_login_at'),
-  // Password reset
-  passwordResetToken: text('password_reset_token'),
-  passwordResetExpiresAt: text('password_reset_expires_at'),
-  // 2FA / TOTP
-  twoFactorSecret: text('two_factor_secret'),
-  twoFactorEnabled: integer('two_factor_enabled', { mode: 'boolean' }).notNull().default(false),
-  createdAt: text('created_at').notNull().default(ts()),
-  updatedAt: text('updated_at').notNull().default(ts()),
-  deletedAt: text('deleted_at'),
-})
+export const users = sqliteTable(
+  'users',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    username: text('username').notNull(),
+    email: text('email').notNull(),
+    emailVerifiedAt: text('email_verified_at'),
+    password: text('password').notNull(),
+    isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+    rememberToken: text('remember_token'),
+    lastLoginAt: text('last_login_at'),
+    // Password reset
+    passwordResetToken: text('password_reset_token'),
+    passwordResetExpiresAt: text('password_reset_expires_at'),
+    // 2FA / TOTP
+    twoFactorSecret: text('two_factor_secret'),
+    twoFactorEnabled: integer('two_factor_enabled', { mode: 'boolean' }).notNull().default(false),
+    createdAt: text('created_at').notNull().default(ts()),
+    updatedAt: text('updated_at').notNull().default(ts()),
+    deletedAt: text('deleted_at'),
+  },
+  t => [
+    // Únicos solo entre usuarios activos: un usuario eliminado no bloquea su username/email
+    uniqueIndex('users_username_unique')
+      .on(t.username)
+      .where(sql`${t.deletedAt} is null`),
+    uniqueIndex('users_email_unique')
+      .on(t.email)
+      .where(sql`${t.deletedAt} is null`),
+  ],
+)
 
 // -------------------------------------------------------------------
 // user_profiles
@@ -191,37 +203,85 @@ export const userSessionsRelations = relations(userSessions, ({ one }) => ({
 // -------------------------------------------------------------------
 // Módulos generados con `npm run gen:crud`
 // -------------------------------------------------------------------
+// @gen:begin etiquetas
+// -------------------------------------------------------------------
+// etiquetas
+// -------------------------------------------------------------------
+export const etiquetas = sqliteTable(
+  'etiquetas',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    nombre: text('nombre').notNull(),
+    createdAt: text('created_at').notNull().default(ts()),
+    updatedAt: text('updated_at').notNull().default(ts()),
+  },
+  t => [uniqueIndex('etiquetas_nombre_unique').on(t.nombre)],
+)
+// @gen:end etiquetas
+// @gen:begin categorias
 // -------------------------------------------------------------------
 // categorias
 // -------------------------------------------------------------------
-export const categorias = sqliteTable('categorias', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  nombre: text('nombre').notNull().unique(),
-  descripcion: text('descripcion'),
-  createdAt: text('created_at').notNull().default(ts()),
-  updatedAt: text('updated_at').notNull().default(ts()),
-})
-
+export const categorias = sqliteTable(
+  'categorias',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    nombre: text('nombre').notNull(),
+    descripcion: text('descripcion'),
+    createdAt: text('created_at').notNull().default(ts()),
+    updatedAt: text('updated_at').notNull().default(ts()),
+    deletedAt: text('deleted_at'),
+  },
+  t => [
+    uniqueIndex('categorias_nombre_unique')
+      .on(t.nombre)
+      .where(sql`${t.deletedAt} is null`),
+  ],
+)
+// @gen:end categorias
+// @gen:begin publicaciones
 // -------------------------------------------------------------------
 // publicaciones
 // -------------------------------------------------------------------
-export const publicaciones = sqliteTable('publicaciones', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  titulo: text('titulo').notNull(),
-  resumen: text('resumen'),
-  contenido: text('contenido').notNull(),
-  categoriaId: integer('categoria_id')
-    .references(() => categorias.id, { onDelete: 'restrict' })
-    .notNull(),
-  publicada: integer('publicada', { mode: 'boolean' }).notNull().default(false),
-  fechaPublicacion: text('fecha_publicacion'),
-  autorId: integer('autor_id')
-    .references(() => users.id, { onDelete: 'cascade' })
-    .notNull(),
-  createdAt: text('created_at').notNull().default(ts()),
-  updatedAt: text('updated_at').notNull().default(ts()),
-})
+export const publicaciones = sqliteTable(
+  'publicaciones',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    titulo: text('titulo').notNull(),
+    resumen: text('resumen'),
+    contenido: text('contenido').notNull(),
+    categoriaId: integer('categoria_id')
+      .references(() => categorias.id, { onDelete: 'restrict' })
+      .notNull(),
+    publicada: integer('publicada', { mode: 'boolean' }).notNull().default(false),
+    fechaPublicacion: text('fecha_publicacion'),
+    autorId: integer('autor_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    createdAt: text('created_at').notNull().default(ts()),
+    updatedAt: text('updated_at').notNull().default(ts()),
+    deletedAt: text('deleted_at'),
+  },
+  t => [index('publicaciones_categoria_id_idx').on(t.categoriaId), index('publicaciones_autor_id_idx').on(t.autorId)],
+)
 
+/** Publicaciones ↔ Etiquetas (N:M) */
+export const publicacionesEtiquetas = sqliteTable(
+  'publicaciones_etiquetas',
+  {
+    publicacionId: integer('publicacion_id')
+      .notNull()
+      .references(() => publicaciones.id, { onDelete: 'cascade' }),
+    etiquetaId: integer('etiqueta_id')
+      .notNull()
+      .references(() => etiquetas.id, { onDelete: 'cascade' }),
+  },
+  t => [
+    primaryKey({ columns: [t.publicacionId, t.etiquetaId] }),
+    index('publicaciones_etiquetas_etiqueta_id_idx').on(t.etiquetaId),
+  ],
+)
+// @gen:end publicaciones
 // @gen:tables
 
 // -------------------------------------------------------------------

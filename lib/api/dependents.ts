@@ -26,6 +26,17 @@ export interface Dependent {
 }
 
 export const DEPENDENTS: Dependent[] = [
+  // @gen:begin publicaciones
+  {
+    parent: 'categorias',
+    child: 'publicaciones',
+    label: 'Publicaciones',
+    table: schema.publicaciones,
+    fk: schema.publicaciones.categoriaId,
+    deletedAt: schema.publicaciones.deletedAt,
+    onDelete: 'restrict',
+  },
+  // @gen:end publicaciones
   // @gen:dependents
 ]
 

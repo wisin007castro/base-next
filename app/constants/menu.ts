@@ -77,6 +77,16 @@ export const optionMenus: OptionMenu[] = [
     ],
   },
   // Módulos generados con `npm run gen:crud` (icono por defecto: HiOutlineViewGrid)
+  // @gen:begin etiquetas
+  {
+    id: 'etiquetas',
+    label: 'Etiquetas',
+    href: '/etiquetas',
+    icon: HiOutlineViewGrid,
+    permission: 'etiquetas.view',
+  },
+  // @gen:end etiquetas
+  // @gen:begin categorias
   {
     id: 'categorias',
     label: 'Categorías',
@@ -84,6 +94,8 @@ export const optionMenus: OptionMenu[] = [
     icon: HiOutlineViewGrid,
     permission: 'categorias.view',
   },
+  // @gen:end categorias
+  // @gen:begin publicaciones
   {
     id: 'publicaciones',
     label: 'Publicaciones',
@@ -91,5 +103,6 @@ export const optionMenus: OptionMenu[] = [
     icon: HiOutlineViewGrid,
     permission: 'publicaciones.view',
   },
+  // @gen:end publicaciones
   // @gen:menu
 ]

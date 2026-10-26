@@ -12,7 +12,9 @@ export const publicacionesSearchSchema = z.object({
   sort: z.string().catch('-created_at'),
   search: z.string().catch(''),
   categoria_id: z.coerce.number().int().positive().optional().catch(undefined),
+  etiqueta_ids: z.coerce.number().int().positive().optional().catch(undefined),
   publicada: z.enum(['true', 'false']).optional().catch(undefined),
+  with_trashed: z.enum(['true']).optional().catch(undefined),
 })
 
 export type PublicacionesSearch = z.output<typeof publicacionesSearchSchema>
@@ -23,7 +25,10 @@ export const toPublicacionFilters = (s: PublicacionesSearch): PublicacionFilters
   sort: s.sort,
   search: s.search || undefined,
   categoria_id: s.categoria_id,
+  etiqueta_ids: s.etiqueta_ids,
   publicada: s.publicada,
+  with_trashed: s.with_trashed === 'true' || undefined,
 })
 
-export const hasAnyFilter = (s: PublicacionesSearch) => !!(s.search || s.categoria_id || s.publicada)
+export const hasAnyFilter = (s: PublicacionesSearch) =>
+  !!(s.search || s.categoria_id || s.etiqueta_ids || s.publicada || s.with_trashed)

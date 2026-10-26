@@ -12,6 +12,8 @@ export interface Categoria {
 
   created_at: string
   updated_at: string
+  /** Fecha de eliminación (soft delete), o null si está activo */
+  deleted_at: string | null
 }
 
 /** Filtros del listado (query string de GET /api/categorias) */
@@ -21,4 +23,5 @@ export interface CategoriaFilters {
   /** `campo` asc, `-campo` desc */
   sort?: string
   search?: string
+  with_trashed?: boolean
 }

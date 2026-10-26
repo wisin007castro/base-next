@@ -21,7 +21,9 @@ export default function EditarCategoriaPage({ params }: { params: Promise<{ id: 
   if (isLoading) return <div className="py-16 text-center text-sm text-ink-3">Cargando…</div>
   if (isError || !categoria) {
     return (
-      <div className="rounded-lg bg-[var(--risk-bg)] px-4 py-3 text-sm text-risk">No se encontró la categoría.</div>
+      <div className="rounded-lg bg-[var(--risk-bg)] px-4 py-3 text-sm text-risk">
+        No se encontró la categoría (si está eliminada, restáurela primero).
+      </div>
     )
   }
 

@@ -11,6 +11,8 @@ export const categoriasSearchSchema = z.object({
     .catch(PER_PAGE_OPTIONS[1]),
   sort: z.string().catch('-created_at'),
   search: z.string().catch(''),
+
+  with_trashed: z.enum(['true']).optional().catch(undefined),
 })
 
 export type CategoriasSearch = z.output<typeof categoriasSearchSchema>
@@ -20,6 +22,8 @@ export const toCategoriaFilters = (s: CategoriasSearch): CategoriaFilters => ({
   per_page: s.per_page,
   sort: s.sort,
   search: s.search || undefined,
+
+  with_trashed: s.with_trashed === 'true' || undefined,
 })
 
-export const hasAnyFilter = (s: CategoriasSearch) => !!s.search
+export const hasAnyFilter = (s: CategoriasSearch) => !!(s.search || s.with_trashed)

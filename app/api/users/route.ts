@@ -98,8 +98,8 @@ export async function POST(req: NextRequest) {
 
   // ── Comprobaciones de unicidad ──────────────────────────────────────────────
   const [emailConflict, usernameConflict] = await Promise.all([
-    db.query.users.findFirst({ where: eq(users.email, email) }),
-    db.query.users.findFirst({ where: eq(users.username, username) }),
+    db.query.users.findFirst({ where: and(eq(users.email, email), isNull(users.deletedAt)) }),
+    db.query.users.findFirst({ where: and(eq(users.username, username), isNull(users.deletedAt)) }),
   ])
   if (emailConflict) {
     return NextResponse.json(

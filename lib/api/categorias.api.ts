@@ -1,7 +1,11 @@
 import { request, toQueryString } from './http'
 import type { PaginatedResponse } from '@/lib/types/user.types'
 import type { Categoria, CategoriaFilters } from '@/lib/types/categoria.types'
-import type { CreateCategoriaInput, UpdateCategoriaInput } from '@/lib/api/schemas/categoria.schema'
+import type {
+  BulkCategoriaAction,
+  CreateCategoriaInput,
+  UpdateCategoriaInput,
+} from '@/lib/api/schemas/categoria.schema'
 
 export const categoriasApi = {
   getAll: (filters: CategoriaFilters = {}, signal?: AbortSignal) =>
@@ -20,9 +24,13 @@ export const categoriasApi = {
 
   remove: (id: number) => request<void>(`/categorias/${id}`, { method: 'DELETE' }),
 
-  bulkDelete: (ids: number[]) =>
+  restore: (id: number) => request<Categoria>(`/categorias/${id}/restore`, { method: 'POST' }),
+
+  forceDelete: (id: number) => request<void>(`/categorias/${id}/force`, { method: 'DELETE' }),
+
+  bulk: (action: BulkCategoriaAction, ids: number[]) =>
     request<{ affected: number; skipped: number[] }>('/categorias/bulk', {
       method: 'POST',
-      body: JSON.stringify({ action: 'delete', ids }),
+      body: JSON.stringify({ action, ids }),
     }),
 }

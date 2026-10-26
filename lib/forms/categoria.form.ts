@@ -3,7 +3,7 @@ import { z } from '@/lib/validation/zod-config'
 import { createCategoriaSchema, type CreateCategoriaInput } from '@/lib/api/schemas/categoria.schema'
 import type { Categoria } from '@/lib/types/categoria.types'
 
-// Requeridos: la regla del servidor tal cual. Opcionales: aceptan '' / null del form.
+// Requeridos: la regla del servidor tal cual. Opcionales: aceptan '' / null / [] del form.
 export const categoriaFormSchema = z.object({
   nombre: createCategoriaSchema.shape.nombre,
   descripcion: z.string().max(5000),

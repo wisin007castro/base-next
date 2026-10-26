@@ -1,21 +1,21 @@
-import { and, desc, eq, isNull, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/sqlite-core'
 import { db } from '@/lib/db'
-import { categorias, comentarios, publicaciones, users } from '@/lib/db/schema'
+import { categorias, comentarios, etiquetas, publicaciones, publicacionesEtiquetas, users } from '@/lib/db/schema'
 import type { GuardSession } from '@/lib/api/api-guard'
+import { publicacionActive, publicacionVisibleParents } from '@/lib/api/serializers/publicacion.serializer'
+import type { RefLabel } from '@/lib/types/publicacion.types'
 import type { BlogPost, Comentario, VotoValor } from '@/lib/types/blog.types'
 
 const categoriaRef = alias(categorias, 'categoria_ref')
 const autorRef = alias(users, 'autor_ref')
 
 /**
- * Visible en el blog: publicada y con autor activo (no eliminado).
- * Con EXISTS en vez de join para poder usarla también en el COUNT del listado.
+ * Visible en el blog: publicada, no eliminada y con categoría y autor activos.
+ * Reutiliza las condiciones del módulo generado (soft delete + padres eliminados), que usan
+ * EXISTS: valen también para el COUNT del listado.
  */
-export const isVisible = and(
-  eq(publicaciones.publicada, true),
-  sql`exists (select 1 from users u where u.id = ${publicaciones.autorId} and u.deleted_at is null)`,
-)!
+export const isVisible = and(eq(publicaciones.publicada, true), publicacionActive, ...publicacionVisibleParents)!
 
 /** Comentarios visibles: de autores activos */
 export const comentarioVisible = isNull(users.deletedAt)
@@ -52,7 +52,28 @@ export const selectBlogPosts = (userId: number) =>
 
 type BlogRow = Awaited<ReturnType<ReturnType<typeof selectBlogPosts>['execute']>>[number]
 
-export function serializeBlogPost(s: BlogRow): BlogPost {
+/** Etiquetas de varias publicaciones en una sola consulta */
+async function loadEtiquetas(ids: number[]) {
+  const map = new Map<number, RefLabel[]>()
+  if (!ids.length) return map
+  const rows = await db
+    .select({ postId: publicacionesEtiquetas.publicacionId, id: etiquetas.id, label: etiquetas.nombre })
+    .from(publicacionesEtiquetas)
+    .innerJoin(etiquetas, eq(publicacionesEtiquetas.etiquetaId, etiquetas.id))
+    .where(inArray(publicacionesEtiquetas.publicacionId, ids))
+    .orderBy(asc(etiquetas.nombre))
+  for (const { postId, ...tag } of rows) map.set(postId, [...(map.get(postId) ?? []), tag])
+  return map
+}
+
+export async function serializeBlogPosts(rows: BlogRow[]): Promise<BlogPost[]> {
+  const tags = await loadEtiquetas(rows.map(r => r.row.id))
+  return rows.map(r => serializeOne(r, tags.get(r.row.id) ?? []))
+}
+
+export const serializeBlogPost = async (row: BlogRow) => (await serializeBlogPosts([row]))[0]
+
+function serializeOne(s: BlogRow, etiquetas: RefLabel[]): BlogPost {
   const r = s.row
   return {
     id: r.id,
@@ -63,6 +84,7 @@ export function serializeBlogPost(s: BlogRow): BlogPost {
     created_at: r.createdAt,
     categoria: { id: r.categoriaId, label: s.categoria_label },
     autor: { id: r.autorId, label: s.autor_label },
+    etiquetas,
     comentarios_count: s.comentarios_count,
     puntaje: s.puntaje,
     mi_voto: Math.sign(s.mi_voto) as VotoValor,

@@ -43,6 +43,17 @@ export const blogKeys = {
 }
 
 // Módulos generados con `npm run gen:crud`
+// @gen:begin etiquetas
+export const etiquetaKeys = {
+  all: ['etiquetas'] as const,
+  lists: () => [...etiquetaKeys.all, 'list'] as const,
+  list: (filters: object) => [...etiquetaKeys.lists(), filters] as const,
+  details: () => [...etiquetaKeys.all, 'detail'] as const,
+  detail: (id: number) => [...etiquetaKeys.details(), id] as const,
+  options: () => [...etiquetaKeys.all, 'options'] as const,
+}
+// @gen:end etiquetas
+// @gen:begin categorias
 export const categoriaKeys = {
   all: ['categorias'] as const,
   lists: () => [...categoriaKeys.all, 'list'] as const,
@@ -51,7 +62,8 @@ export const categoriaKeys = {
   detail: (id: number) => [...categoriaKeys.details(), id] as const,
   options: () => [...categoriaKeys.all, 'options'] as const,
 }
-
+// @gen:end categorias
+// @gen:begin publicaciones
 export const publicacionKeys = {
   all: ['publicaciones'] as const,
   lists: () => [...publicacionKeys.all, 'list'] as const,
@@ -60,5 +72,5 @@ export const publicacionKeys = {
   detail: (id: number) => [...publicacionKeys.details(), id] as const,
   options: () => [...publicacionKeys.all, 'options'] as const,
 }
-
+// @gen:end publicaciones
 // @gen:query-keys

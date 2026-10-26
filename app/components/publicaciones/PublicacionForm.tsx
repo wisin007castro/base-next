@@ -7,11 +7,13 @@ import {
   FormSection,
   FormStatus,
   FieldCheckbox,
+  FieldCheckboxGroup,
   FieldSelect,
   FieldText,
   FieldTextarea,
 } from '@/app/components/form'
 import { useCategoriasOptions } from '@/lib/hooks/categorias.hooks'
+import { useEtiquetasOptions } from '@/lib/hooks/etiquetas.hooks'
 import {
   publicacionFormDefaults,
   publicacionFormSchema,
@@ -34,6 +36,7 @@ export function PublicacionForm({ publicacion, onSubmit }: Props) {
   })
   const { control } = form
   const { data: categoriasOptions = [] } = useCategoriasOptions()
+  const { data: etiquetasOptions = [] } = useEtiquetasOptions()
 
   return (
     <Form form={form} onSubmit={values => onSubmit(toPublicacionDto(values))} className="space-y-6">
@@ -44,6 +47,14 @@ export function PublicacionForm({ publicacion, onSubmit }: Props) {
           <FieldText control={control} name="resumen" label="Resumen" />
           <FieldTextarea control={control} name="contenido" label="Contenido" required className="sm:col-span-2" />
           <FieldSelect control={control} name="categoria_id" label="Categoría" required options={categoriasOptions} />
+          <FieldCheckboxGroup
+            control={control}
+            name="etiqueta_ids"
+            label="Etiquetas"
+            options={etiquetasOptions}
+            searchable
+            className="sm:col-span-2"
+          />
           <FieldCheckbox control={control} name="publicada" label="Publicada" className="sm:col-span-2" />
           <FieldText control={control} name="fecha_publicacion" label="Fecha de publicación" type="date" />
         </div>

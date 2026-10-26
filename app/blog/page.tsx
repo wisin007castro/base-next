@@ -1,7 +1,7 @@
 'use client'
 import { Suspense, useMemo } from 'react'
 import Link from 'next/link'
-import { FiEdit3 } from 'react-icons/fi'
+import { FiEdit3, FiX } from 'react-icons/fi'
 import { useQueryClient } from '@tanstack/react-query'
 import { blogQueries, useBlogCategorias, useBlogPosts } from '@/lib/hooks/blog.hooks'
 import { useUrlState } from '@/lib/hooks/use-url-state'
@@ -19,6 +19,8 @@ function BlogContent() {
   const filters = useMemo(() => toBlogFilters(search), [search])
   const { data, isLoading, isError, isPlaceholderData } = useBlogPosts(filters)
   const { data: categorias = [] } = useBlogCategorias()
+  // La etiqueta activa se filtra al hacer clic en una tarjeta; su nombre sale de los propios posts
+  const activeTag = data?.data.flatMap(p => p.etiquetas).find(t => t.id === search.etiqueta_id)
 
   return (
     <div className="space-y-6">
@@ -39,7 +41,7 @@ function BlogContent() {
       </div>
 
       <FilterBar
-        hasActive={!!(search.search || search.categoria_id || search.orden !== 'recientes')}
+        hasActive={!!(search.search || search.categoria_id || search.etiqueta_id || search.orden !== 'recientes')}
         onClear={resetSearch}
       >
         <SearchFilter
@@ -60,6 +62,17 @@ function BlogContent() {
           label="Orden"
           options={ordenOptions}
         />
+        {activeTag && (
+          <button
+            type="button"
+            onClick={() => setSearch({ etiqueta_id: undefined })}
+            className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-subtle)] px-3 py-1.5 text-sm text-accent"
+            title="Quitar filtro de etiqueta"
+          >
+            #{activeTag.label}
+            <FiX className="h-3.5 w-3.5" />
+          </button>
+        )}
       </FilterBar>
 
       {isLoading && <p className="py-16 text-center text-sm text-ink-3">Cargando publicaciones…</p>}
@@ -76,7 +89,12 @@ function BlogContent() {
           className={`grid grid-cols-1 gap-4 transition-opacity sm:grid-cols-2 lg:grid-cols-3 ${isPlaceholderData ? 'opacity-60' : ''}`}
         >
           {data.data.map(post => (
-            <PostCard key={post.id} post={post} onCategoria={id => setSearch({ categoria_id: id })} />
+            <PostCard
+              key={post.id}
+              post={post}
+              onCategoria={id => setSearch({ categoria_id: id })}
+              onEtiqueta={id => setSearch({ etiqueta_id: id })}
+            />
           ))}
         </div>
       )}

@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { and, count, desc, like, or, type SQL } from 'drizzle-orm'
+import { type SQL, and, count, desc, like, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { categorias } from '@/lib/db/schema'
 import { requirePermission, isGuardError } from '@/lib/api/api-guard'
 import { createCategoriaSchema } from '@/lib/api/schemas/categoria.schema'
 import {
   findCategoria,
+  categoriaActive,
   categoriaRefSortColumns,
+  categoriaVisibleParents,
   selectCategorias,
   serializeCategoria,
+  serializeCategorias,
   toCategoriaRow,
 } from '@/lib/api/serializers/categoria.serializer'
 import { paginated, parsePagination, parseSort } from '@/lib/api/list-params'
@@ -30,15 +33,17 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl
   const pagination = parsePagination(searchParams)
-  const conditions: SQL[] = []
+  // `?with_trashed=true` incluye los eliminados (y los hijos de padres eliminados)
+  const withTrashed = searchParams.get('with_trashed') === 'true'
+  const conditions: (SQL | undefined)[] = withTrashed ? [] : [categoriaActive, ...categoriaVisibleParents]
 
   const search = searchParams.get('search')?.trim()
   if (search) {
     const term = `%${search}%`
-    conditions.push(or(like(categorias.nombre, term), like(categorias.descripcion, term))!)
+    conditions.push(or(like(categorias.nombre, term), like(categorias.descripcion, term)))
   }
 
-  const where = conditions.length ? and(...conditions) : undefined
+  const where = and(...conditions)
   const [rows, [{ total }]] = await Promise.all([
     selectCategorias()
       .where(where)
@@ -48,7 +53,7 @@ export async function GET(req: NextRequest) {
     db.select({ total: count() }).from(categorias).where(where),
   ])
 
-  return NextResponse.json(paginated(rows.map(serializeCategoria), total, pagination))
+  return NextResponse.json(paginated(await serializeCategorias(rows), total, pagination))
 }
 
 // POST /api/categorias
@@ -57,17 +62,20 @@ export async function POST(req: NextRequest) {
   if (isGuardError(guard)) return guard
 
   const parsed = createCategoriaSchema.safeParse(await req.json())
-  if (!parsed.success) {
+  if (!parsed.success)
     return NextResponse.json({ message: 'Datos inválidos', errors: parsed.error.flatten() }, { status: 422 })
-  }
 
   try {
     // createCategoriaSchema garantiza los campos obligatorios
     const values = {
       ...toCategoriaRow(parsed.data),
     } as typeof categorias.$inferInsert
-    const [{ id }] = await db.insert(categorias).values(values).returning({ id: categorias.id })
-    return NextResponse.json(serializeCategoria((await findCategoria(id))!), { status: 201 })
+    // Fila + relaciones N:M en una transacción: o se guarda todo o nada
+    const id = db.transaction(tx => {
+      const [{ id }] = tx.insert(categorias).values(values).returning({ id: categorias.id }).all()
+      return id
+    })
+    return NextResponse.json(await serializeCategoria((await findCategoria(id))!), { status: 201 })
   } catch (err) {
     const res = uniqueViolationResponse(err)
     if (res) return res

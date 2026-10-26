@@ -6,7 +6,15 @@ import { usePrefetchBlogPost } from '@/lib/hooks/blog.hooks'
 import type { BlogPost } from '@/lib/types/blog.types'
 import { VoteButtons } from './VoteButtons'
 
-export function PostCard({ post, onCategoria }: { post: BlogPost; onCategoria?: (id: number) => void }) {
+export function PostCard({
+  post,
+  onCategoria,
+  onEtiqueta,
+}: {
+  post: BlogPost
+  onCategoria?: (id: number) => void
+  onEtiqueta?: (id: number) => void
+}) {
   const prefetch = usePrefetchBlogPost()
   const href = `/blog/${post.id}`
 
@@ -36,6 +44,20 @@ export function PostCard({ post, onCategoria }: { post: BlogPost; onCategoria?: 
       </h2>
       <p className="mt-1 text-xs text-ink-3">por {post.autor.label}</p>
       {post.resumen && <p className="mt-3 line-clamp-3 text-sm text-ink-2">{post.resumen}</p>}
+      {post.etiquetas.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {post.etiquetas.map(tag => (
+            <button
+              key={tag.id}
+              type="button"
+              onClick={() => onEtiqueta?.(tag.id)}
+              className="rounded-md border border-[var(--line-2)] px-1.5 py-0.5 text-xs text-ink-3 hover:border-accent hover:text-accent"
+            >
+              #{tag.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="mt-auto flex items-center justify-between pt-4">
         <VoteButtons postId={post.id} puntaje={post.puntaje} miVoto={post.mi_voto} size="sm" />
