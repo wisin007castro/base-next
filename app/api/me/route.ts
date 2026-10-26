@@ -5,6 +5,7 @@ import { auth } from '@/auth'
 import { db } from '@/lib/db'
 import { users, userProfiles } from '@/lib/db/schema'
 import { serializeUser } from '@/lib/api/serializers/user.serializer'
+import { uniqueViolationResponse } from '@/lib/api/db-errors'
 
 const withRoles = { profile: true, userRoles: { with: { role: true } } } as const
 
@@ -64,7 +65,13 @@ export async function PATCH(req: NextRequest) {
     userValues.password = await bcrypt.hash(body.password, 12)
   }
 
-  await db.update(users).set(userValues).where(eq(users.id, userId))
+  try {
+    await db.update(users).set(userValues).where(eq(users.id, userId))
+  } catch (err) {
+    const res = uniqueViolationResponse(err)
+    if (res) return res
+    throw err
+  }
 
   if (body.profile) {
     const p = body.profile

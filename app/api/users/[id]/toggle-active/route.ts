@@ -10,21 +10,22 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const guard = await requireAdmin()
   if (isGuardError(guard)) return guard
 
-  const { id }  = await params
-  const userId  = Number(id)
-  const now     = new Date().toISOString()
+  const { id } = await params
+  const userId = Number(id)
+  const now = new Date().toISOString()
+
+  if (userId === Number(guard.user.id)) {
+    return NextResponse.json({ message: 'No puedes desactivarte a ti mismo' }, { status: 422 })
+  }
 
   const user = await db.query.users.findFirst({ where: eq(users.id, userId) })
   if (!user) return NextResponse.json({ message: 'Usuario no encontrado' }, { status: 404 })
 
-  await db
-    .update(users)
-    .set({ isActive: !user.isActive, updatedAt: now })
-    .where(eq(users.id, userId))
+  await db.update(users).set({ isActive: !user.isActive, updatedAt: now }).where(eq(users.id, userId))
 
   const result = await db.query.users.findFirst({
     where: eq(users.id, userId),
-    with:  { profile: true },
+    with: { profile: true },
   })
   return NextResponse.json(serializeUser(result!))
 }

@@ -7,6 +7,7 @@ import { serializeUser } from '@/lib/api/serializers/user.serializer'
 import { syncRoles } from '@/lib/auth/rbac'
 import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
 import { updateUserSchema } from '@/lib/api/schemas/user.schema'
+import { uniqueViolationResponse } from '@/lib/api/db-errors'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -28,27 +29,30 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const guard = await requireAdmin()
   if (isGuardError(guard)) return guard
 
-  const { id }  = await params
-  const raw     = await req.json()
-  const parsed  = updateUserSchema.safeParse(raw)
+  const { id } = await params
+  const raw = await req.json()
+  const parsed = updateUserSchema.safeParse(raw)
   if (!parsed.success) {
-    return NextResponse.json(
-      { message: 'Datos inválidos', errors: parsed.error.flatten() },
-      { status: 422 },
-    )
+    return NextResponse.json({ message: 'Datos inválidos', errors: parsed.error.flatten() }, { status: 422 })
   }
 
-  const now    = new Date().toISOString()
+  const now = new Date().toISOString()
   const userId = Number(id)
-  const body   = parsed.data
+  const body = parsed.data
 
   const userValues: Record<string, unknown> = { updatedAt: now }
-  if (body.username  !== undefined) userValues.username = body.username
-  if (body.email     !== undefined) userValues.email    = body.email
+  if (body.username !== undefined) userValues.username = body.username
+  if (body.email !== undefined) userValues.email = body.email
   if (body.is_active !== undefined) userValues.isActive = body.is_active
-  if (body.password)                userValues.password = await bcrypt.hash(body.password, 12)
+  if (body.password) userValues.password = await bcrypt.hash(body.password, 12)
 
-  await db.update(users).set(userValues).where(eq(users.id, userId))
+  try {
+    await db.update(users).set(userValues).where(eq(users.id, userId))
+  } catch (err) {
+    const res = uniqueViolationResponse(err)
+    if (res) return res
+    throw err
+  }
 
   if (Array.isArray(body.role_ids)) await syncRoles(userId, body.role_ids)
 
@@ -56,16 +60,23 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const p = body.profile
     const profileValues: Record<string, unknown> = { updatedAt: now }
     const map: Record<string, string> = {
-      nombre: 'nombre', primer_apellido: 'primerApellido', segundo_apellido: 'segundoApellido',
-      tipo_documento: 'tipoDocumento', numero_documento: 'numeroDocumento',
-      fecha_nacimiento: 'fechaNacimiento', genero: 'genero',
-      telefono: 'telefono', telefono_alternativo: 'telefonoAlternativo',
-      pais: 'pais', departamento: 'departamento', ciudad: 'ciudad',
-      direccion: 'direccion', codigo_postal: 'codigoPostal',
+      nombre: 'nombre',
+      primer_apellido: 'primerApellido',
+      segundo_apellido: 'segundoApellido',
+      tipo_documento: 'tipoDocumento',
+      numero_documento: 'numeroDocumento',
+      fecha_nacimiento: 'fechaNacimiento',
+      genero: 'genero',
+      telefono: 'telefono',
+      telefono_alternativo: 'telefonoAlternativo',
+      pais: 'pais',
+      departamento: 'departamento',
+      ciudad: 'ciudad',
+      direccion: 'direccion',
+      codigo_postal: 'codigoPostal',
     }
     Object.entries(map).forEach(([src, dst]) => {
-      if ((p as Record<string, unknown>)[src] !== undefined)
-        profileValues[dst] = (p as Record<string, unknown>)[src]
+      if ((p as Record<string, unknown>)[src] !== undefined) profileValues[dst] = (p as Record<string, unknown>)[src]
     })
 
     const existing = await db.query.userProfiles.findFirst({ where: eq(userProfiles.userId, userId) })
@@ -78,7 +89,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   const result = await db.query.users.findFirst({ where: eq(users.id, userId), with: withRoles })
-  return NextResponse.json(serializeUser(result!))
+  if (!result) return NextResponse.json({ message: 'Usuario no encontrado' }, { status: 404 })
+  return NextResponse.json(serializeUser(result))
 }
 
 // DELETE /api/users/:id  → soft delete
@@ -87,7 +99,13 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   if (isGuardError(guard)) return guard
 
   const { id } = await params
-  const now    = new Date().toISOString()
-  await db.update(users).set({ deletedAt: now, updatedAt: now }).where(eq(users.id, Number(id)))
+  if (Number(id) === Number(guard.user.id)) {
+    return NextResponse.json({ message: 'No puedes eliminarte a ti mismo' }, { status: 422 })
+  }
+  const now = new Date().toISOString()
+  await db
+    .update(users)
+    .set({ deletedAt: now, updatedAt: now })
+    .where(eq(users.id, Number(id)))
   return new NextResponse(null, { status: 204 })
 }

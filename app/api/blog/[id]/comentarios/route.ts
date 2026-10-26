@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { comentarios } from '@/lib/db/schema'
 import { requireAuth, isGuardError } from '@/lib/api/api-guard'
 import { comentarioSchema } from '@/lib/api/schemas/blog.schema'
-import { findBlogPost, selectComentarios, serializeComentario } from '@/lib/api/blog/queries'
+import { comentarioVisible, findBlogPost, selectComentarios, serializeComentario } from '@/lib/api/blog/queries'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -26,7 +26,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (!postId) return notFound()
 
   const rows = await selectComentarios()
-    .where(eq(comentarios.publicacionId, postId))
+    .where(and(eq(comentarios.publicacionId, postId), comentarioVisible))
     .orderBy(asc(comentarios.createdAt), asc(comentarios.id))
   return NextResponse.json(rows.map(r => serializeComentario(r, guard)))
 }

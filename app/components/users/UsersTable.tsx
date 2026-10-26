@@ -7,6 +7,7 @@ import {
   FiEdit2,
   FiTrash2,
   FiRotateCcw,
+  FiXCircle,
   FiMail,
   FiCheckCircle,
   FiUser,
@@ -28,6 +29,7 @@ import {
 import {
   useRemoveUser,
   useRestoreUser,
+  useForceDeleteUser,
   useResendVerification,
   useVerifyUser,
   usePrefetchUser,
@@ -74,6 +76,7 @@ const col = createColumnHelper<User>()
 const CONFIRM: Partial<Record<BulkUserAction, { title: string; label: string; pending: string }>> = {
   delete: { title: 'Eliminar usuarios', label: 'Eliminar', pending: 'Eliminando...' },
   deactivate: { title: 'Desactivar usuarios', label: 'Desactivar', pending: 'Desactivando...' },
+  force_delete: { title: 'Eliminar definitivamente', label: 'Eliminar definitivamente', pending: 'Eliminando...' },
 }
 
 const DONE: Record<BulkUserAction, string> = {
@@ -81,6 +84,7 @@ const DONE: Record<BulkUserAction, string> = {
   deactivate: 'desactivados',
   delete: 'eliminados',
   restore: 'restaurados',
+  force_delete: 'eliminados definitivamente',
 }
 
 export function UsersTable({ users, startIndex = 1, selectionResetKey, ...tableProps }: Props) {
@@ -88,12 +92,14 @@ export function UsersTable({ users, startIndex = 1, selectionResetKey, ...tableP
   const selfId = session?.user?.id
   const remove = useRemoveUser()
   const restore = useRestoreUser()
+  const forceDelete = useForceDeleteUser()
   const resend = useResendVerification()
   const verify = useVerifyUser()
   const bulk = useBulkUserAction()
   const prefetchUser = usePrefetchUser()
 
   const [toDelete, setToDelete] = useState<User | null>(null)
+  const [toForceDelete, setToForceDelete] = useState<User | null>(null)
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [pendingBulk, setPendingBulk] = useState<BulkUserAction | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -189,14 +195,23 @@ export function UsersTable({ users, startIndex = 1, selectionResetKey, ...tableP
       cell: ({ row: { original: user } }) => (
         <div className="flex items-center justify-end gap-1">
           {user.deleted_at ? (
-            <button
-              onClick={() => restore.mutate(user.id)}
-              disabled={restore.isPending}
-              title="Restaurar"
-              className={`${iconBtn} text-ok hover:bg-[var(--ok-bg)]`}
-            >
-              <FiRotateCcw className="h-4 w-4" />
-            </button>
+            <>
+              <button
+                onClick={() => restore.mutate(user.id)}
+                disabled={restore.isPending}
+                title="Restaurar"
+                className={`${iconBtn} text-ok hover:bg-[var(--ok-bg)]`}
+              >
+                <FiRotateCcw className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setToForceDelete(user)}
+                title="Eliminar definitivamente"
+                className={`${iconBtn} text-risk hover:bg-[var(--risk-bg)]`}
+              >
+                <FiXCircle className="h-4 w-4" />
+              </button>
+            </>
           ) : (
             <>
               {!user.email_verified_at && (
@@ -289,6 +304,16 @@ export function UsersTable({ users, startIndex = 1, selectionResetKey, ...tableP
             Restaurar
           </BulkActionButton>
         )}
+        {anyDeleted && (
+          <BulkActionButton
+            onClick={() => askBulk('force_delete')}
+            disabled={bulk.isPending}
+            tone="danger"
+            icon={<FiXCircle className="h-4 w-4" />}
+          >
+            Eliminar definitivamente
+          </BulkActionButton>
+        )}
       </BulkActionsBar>
       {bulk.isError && !pendingBulk && (
         <p className="rounded-lg bg-[var(--risk-bg)] px-4 py-2.5 text-sm text-risk">{bulk.error.message}</p>
@@ -343,6 +368,30 @@ export function UsersTable({ users, startIndex = 1, selectionResetKey, ...tableP
           .map(u => u.username)
           .join(', ')}
         {selected.length > 5 && ` y ${selected.length - 5} más`}.
+        {pendingBulk === 'force_delete' && (
+          <span className="mt-2 block text-risk">
+            Solo se borran los ya eliminados. Se pierde también su contenido (publicaciones, comentarios, votos) y no se
+            puede deshacer.
+          </span>
+        )}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={!!toForceDelete}
+        title="Eliminar definitivamente"
+        confirmLabel="Eliminar definitivamente"
+        isPending={forceDelete.isPending}
+        error={forceDelete.error?.message}
+        onCancel={() => {
+          setToForceDelete(null)
+          forceDelete.reset()
+        }}
+        onConfirm={() =>
+          toForceDelete && forceDelete.mutate(toForceDelete.id, { onSuccess: () => setToForceDelete(null) })
+        }
+      >
+        ¿Borrar para siempre a <strong className="text-ink-1">{toForceDelete?.username}</strong>? Se pierde también su
+        contenido (publicaciones, comentarios, votos). No se puede deshacer.
       </ConfirmDialog>
     </div>
   )

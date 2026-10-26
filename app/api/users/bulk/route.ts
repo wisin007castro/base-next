@@ -4,9 +4,10 @@ import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
 import { bulkUserActionSchema, type BulkUserAction } from '@/lib/api/schemas/user.schema'
+import { foreignKeyViolationResponse, uniqueViolationResponse } from '@/lib/api/db-errors'
 
 /** Acciones que un admin no puede aplicarse a sí mismo (perdería el acceso) */
-const SELF_FORBIDDEN: BulkUserAction[] = ['deactivate', 'delete']
+const SELF_FORBIDDEN: BulkUserAction[] = ['deactivate', 'delete', 'force_delete']
 
 // POST /api/users/bulk  { action, ids }
 export async function POST(req: NextRequest) {
@@ -27,6 +28,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'No puedes aplicarte esta acción a ti mismo' }, { status: 422 })
   }
 
+  // Borrado definitivo: solo usuarios ya eliminados (dos pasos); el contenido se va por FK en cascada
+  if (action === 'force_delete') {
+    try {
+      const result = await db.delete(users).where(and(inArray(users.id, ids), isNotNull(users.deletedAt)))
+      return NextResponse.json({ affected: result.changes, skipped })
+    } catch (err) {
+      const res = foreignKeyViolationResponse(err)
+      if (res) return res
+      throw err
+    }
+  }
+
   const now = new Date().toISOString()
   const values = {
     activate: { isActive: true },
@@ -43,10 +56,16 @@ export async function POST(req: NextRequest) {
     restore: isNotNull(users.deletedAt),
   }[action]
 
-  const result = await db
-    .update(users)
-    .set({ ...values, updatedAt: now })
-    .where(and(inArray(users.id, ids), onlyApplicable))
-
-  return NextResponse.json({ affected: result.changes, skipped })
+  try {
+    const result = await db
+      .update(users)
+      .set({ ...values, updatedAt: now })
+      .where(and(inArray(users.id, ids), onlyApplicable))
+    return NextResponse.json({ affected: result.changes, skipped })
+  } catch (err) {
+    // Restaurar: algún username/email ya lo usa otro usuario activo (no se restaura ninguno)
+    const res = uniqueViolationResponse(err)
+    if (res) return res
+    throw err
+  }
 }

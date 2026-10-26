@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { and, asc, count, eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { categorias, publicaciones } from '@/lib/db/schema'
+import { isVisible } from '@/lib/api/blog/queries'
 import { requireAuth, isGuardError } from '@/lib/api/api-guard'
 
 // GET /api/blog/categorias → categorías con publicaciones publicadas (filtro del blog).
@@ -13,7 +14,7 @@ export async function GET() {
   const rows = await db
     .select({ value: categorias.id, label: categorias.nombre, total: count(publicaciones.id) })
     .from(categorias)
-    .innerJoin(publicaciones, and(eq(publicaciones.categoriaId, categorias.id), eq(publicaciones.publicada, true)))
+    .innerJoin(publicaciones, and(eq(publicaciones.categoriaId, categorias.id), isVisible))
     .groupBy(categorias.id)
     .orderBy(asc(categorias.nombre))
 

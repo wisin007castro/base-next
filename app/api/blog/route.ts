@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { publicaciones } from '@/lib/db/schema'
 import { requireAuth, isGuardError } from '@/lib/api/api-guard'
 import { paginated, parsePagination } from '@/lib/api/list-params'
-import { blogOrder, isPublished, selectBlogPosts, serializeBlogPost } from '@/lib/api/blog/queries'
+import { blogOrder, isVisible, selectBlogPosts, serializeBlogPost } from '@/lib/api/blog/queries'
 
 // GET /api/blog?search=&categoria_id=&orden=recientes|populares&page=
 // Lectura del blog: cualquier usuario con sesión, solo publicaciones publicadas
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl
   const pagination = parsePagination(searchParams, 9)
-  const conditions: SQL[] = [isPublished]
+  const conditions: SQL[] = [isVisible]
 
   const search = searchParams.get('search')?.trim()
   if (search) {

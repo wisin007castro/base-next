@@ -110,7 +110,7 @@ export type CreateUserInput = z.infer<typeof createUserSchema>
 export type UpdateUserInput = z.infer<typeof updateUserSchema>
 
 // ─── Acciones en lote ──────────────────────────────────────────────────────────
-export const BULK_USER_ACTIONS = ['activate', 'deactivate', 'delete', 'restore'] as const
+export const BULK_USER_ACTIONS = ['activate', 'deactivate', 'delete', 'restore', 'force_delete'] as const
 
 export const bulkUserActionSchema = z.object({
   action: z.enum(BULK_USER_ACTIONS),
