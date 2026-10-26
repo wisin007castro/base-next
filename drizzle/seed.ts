@@ -7,7 +7,9 @@ import Database from 'better-sqlite3'
 import bcrypt from 'bcryptjs'
 import * as schema from '../lib/db/schema'
 
-const db = drizzle(new Database('./dev.db'), { schema })
+// ⚠️ BORRA usuarios, roles y permisos (y en cascada su contenido) antes de sembrar.
+// Respeta DATABASE_URL como el resto de scripts: antes ignoraba la variable y siempre tocaba ./dev.db.
+const db = drizzle(new Database(process.env.DATABASE_URL ?? './dev.db'), { schema })
 
 async function seed() {
   console.log('🌱 Iniciando seed...')
