@@ -44,12 +44,6 @@ export const optionMenus: OptionMenu[] = [
     ],
   },
   {
-    id: 'paginas',
-    label: 'Páginas',
-    href: '/',
-    icon: AiOutlineHome,
-  },
-  {
     id: 'administracion',
     label: 'Administración',
     icon: GoGear,
