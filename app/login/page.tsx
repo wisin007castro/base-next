@@ -53,15 +53,22 @@ export default function LoginPage() {
         <h1 className="mb-6 text-xl font-semibold text-gray-900 dark:text-gray-100">Iniciar sesión</h1>
 
         {error && (
-          <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
+          <div
+            role="alert"
+            className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400"
+          >
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="field-label">Correo electrónico</label>
+            <label htmlFor="email" className="field-label">
+              Correo electrónico
+            </label>
             <input
+              id="email"
+              autoComplete="email"
               className={inputClass}
               type="email"
               value={email}
@@ -71,9 +78,13 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label className="field-label">Contraseña</label>
+            <label htmlFor="password" className="field-label">
+              Contraseña
+            </label>
             <div className="relative">
               <input
+                id="password"
+                autoComplete="current-password"
                 className={inputClass + ' pr-10'}
                 type={showPassword ? 'text' : 'password'}
                 value={password}

@@ -28,8 +28,19 @@ npm run docker:up     # Start MailDev (port 1080/1025) and MinIO (port 9000/9001
 npm run docker:down   # Stop containers
 npm run storage:setup # Initialize MinIO bucket after docker:up
 
-# No test suite is configured in this project.
+# E2E (Playwright, Chromium) — levanta/reutiliza `npm run dev` en :3005
+npm run e2e           # todas las pruebas (e2e/*.spec.ts)
+npm run e2e:ui        # modo interactivo
 ```
+
+### E2E tests
+
+- `e2e/global-setup.ts` creates throwaway users in `dev.db` (`e2e-admin-<run>@test.local` with role admin, `e2e-user-<run>@test.local` with role usuario; emails change per run because the login rate limit is per email). `global-teardown.ts` deletes them (cascade) plus every row whose name starts with `e2e ` (`PREFIX` in `e2e/support/db.ts`). Real users are never touched.
+- `auth.setup.ts` logs in as the admin and saves `e2e/.auth/admin.json`; specs run with that session (`login.spec.ts` opts out). Data that isn't under test is created through the API with `request` (see `blog.spec.ts`).
+- Serial (`workers: 1`): specs share `dev.db` and the admin session.
+- Selectors by role/label: `SearchFilter` is `searchbox`; `FieldSelect` uses option indices as values → `selectOption({ label })`; required labels end in ` *` → `getByLabel(/^Nombre/)`; icon buttons by `title`. Next's route announcer is also `role="alert"`.
+- URL-state gotchas: wait for the URL after typing in a search (debounce; changing filters clears row selection); URL-controlled checkboxes update async → `click()` + `toBeChecked()`, not `check()`. Wait for a mutation's response before `reload()`.
+- Failures leave screenshot + trace in `test-results/`; HTML report in `playwright-report/`.
 
 ## Architecture
 
