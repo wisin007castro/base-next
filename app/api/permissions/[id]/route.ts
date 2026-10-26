@@ -25,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (isGuardError(guard)) return guard
 
   const { id } = await params
-  const raw    = await req.json()
+  const raw = await req.json()
   const parsed = updatePermissionSchema.safeParse(raw)
   if (!parsed.success) {
     return NextResponse.json({ message: 'Datos inválidos', errors: parsed.error.flatten() }, { status: 422 })
@@ -34,11 +34,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const now = new Date().toISOString()
   const body = parsed.data
   const values: Record<string, unknown> = { updatedAt: now }
-  if (body.name        !== undefined) values.name        = body.name
+  if (body.name !== undefined) values.name = body.name
   if (body.description !== undefined) values.description = body.description
-  if (body.guard_name  !== undefined) values.guardName   = body.guard_name
+  if (body.guard_name !== undefined) values.guardName = body.guard_name
 
-  await db.update(permissions).set(values).where(eq(permissions.id, Number(id)))
+  await db
+    .update(permissions)
+    .set(values)
+    .where(eq(permissions.id, Number(id)))
 
   const result = await db.query.permissions.findFirst({ where: eq(permissions.id, Number(id)) })
   if (!result) return NextResponse.json({ message: 'Permiso no encontrado' }, { status: 404 })

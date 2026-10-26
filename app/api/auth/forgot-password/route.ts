@@ -11,10 +11,7 @@ export async function POST(req: NextRequest) {
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
 
   // Siempre responder 200 para no revelar si el correo existe
-  const ok = NextResponse.json(
-    { message: 'Si el correo existe, recibirás un enlace' },
-    { status: 200 },
-  )
+  const ok = NextResponse.json({ message: 'Si el correo existe, recibirás un enlace' }, { status: 200 })
 
   if (!email) return ok
 

@@ -27,29 +27,27 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const guard = await requireAdmin()
   if (isGuardError(guard)) return guard
 
-  const { id }  = await params
-  const roleId  = Number(id)
-  const raw     = await req.json()
-  const parsed  = updateRoleSchema.safeParse(raw)
+  const { id } = await params
+  const roleId = Number(id)
+  const raw = await req.json()
+  const parsed = updateRoleSchema.safeParse(raw)
   if (!parsed.success) {
     return NextResponse.json({ message: 'Datos inválidos', errors: parsed.error.flatten() }, { status: 422 })
   }
 
-  const now    = new Date().toISOString()
-  const body   = parsed.data
+  const now = new Date().toISOString()
+  const body = parsed.data
   const values: Record<string, unknown> = { updatedAt: now }
-  if (body.name        !== undefined) values.name        = body.name
+  if (body.name !== undefined) values.name = body.name
   if (body.description !== undefined) values.description = body.description
-  if (body.guard_name  !== undefined) values.guardName   = body.guard_name
+  if (body.guard_name !== undefined) values.guardName = body.guard_name
 
   await db.update(roles).set(values).where(eq(roles.id, roleId))
 
   if (Array.isArray(body.permission_ids)) {
     await db.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId))
     if (body.permission_ids.length > 0) {
-      await db.insert(rolePermissions).values(
-        body.permission_ids.map((pid: number) => ({ roleId, permissionId: pid })),
-      )
+      await db.insert(rolePermissions).values(body.permission_ids.map((pid: number) => ({ roleId, permissionId: pid })))
     }
   }
 

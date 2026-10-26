@@ -5,7 +5,9 @@ import { userPermissions, permissions } from '@/lib/db/schema'
 import { givePermissionTo } from '@/lib/auth/rbac'
 import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
 
-interface Ctx { params: Promise<{ id: string }> }
+interface Ctx {
+  params: Promise<{ id: string }>
+}
 
 // GET /api/users/:id/permissions — lista los permisos directos del usuario
 export async function GET(_req: NextRequest, { params }: Ctx) {
@@ -17,8 +19,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   const rows = await db
     .select({
-      id:          permissions.id,
-      name:        permissions.name,
+      id: permissions.id,
+      name: permissions.name,
       description: permissions.description,
     })
     .from(userPermissions)

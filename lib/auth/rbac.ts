@@ -13,7 +13,7 @@ export async function getUserRoles(userId: number): Promise<string[]> {
     .from(userRoles)
     .innerJoin(roles, eq(roles.id, userRoles.roleId))
     .where(eq(userRoles.userId, userId))
-  return rows.map((r) => r.name)
+  return rows.map(r => r.name)
 }
 
 /** Permisos efectivos: directos + heredados de roles */
@@ -27,11 +27,8 @@ export async function getUserPermissions(userId: number): Promise<string[]> {
 
   // IDs de roles del usuario
   const roleIds = (
-    await db
-      .select({ roleId: userRoles.roleId })
-      .from(userRoles)
-      .where(eq(userRoles.userId, userId))
-  ).map((r) => r.roleId)
+    await db.select({ roleId: userRoles.roleId }).from(userRoles).where(eq(userRoles.userId, userId))
+  ).map(r => r.roleId)
 
   // Permisos heredados de roles
   let viaRoles: { name: string }[] = []
@@ -43,7 +40,7 @@ export async function getUserPermissions(userId: number): Promise<string[]> {
       .where(inArray(rolePermissions.roleId, roleIds))
   }
 
-  return [...new Set([...direct.map((p) => p.name), ...viaRoles.map((p) => p.name)])]
+  return [...new Set([...direct.map(p => p.name), ...viaRoles.map(p => p.name)])]
 }
 
 // -------------------------------------------------------------------
@@ -57,7 +54,7 @@ export async function hasRole(userId: number, role: string): Promise<boolean> {
 
 export async function hasAnyRole(userId: number, roleList: string[]): Promise<boolean> {
   const roleNames = await getUserRoles(userId)
-  return roleList.some((r) => roleNames.includes(r))
+  return roleList.some(r => roleNames.includes(r))
 }
 
 export async function can(userId: number, permission: string): Promise<boolean> {
@@ -67,7 +64,7 @@ export async function can(userId: number, permission: string): Promise<boolean> 
 
 export async function canAny(userId: number, permList: string[]): Promise<boolean> {
   const perms = await getUserPermissions(userId)
-  return permList.some((p) => perms.includes(p))
+  return permList.some(p => perms.includes(p))
 }
 
 // -------------------------------------------------------------------
@@ -79,15 +76,13 @@ export async function assignRole(userId: number, roleId: number) {
 }
 
 export async function removeRole(userId: number, roleId: number) {
-  await db
-    .delete(userRoles)
-    .where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId)))
+  await db.delete(userRoles).where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId)))
 }
 
 export async function syncRoles(userId: number, roleIds: number[]) {
   await db.delete(userRoles).where(eq(userRoles.userId, userId))
   if (roleIds.length > 0) {
-    await db.insert(userRoles).values(roleIds.map((roleId) => ({ userId, roleId })))
+    await db.insert(userRoles).values(roleIds.map(roleId => ({ userId, roleId })))
   }
 }
 

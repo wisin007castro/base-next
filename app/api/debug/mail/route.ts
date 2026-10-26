@@ -15,13 +15,13 @@ export async function GET() {
   try {
     await transporter.verify()
     await transporter.sendMail({
-      from:    process.env.MAIL_FROM ?? 'noreply@localhost',
-      to:      'test@ejemplo.com',
+      from: process.env.MAIL_FROM ?? 'noreply@localhost',
+      to: 'test@ejemplo.com',
       subject: 'Test de conexión SMTP',
-      html:    '<h1>Correo de prueba</h1><p>La conexión SMTP funciona correctamente.</p>',
+      html: '<h1>Correo de prueba</h1><p>La conexión SMTP funciona correctamente.</p>',
     })
     return NextResponse.json({
-      ok:  true,
+      ok: true,
       msg: 'Correo enviado — revisá http://localhost:1080',
     })
   } catch (err: unknown) {

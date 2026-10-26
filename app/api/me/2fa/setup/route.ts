@@ -35,7 +35,7 @@ export async function POST() {
   // Generar otpauth URL
   const otpauthUrl = generateURI({
     issuer: APP_NAME,
-    label:  `${APP_NAME}:${user.email}`,
+    label: `${APP_NAME}:${user.email}`,
     secret,
   })
 

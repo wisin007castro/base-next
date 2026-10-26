@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const guard = await requireAdmin()
   if (isGuardError(guard)) return guard
 
-  const raw    = await req.json()
+  const raw = await req.json()
   const parsed = createRoleSchema.safeParse(raw)
   if (!parsed.success) {
     return NextResponse.json({ message: 'Datos inválidos', errors: parsed.error.flatten() }, { status: 422 })
@@ -37,9 +37,9 @@ export async function POST(req: NextRequest) {
     .returning()
 
   if (permission_ids?.length) {
-    await db.insert(rolePermissions).values(
-      permission_ids.map((pid: number) => ({ roleId: role.id, permissionId: pid })),
-    )
+    await db
+      .insert(rolePermissions)
+      .values(permission_ids.map((pid: number) => ({ roleId: role.id, permissionId: pid })))
   }
 
   const result = await db.query.roles.findFirst({

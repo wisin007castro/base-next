@@ -5,7 +5,7 @@
  */
 
 interface Bucket {
-  count:   number
+  count: number
   resetAt: number
 }
 
@@ -15,7 +15,9 @@ const store = new Map<string, Bucket>()
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
     const now = Date.now()
-    store.forEach((val, key) => { if (val.resetAt < now) store.delete(key) })
+    store.forEach((val, key) => {
+      if (val.resetAt < now) store.delete(key)
+    })
   }, 60_000)
 }
 
@@ -24,12 +26,8 @@ if (typeof setInterval !== 'undefined') {
  * @param limit     Número máximo de intentos permitidos
  * @param windowMs  Duración de la ventana en milisegundos
  */
-export function rateLimit(
-  key:      string,
-  limit:    number,
-  windowMs: number,
-): { allowed: boolean; retryAfterMs: number } {
-  const now    = Date.now()
+export function rateLimit(key: string, limit: number, windowMs: number): { allowed: boolean; retryAfterMs: number } {
+  const now = Date.now()
   const bucket = store.get(key)
 
   if (!bucket || bucket.resetAt < now) {

@@ -2,9 +2,9 @@
 module.exports = {
   darkMode: 'class',
   content: [
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
-    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
@@ -14,14 +14,14 @@ module.exports = {
         'brand-opacity': 'var(--color-brand-opacity)',
 
         // Surfaces
-        canvas:          'var(--canvas)',
-        surface:         'var(--surface)',
-        'surface-raised':'var(--surface-raised)',
+        canvas: 'var(--canvas)',
+        surface: 'var(--surface)',
+        'surface-raised': 'var(--surface-raised)',
         'surface-inset': 'var(--surface-inset)',
 
         // Chrome
-        header:          'var(--header-bg)',
-        sidebar:         'var(--sidebar-bg)',
+        header: 'var(--header-bg)',
+        sidebar: 'var(--sidebar-bg)',
 
         // Text hierarchy
         'ink-1': 'var(--ink-1)',
@@ -35,13 +35,13 @@ module.exports = {
         'line-3': 'var(--line-3)',
 
         // Accent
-        accent:         'var(--accent)',
+        accent: 'var(--accent)',
         'accent-hover': 'var(--accent-hover)',
-        'accent-subtle':'var(--accent-subtle)',
-        'accent-fg':    'var(--accent-fg)',
+        'accent-subtle': 'var(--accent-subtle)',
+        'accent-fg': 'var(--accent-fg)',
 
         // Semantic
-        ok:   'var(--ok)',
+        ok: 'var(--ok)',
         warn: 'var(--warn)',
         risk: 'var(--risk)',
       },

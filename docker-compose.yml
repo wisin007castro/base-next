@@ -1,5 +1,4 @@
 services:
-
   # ─────────────────────────────────────────────────────────
   # PostgreSQL  (disponible si migrás de SQLite a Postgres)
   # ─────────────────────────────────────────────────────────
@@ -10,8 +9,8 @@ services:
     ports:
       - '${DOCKER_DATABASE_PORT}:5432'
     environment:
-      POSTGRES_DB:       ${DOCKER_DATABASE_NAME}
-      POSTGRES_USER:     ${DOCKER_DATABASE_USERNAME}
+      POSTGRES_DB: ${DOCKER_DATABASE_NAME}
+      POSTGRES_USER: ${DOCKER_DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DOCKER_DATABASE_PASSWORD}
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
@@ -25,12 +24,12 @@ services:
   minio:
     image: minio/minio:latest
     ports:
-      - '${DOCKER_MINIO_API_PORT}:9000'  # S3 API
-      - '${DOCKER_MINIO_UI_PORT}:9001'   # Consola web
+      - '${DOCKER_MINIO_API_PORT}:9000' # S3 API
+      - '${DOCKER_MINIO_UI_PORT}:9001' # Consola web
     environment:
-      MINIO_ROOT_USER:              ${DOCKER_MINIO_USERNAME}
-      MINIO_ROOT_PASSWORD:          ${DOCKER_MINIO_PASSWORD}
-      MINIO_BROWSER_REDIRECT_URL:   http://localhost:${DOCKER_MINIO_UI_PORT}
+      MINIO_ROOT_USER: ${DOCKER_MINIO_USERNAME}
+      MINIO_ROOT_PASSWORD: ${DOCKER_MINIO_PASSWORD}
+      MINIO_BROWSER_REDIRECT_URL: http://localhost:${DOCKER_MINIO_UI_PORT}
     volumes:
       - minio_data:/data
     command: server /data --console-address ':9001'
@@ -65,8 +64,8 @@ services:
   maildev:
     image: maildev/maildev:2.2.1
     ports:
-      - '${DOCKER_MAILDEV_SMTP_PORT:-1025}:1025'  # SMTP
-      - '${DOCKER_MAILDEV_UI_PORT:-1080}:1080'    # Bandeja web
+      - '${DOCKER_MAILDEV_SMTP_PORT:-1025}:1025' # SMTP
+      - '${DOCKER_MAILDEV_UI_PORT:-1080}:1080' # Bandeja web
     healthcheck:
       test: ['CMD-SHELL', 'wget --spider --no-verbose --tries=1 -T 3 http://localhost:1080/healthz']
       interval: 5s
