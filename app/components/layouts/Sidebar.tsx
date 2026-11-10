@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react'
 import { MenuContext } from '../context/MenuContext'
 import { optionMenus } from '@/app/constants/menu'
 import MenuItem from './components/MenuItem'
+import { Brand } from './components/Brand'
 import Link from 'next/link'
 
 const Sidebar = () => {
@@ -35,7 +36,7 @@ const Sidebar = () => {
             href="/"
             className="flex h-14 items-center text-sm font-semibold uppercase tracking-widest text-slate-100 transition-colors hover:text-indigo-300"
           >
-            Logo Marca
+            <Brand />
           </Link>
         </div>
 

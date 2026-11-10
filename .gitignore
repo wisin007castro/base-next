@@ -13,6 +13,7 @@
 # testing
 /coverage
 /playwright-report/
+/storybook-static/
 /test-results/
 
 # next.js (dev usa .next-dev para no chocar con next build)
@@ -39,6 +40,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel

@@ -9,6 +9,9 @@ import type {
   CreatePublicacionInput,
   UpdatePublicacionInput,
 } from '@/lib/api/schemas/publicacion.schema'
+import { crudToasts, bulkToast } from '@/lib/toast'
+
+const t = crudToasts('Publicación', true)
 
 export const publicacionQueries = {
   list: (filters: PublicacionFilters) =>
@@ -79,6 +82,7 @@ export function useCreatePublicacion() {
   const qc = useQueryClient()
   const invalidate = useInvalidatePublicaciones()
   return useMutation({
+    meta: { successToast: t.created },
     mutationFn: (dto: CreatePublicacionInput) => publicacionesApi.create(dto),
     onSuccess: item => {
       qc.setQueryData(publicacionKeys.detail(item.id), item)
@@ -91,6 +95,7 @@ export function useUpdatePublicacion(id: number) {
   const qc = useQueryClient()
   const invalidate = useInvalidatePublicaciones()
   return useMutation({
+    meta: { successToast: t.updated },
     mutationFn: (dto: UpdatePublicacionInput) => publicacionesApi.update(id, dto),
     onSuccess: item => {
       qc.setQueryData(publicacionKeys.detail(id), item)
@@ -103,6 +108,7 @@ export function useDeletePublicacion() {
   const qc = useQueryClient()
   const invalidate = useInvalidatePublicaciones()
   return useMutation({
+    meta: { successToast: t.deleted },
     mutationFn: (id: number) => publicacionesApi.remove(id),
     onSuccess: (_, id) => {
       qc.removeQueries({ queryKey: publicacionKeys.detail(id) })
@@ -115,6 +121,7 @@ export function useRestorePublicacion() {
   const qc = useQueryClient()
   const invalidate = useInvalidatePublicaciones()
   return useMutation({
+    meta: { successToast: t.restored, errorToast: true },
     mutationFn: (id: number) => publicacionesApi.restore(id),
     onSuccess: item => {
       qc.setQueryData(publicacionKeys.detail(item.id), item)
@@ -127,6 +134,7 @@ export function useForceDeletePublicacion() {
   const qc = useQueryClient()
   const invalidate = useInvalidatePublicaciones()
   return useMutation({
+    meta: { successToast: t.forceDeleted, errorToast: true },
     mutationFn: (id: number) => publicacionesApi.forceDelete(id),
     onSuccess: (_, id) => {
       qc.removeQueries({ queryKey: publicacionKeys.detail(id) })
@@ -140,6 +148,7 @@ export function useBulkPublicaciones() {
   const qc = useQueryClient()
   const invalidate = useInvalidatePublicaciones()
   return useMutation({
+    meta: { successToast: bulkToast },
     mutationFn: ({ action, ids }: { action: BulkPublicacionAction; ids: number[] }) =>
       publicacionesApi.bulk(action, ids),
     onSuccess: (_, { ids }) => {

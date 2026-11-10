@@ -8,7 +8,7 @@ import { verifyTotp } from '@/lib/auth/two-factor'
 
 // POST /api/me/2fa/enable — activa 2FA verificando el primer código
 export async function POST(req: NextRequest) {
-  const guard = await requireAuth()
+  const guard = await requireAuth({ allowTwoFactorSetup: true })
   if (isGuardError(guard)) return guard
 
   const parsed = enableTwoFactorSchema.safeParse(await req.json().catch(() => null))

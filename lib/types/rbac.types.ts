@@ -31,3 +31,22 @@ export type CreatePermissionDto = {
   description?: string
   guard_name?: string
 }
+
+/** Privilegio de un usuario sobre un permiso (concede o deniega, con motivo y caducidad) */
+export interface Privilege {
+  permission: { id: number; name: string; description: string | null }
+  effect: 'grant' | 'deny'
+  reason: string | null
+  /** ISO; null = sin caducidad */
+  expires_at: string | null
+  /** false si ya caducó (se conserva para el historial, pero no cuenta) */
+  active: boolean
+  granted_by: { id: number; label: string } | null
+  created_at: string
+}
+
+export interface UserPrivileges {
+  privileges: Privilege[]
+  /** Permisos efectivos: roles + concedidos − denegados (los vigentes) */
+  effective: string[]
+}

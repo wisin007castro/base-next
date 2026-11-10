@@ -4,6 +4,7 @@ import { GoGear } from 'react-icons/go'
 import { MdOutlineWebAsset, MdWebStories } from 'react-icons/md'
 import { HiOutlineUsers, HiOutlineViewGrid } from 'react-icons/hi'
 import { RiShieldKeyholeLine, RiLockPasswordLine } from 'react-icons/ri'
+import { FiSliders } from 'react-icons/fi'
 
 export interface OptionMenu {
   id: string
@@ -67,6 +68,12 @@ export const optionMenus: OptionMenu[] = [
         label: 'Permisos',
         href: '/permisos',
         icon: RiLockPasswordLine,
+      },
+      {
+        id: 'configuracion',
+        label: 'Configuración',
+        href: '/configuracion',
+        icon: FiSliders,
       },
     ],
   },

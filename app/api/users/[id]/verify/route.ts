@@ -5,6 +5,7 @@ import { users } from '@/lib/db/schema'
 import { serializeUser } from '@/lib/api/serializers/user.serializer'
 import { sendVerificationEmail } from '@/lib/mail/mail.service'
 import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
+import { logger } from '@/lib/logger'
 
 // POST /api/users/:id/verify — verificación manual por el administrador
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -32,10 +33,10 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   try {
     await sendVerificationEmail(updated!.email, updated!.username)
     mailSent = true
-    console.log('[mail] Correo de verificación enviado a', updated!.email)
+    logger.info({ module: 'mail', userId: updated!.id }, 'correo de verificación enviado')
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err))
-    console.error('[mail] Error al enviar correo de verificación:', error.message)
+    logger.error({ module: 'mail', userId: updated!.id, err: error }, 'no se pudo enviar el correo de verificación')
   }
 
   return NextResponse.json({ ...serializeUser(updated!), mail_sent: mailSent })

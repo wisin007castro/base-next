@@ -5,6 +5,7 @@ import { requireAuth, isGuardError } from '@/lib/api/api-guard'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { disableTwoFactorSchema } from '@/lib/api/schemas/user.schema'
+import { twoFactorSetupRequired } from '@/lib/auth/two-factor'
 
 // POST /api/me/2fa/disable — desactiva 2FA verificando la contraseña actual
 export async function POST(req: NextRequest) {
@@ -17,6 +18,11 @@ export async function POST(req: NextRequest) {
   }
 
   const userId = Number(guard.user.id)
+
+  // La política (Configuración → Acceso) puede obligar a este usuario a tener 2FA
+  if (await twoFactorSetupRequired(guard.user.roles, false)) {
+    return NextResponse.json({ message: 'La configuración del sistema obliga a mantener 2FA activo' }, { status: 409 })
+  }
 
   const user = await db.query.users.findFirst({
     where: eq(users.id, userId),

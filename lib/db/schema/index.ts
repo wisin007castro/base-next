@@ -128,6 +128,14 @@ export const userPermissions = sqliteTable(
     permissionId: integer('permission_id')
       .notNull()
       .references(() => permissions.id, { onDelete: 'cascade' }),
+    // Privilegio: concede (suma a los roles) o deniega (quita aunque un rol lo dé)
+    effect: text('effect', { enum: ['grant', 'deny'] })
+      .notNull()
+      .default('grant'),
+    reason: text('reason'),
+    expiresAt: text('expires_at'), // null = sin caducidad
+    grantedById: integer('granted_by_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull().default(ts()),
   },
   t => [primaryKey({ columns: [t.userId, t.permissionId] })],
 )
@@ -163,6 +171,71 @@ export const userSessions = sqliteTable('user_sessions', {
   lastUsedAt: text('last_used_at').notNull().default(ts()),
   expiresAt: text('expires_at').notNull(),
   revokedAt: text('revoked_at'), // null = sesión activa
+})
+
+// -------------------------------------------------------------------
+// invitations — el admin invita por email; la persona crea su cuenta con el enlace
+// -------------------------------------------------------------------
+export const invitations = sqliteTable(
+  'invitations',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    email: text('email').notNull(),
+    // SHA-256 del token del enlace: con la BD filtrada no se pueden usar las invitaciones
+    tokenHash: text('token_hash').notNull().unique(),
+    invitedById: integer('invited_by_id').references(() => users.id, { onDelete: 'set null' }),
+    expiresAt: text('expires_at').notNull(),
+    acceptedAt: text('accepted_at'),
+    // Cuenta creada al aceptar (null si el usuario se borró después)
+    acceptedUserId: integer('accepted_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull().default(ts()),
+    updatedAt: text('updated_at').notNull().default(ts()),
+  },
+  t => [index('invitations_email_idx').on(t.email)],
+)
+
+export const invitationRoles = sqliteTable(
+  'invitation_roles',
+  {
+    invitationId: integer('invitation_id')
+      .notNull()
+      .references(() => invitations.id, { onDelete: 'cascade' }),
+    roleId: integer('role_id')
+      .notNull()
+      .references(() => roles.id, { onDelete: 'cascade' }),
+  },
+  t => [primaryKey({ columns: [t.invitationId, t.roleId] })],
+)
+
+// -------------------------------------------------------------------
+// login_codes — inicio de sesión con código por correo (un solo uso, caduca, intentos limitados)
+// -------------------------------------------------------------------
+export const loginCodes = sqliteTable(
+  'login_codes',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    // HMAC-SHA256(código, AUTH_SECRET): 6 dígitos con un hash simple se sacarían por fuerza bruta
+    codeHash: text('code_hash').notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    expiresAt: text('expires_at').notNull(),
+    usedAt: text('used_at'),
+    createdAt: text('created_at').notNull().default(ts()),
+  },
+  t => [index('login_codes_user_idx').on(t.userId)],
+)
+
+// -------------------------------------------------------------------
+// settings — configuración editable desde /configuracion (una fila por sección, JSON validado
+// con Zod en lib/settings). Los secretos (contraseña SMTP) van cifrados.
+// -------------------------------------------------------------------
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedById: integer('updated_by_id').references(() => users.id, { onDelete: 'set null' }),
+  updatedAt: text('updated_at').notNull().default(ts()),
 })
 
 // -------------------------------------------------------------------
@@ -206,6 +279,16 @@ export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => 
 
 export const userSessionsRelations = relations(userSessions, ({ one }) => ({
   user: one(users, { fields: [userSessions.userId], references: [users.id] }),
+}))
+
+export const invitationsRelations = relations(invitations, ({ one, many }) => ({
+  invitedBy: one(users, { fields: [invitations.invitedById], references: [users.id] }),
+  roles: many(invitationRoles),
+}))
+
+export const invitationRolesRelations = relations(invitationRoles, ({ one }) => ({
+  invitation: one(invitations, { fields: [invitationRoles.invitationId], references: [invitations.id] }),
+  role: one(roles, { fields: [invitationRoles.roleId], references: [roles.id] }),
 }))
 
 // -------------------------------------------------------------------

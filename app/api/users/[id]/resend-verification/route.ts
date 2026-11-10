@@ -5,6 +5,7 @@ import { users } from '@/lib/db/schema'
 import { generateVerificationToken } from '@/lib/auth/tokens'
 import { sendVerificationLinkEmail } from '@/lib/mail/mail.service'
 import { requireAdmin, isGuardError } from '@/lib/api/api-guard'
+import { logger } from '@/lib/logger'
 
 // POST /api/users/:id/resend-verification
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -21,11 +22,11 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   try {
     await sendVerificationLinkEmail(user.email, user.username, verificationToken)
-    console.log('[mail] Enlace de verificación enviado a', user.email)
+    logger.info({ module: 'mail', userId: user.id }, 'enlace de verificación enviado')
     return NextResponse.json({ message: 'Correo de verificación enviado' })
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err))
-    console.error('[mail] Error al enviar enlace de verificación:', error.message)
-    return NextResponse.json({ message: 'Error al enviar el correo', detail: error.message }, { status: 500 })
+    logger.error({ module: 'mail', userId: user.id, err: error }, 'no se pudo enviar el enlace de verificación')
+    return NextResponse.json({ message: 'Error al enviar el correo' }, { status: 500 })
   }
 }

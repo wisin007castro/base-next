@@ -8,6 +8,10 @@ export const apiClientFile = (c: Ctx) => {
 import type { PaginatedResponse } from '@/lib/types/user.types'
 import type { ${P}, ${P}Filters } from '@/lib/types/${c.n.kebab}.types'
 import type { Bulk${P}Action, Create${P}Input, Update${P}Input } from '@/lib/api/schemas/${c.n.kebab}.schema'
+import { crudToasts, bulkToast } from '@/lib/toast'
+
+// Mensajes de los toasts (los muestra el MutationCache global: lib/toast.ts)
+const t = crudToasts('${c.n.labelSingular.charAt(0).toUpperCase() + c.n.labelSingular.slice(1)}'${c.n.fem ? ', true' : ''})
 
 export const ${c.n.camelPlural}Api = {
   getAll: (filters: ${P}Filters = {}, signal?: AbortSignal) =>
@@ -64,6 +68,9 @@ import { ${camel}Keys } from '@/lib/constants/query-keys'
 import { invalidateDependents } from '@/lib/hooks/invalidate-dependents'
 import type { ${P}Filters } from '@/lib/types/${c.n.kebab}.types'
 import type { Bulk${P}Action, Create${P}Input, Update${P}Input } from '@/lib/api/schemas/${c.n.kebab}.schema'
+import { crudToasts, bulkToast } from '@/lib/toast'
+
+const t = crudToasts('${c.n.labelSingular.charAt(0).toUpperCase() + c.n.labelSingular.slice(1)}'${c.n.fem ? ', true' : ''})
 
 export const ${camel}Queries = {
   list: (filters: ${P}Filters) =>
@@ -134,6 +141,7 @@ export function useCreate${P}() {
   const qc = useQueryClient()
   const invalidate = useInvalidate${PP}()
   return useMutation({
+    meta: { successToast: t.created },
     mutationFn: (dto: Create${P}Input) => ${cp}Api.create(dto),
     onSuccess: item => {
       qc.setQueryData(${camel}Keys.detail(item.id), item)
@@ -146,6 +154,7 @@ export function useUpdate${P}(id: number) {
   const qc = useQueryClient()
   const invalidate = useInvalidate${PP}()
   return useMutation({
+    meta: { successToast: t.updated },
     mutationFn: (dto: Update${P}Input) => ${cp}Api.update(id, dto),
     onSuccess: item => {
       qc.setQueryData(${camel}Keys.detail(id), item)
@@ -158,6 +167,7 @@ export function useDelete${P}() {
   const qc = useQueryClient()
   const invalidate = useInvalidate${PP}()
   return useMutation({
+    meta: { successToast: t.deleted },
     mutationFn: (id: number) => ${cp}Api.remove(id),
     onSuccess: (_, id) => {
       qc.removeQueries({ queryKey: ${camel}Keys.detail(id) })
@@ -172,6 +182,7 @@ export function useRestore${P}() {
   const qc = useQueryClient()
   const invalidate = useInvalidate${PP}()
   return useMutation({
+    meta: { successToast: t.restored, errorToast: true },
     mutationFn: (id: number) => ${cp}Api.restore(id),
     onSuccess: item => {
       qc.setQueryData(${camel}Keys.detail(item.id), item)
@@ -184,6 +195,7 @@ export function useForceDelete${P}() {
   const qc = useQueryClient()
   const invalidate = useInvalidate${PP}()
   return useMutation({
+    meta: { successToast: t.forceDeleted, errorToast: true },
     mutationFn: (id: number) => ${cp}Api.forceDelete(id),
     onSuccess: (_, id) => {
       qc.removeQueries({ queryKey: ${camel}Keys.detail(id) })
@@ -199,6 +211,7 @@ export function useBulk${PP}() {
   const qc = useQueryClient()
   const invalidate = useInvalidate${PP}()
   return useMutation({
+    meta: { successToast: bulkToast },
     mutationFn: ({ action, ids }: { action: Bulk${P}Action; ids: number[] }) => ${cp}Api.bulk(action, ids),
     onSuccess: (_, { ids }) => {
       ids.forEach(id => qc.removeQueries({ queryKey: ${camel}Keys.detail(id) }))

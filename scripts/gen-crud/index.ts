@@ -331,7 +331,7 @@ ${dryRun ? 'Nada escrito (dry-run).' : '✔ Listo.'} Siguientes pasos:
   1. npm run db:generate      # migración de ${n.snakePlural} (revisa el SQL)
   2. npm run db:migrate
   3. npm run db:permissions   # crea ${n.snakePlural}.view|create|edit|delete${ctx.softDelete ? '|force_delete' : ''} y los asigna a admin
-  4. Vuelve a iniciar sesión (los permisos viajan en el JWT) y abre /${n.kebabPlural}
+  4. Abre /${n.kebabPlural} (los permisos se releen solos; el menú se actualiza al volver a la pestaña)
 
   Para dar acceso a otros roles: /roles → editar rol → marcar ${n.snakePlural}.*
 `)

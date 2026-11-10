@@ -34,10 +34,12 @@ export default defineConfig({
       dependencies: ['setup'],
     },
   ],
+  // Local: el dev de siempre (se reutiliza si ya corre). CI: build de producción, sin compilar
+  // páginas bajo demanda en mitad de las pruebas (más rápido y es lo que se despliega)
   webServer: {
-    command: 'npm run dev',
+    command: process.env.CI ? 'npm run build && npm run start' : 'npm run dev',
     url: `${baseURL}/login`,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: process.env.CI ? 300_000 : 120_000,
   },
 })

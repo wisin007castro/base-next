@@ -10,3 +10,5 @@ skills-lock.json
 .interface-design
 playwright-report
 test-results
+storybook-static
+e2e/.auth

@@ -1,11 +1,9 @@
 'use client'
 import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 
 export default function Verify2FAPage() {
   const { update } = useSession()
-  const router = useRouter()
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -40,7 +38,9 @@ export default function Verify2FAPage() {
         setLoading(false)
         return
       }
-      router.replace('/')
+      // Navegación completa: en producción el router reutilizaría el prefetch de '/' hecho con la
+      // sesión pendiente (que el middleware redirigió a /verify-2fa)
+      window.location.replace('/')
     } catch {
       setError('Error de conexión. Intenta de nuevo.')
       setLoading(false)

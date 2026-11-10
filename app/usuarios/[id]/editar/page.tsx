@@ -5,14 +5,7 @@ import { FiArrowLeft } from 'react-icons/fi'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
-import {
-  useUser,
-  useUpdateUser,
-  useUserDirectPermissions,
-  useGiveDirectPermission,
-  useRevokeDirectPermission,
-} from '@/lib/hooks/users.hooks'
-import { usePermissions } from '@/lib/hooks/permissions.hooks'
+import { useUser, useUpdateUser } from '@/lib/hooks/users.hooks'
 import type { User } from '@/lib/types/user.types'
 import { userKeys, meKeys } from '@/lib/constants/query-keys'
 import {
@@ -28,14 +21,11 @@ import {
 import { Form, FormStatus, SubmitButton } from '@/app/components/form'
 import { PersonalDataFields, UserAccountFields } from '@/app/components/users/UserFields'
 import AvatarUpload from '@/app/components/users/AvatarUpload'
+import { PrivilegesSection } from '@/app/components/users/PrivilegesSection'
 
 interface Props {
   params: Promise<{ id: string }>
 }
-
-const sectionClass = 'rounded-xl border border-[var(--line-2)] bg-surface p-4 space-y-4'
-const sectionTitleClass =
-  'text-xs font-semibold uppercase tracking-wider text-accent border-b border-[var(--line-2)] pb-2 mb-4'
 
 // ---------------------------------------------------------------------------
 // Sección: Datos de cuenta
@@ -55,7 +45,7 @@ function AccountSection({ user, userId }: { user: User; userId: number }) {
 
   return (
     <Form form={form} onSubmit={handleSubmit} className="space-y-4">
-      <FormStatus success="Datos de cuenta actualizados" />
+      <FormStatus />
       <UserAccountFields>
         <div className="flex justify-end pt-1">
           <SubmitButton>Actualizar cuenta</SubmitButton>
@@ -77,67 +67,12 @@ function PersonalSection({ user, userId }: { user: User; userId: number }) {
 
   return (
     <Form form={form} onSubmit={values => update.mutateAsync({ profile: toProfileDto(values) })} className="space-y-4">
-      <FormStatus success="Datos personales actualizados" />
+      <FormStatus />
       <PersonalDataFields />
       <div className="flex justify-end">
         <SubmitButton>Actualizar datos personales</SubmitButton>
       </div>
     </Form>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Sección: Permisos directos
-// ---------------------------------------------------------------------------
-function DirectPermissionsSection({ userId }: { userId: number }) {
-  const { data: directPerms, isLoading: loadingDirect } = useUserDirectPermissions(userId)
-  const { data: allPerms, isLoading: loadingAll } = usePermissions()
-  const give = useGiveDirectPermission(userId)
-  const revoke = useRevokeDirectPermission(userId)
-
-  const directIds = new Set(directPerms?.map(p => p.id) ?? [])
-
-  // Actualización optimista: el checkbox cambia al instante y se revierte si falla
-  function togglePermission(permId: number, hasIt: boolean) {
-    if (hasIt) revoke.mutate(permId)
-    else give.mutate(permId)
-  }
-
-  return (
-    <div className={sectionClass}>
-      <p className={sectionTitleClass}>Permisos directos</p>
-      <p className="-mt-2 mb-2 text-xs text-ink-3">
-        Permisos asignados directamente a este usuario, independientes de sus roles.
-      </p>
-
-      {loadingDirect || loadingAll ? (
-        <p className="text-xs text-ink-3">Cargando permisos...</p>
-      ) : !allPerms?.length ? (
-        <p className="text-xs text-ink-3">No hay permisos definidos en el sistema.</p>
-      ) : (
-        <div className="flex flex-wrap gap-4">
-          {allPerms.map(perm => {
-            const hasIt = directIds.has(perm.id)
-            return (
-              <label key={perm.id} className="flex cursor-pointer select-none items-center gap-2">
-                <input
-                  type="checkbox"
-                  className="focus:ring-[var(--accent)]/30 rounded border-[var(--line-3)] text-accent"
-                  checked={hasIt}
-                  onChange={() => togglePermission(perm.id, hasIt)}
-                />
-                <span className="text-sm text-ink-2">{perm.name}</span>
-                {perm.description && <span className="text-xs text-ink-4">— {perm.description}</span>}
-              </label>
-            )
-          })}
-        </div>
-      )}
-
-      {(give.isError || revoke.isError) && (
-        <p className="mt-2 text-xs text-risk">Error al modificar el permiso. Inténtalo de nuevo.</p>
-      )}
-    </div>
   )
 }
 
@@ -194,7 +129,7 @@ export default function EditarUsuarioPage({ params }: Props) {
 
       <AccountSection user={user} userId={userId} />
       <PersonalSection user={user} userId={userId} />
-      <DirectPermissionsSection userId={userId} />
+      <PrivilegesSection userId={userId} isAdmin={!!user.roles?.some(r => r.name === 'admin')} />
     </div>
   )
 }

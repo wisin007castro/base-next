@@ -18,10 +18,10 @@ export const authConfig: NextAuthConfig = {
       const isAdmin = userRoles.includes('admin')
       const twoFactorPending = !!(auth?.user as { twoFactorPending?: boolean })?.twoFactorPending
 
-      const adminPaths = ['/usuarios', '/roles', '/permisos']
+      const adminPaths = ['/usuarios', '/roles', '/permisos', '/configuracion']
       const userPaths = ['/perfil', '/blog']
       const authPaths = ['/'] // home sólo autenticados
-      const publicPaths = ['/login', '/forgot-password', '/reset-password']
+      const publicPaths = ['/login', '/forgot-password', '/reset-password', '/invitacion']
 
       const isAdminPath = adminPaths.some(p => nextUrl.pathname.startsWith(p))
       const isUserPath = userPaths.some(p => nextUrl.pathname.startsWith(p))
@@ -40,6 +40,15 @@ export const authConfig: NextAuthConfig = {
       if (isLoggedIn && twoFactorPending && is2faPath) {
         return true
       }
+
+      // La política obliga a activar 2FA y aún no lo tiene → solo /configurar-2fa.
+      // La API no se redirige (requireAuth responde 403 salvo a lo necesario para activarlo).
+      const setupRequired = !!(auth?.user as { twoFactorSetupRequired?: boolean })?.twoFactorSetupRequired
+      const isSetupPath = nextUrl.pathname.startsWith('/configurar-2fa')
+      if (isLoggedIn && setupRequired && !isSetupPath && !nextUrl.pathname.startsWith('/api/')) {
+        return Response.redirect(new URL('/configurar-2fa', nextUrl))
+      }
+      if (isSetupPath) return isLoggedIn ? true : Response.redirect(new URL('/login', nextUrl))
 
       // Sin sesión → login
       if ((isAdminPath || isUserPath || isAuthPath || modulePerm) && !isLoggedIn) {
@@ -79,11 +88,13 @@ export const authConfig: NextAuthConfig = {
           roles?: string[]
           permissions?: string[]
           twoFactorPending?: boolean
+          twoFactorSetupRequired?: boolean
         }
         user.id = token.id as string
         user.roles = (token.roles as string[]) ?? []
         user.permissions = (token.permissions as string[]) ?? []
         user.twoFactorPending = token.twoFactorPending as boolean | undefined
+        user.twoFactorSetupRequired = token.twoFactorSetupRequired as boolean | undefined
       }
       return session
     },

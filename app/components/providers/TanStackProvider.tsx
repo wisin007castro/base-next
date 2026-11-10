@@ -3,8 +3,11 @@
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { signOut } from 'next-auth/react'
+import { useTheme } from 'next-themes'
 import { useState, type ReactNode } from 'react'
+import { Toaster, toast } from 'sonner'
 import { ApiError } from '@/lib/api/http'
+import { resolveToast } from '@/lib/toast'
 
 /**
  * 401 = la sesión ya no vale (revocada, usuario desactivado/eliminado): al login.
@@ -21,7 +24,19 @@ function onApiError(error: unknown) {
 function makeQueryClient() {
   return new QueryClient({
     queryCache: new QueryCache({ onError: onApiError }),
-    mutationCache: new MutationCache({ onError: onApiError }),
+    // Toasts declarados en `meta` de cada mutación (lib/toast.ts)
+    mutationCache: new MutationCache({
+      onSuccess: (_data, variables, _ctx, mutation) => {
+        const message = mutation.meta?.successToast
+        if (message) toast.success(resolveToast(message, variables))
+      },
+      onError: (error, _variables, _ctx, mutation) => {
+        onApiError(error)
+        if (mutation.meta?.errorToast && !(error instanceof ApiError && error.status === 401)) {
+          toast.error(error.message)
+        }
+      },
+    }),
     defaultOptions: {
       queries: {
         // Evita refetch en cada montaje / cambio de foco si el dato es reciente
@@ -39,12 +54,18 @@ function makeQueryClient() {
   })
 }
 
+function ThemedToaster() {
+  const { resolvedTheme } = useTheme()
+  return <Toaster theme={resolvedTheme === 'dark' ? 'dark' : 'light'} position="bottom-right" richColors closeButton />
+}
+
 export const TanStackProvider = ({ children }: { children: ReactNode }) => {
   const [queryClient] = useState(makeQueryClient)
 
   return (
     <QueryClientProvider client={queryClient}>
       {children}
+      <ThemedToaster />
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   )

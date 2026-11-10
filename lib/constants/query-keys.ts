@@ -27,6 +27,18 @@ export const meKeys = {
   sessions: () => [...meKeys.all, 'sessions'] as const,
 }
 
+export const invitationKeys = {
+  all: ['invitations'] as const,
+  lists: () => [...invitationKeys.all, 'list'] as const,
+  preview: (token: string) => [...invitationKeys.all, 'preview', token] as const,
+}
+
+export const settingsKeys = {
+  all: ['settings'] as const,
+  section: (section: 'system' | 'access' | 'mail') => [...settingsKeys.all, section] as const,
+  public: () => [...settingsKeys.all, 'public'] as const,
+}
+
 export const dashboardKeys = {
   all: ['dashboard'] as const,
 }

@@ -81,6 +81,7 @@ export function useVotar(postId: number) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (valor: VotoValor) => blogApi.votar(postId, valor),
+    meta: { errorToast: true },
     onMutate: async valor => {
       await qc.cancelQueries({ queryKey: blogKeys.detail(postId), exact: true })
       const previousDetail = qc.getQueryData<BlogPost>(blogKeys.detail(postId))
@@ -115,6 +116,7 @@ export function useEliminarComentario(postId: number) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (comentarioId: number) => blogApi.eliminarComentario(postId, comentarioId),
+    meta: { successToast: 'Comentario eliminado' },
     onSuccess: (_, comentarioId) => {
       qc.setQueryData(blogKeys.comentarios(postId), (old: { id: number }[] | undefined) =>
         old?.filter(c => c.id !== comentarioId),

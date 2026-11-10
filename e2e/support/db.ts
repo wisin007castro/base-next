@@ -49,6 +49,9 @@ export function createUser(
 export function cleanup(db: Database.Database) {
   const like = `${PREFIX}%`
   db.prepare("DELETE FROM users WHERE email LIKE 'e2e-%@test.local'").run()
+  db.prepare("DELETE FROM invitations WHERE email LIKE 'e2e-%@test.local'").run()
+  // Los nombres de rol no admiten dígitos: prefijo "zze_rol_" (roles.spec.ts)
+  db.prepare("DELETE FROM roles WHERE name LIKE 'zze\\_rol\\_%' ESCAPE '\\'").run()
   db.prepare('DELETE FROM publicaciones WHERE titulo LIKE ?').run(like)
   db.prepare('DELETE FROM categorias WHERE nombre LIKE ?').run(like)
   db.prepare('DELETE FROM etiquetas WHERE nombre LIKE ?').run(like)

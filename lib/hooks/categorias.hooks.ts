@@ -9,6 +9,9 @@ import type {
   CreateCategoriaInput,
   UpdateCategoriaInput,
 } from '@/lib/api/schemas/categoria.schema'
+import { crudToasts, bulkToast } from '@/lib/toast'
+
+const t = crudToasts('Categoría', true)
 
 export const categoriaQueries = {
   list: (filters: CategoriaFilters) =>
@@ -79,6 +82,7 @@ export function useCreateCategoria() {
   const qc = useQueryClient()
   const invalidate = useInvalidateCategorias()
   return useMutation({
+    meta: { successToast: t.created },
     mutationFn: (dto: CreateCategoriaInput) => categoriasApi.create(dto),
     onSuccess: item => {
       qc.setQueryData(categoriaKeys.detail(item.id), item)
@@ -91,6 +95,7 @@ export function useUpdateCategoria(id: number) {
   const qc = useQueryClient()
   const invalidate = useInvalidateCategorias()
   return useMutation({
+    meta: { successToast: t.updated },
     mutationFn: (dto: UpdateCategoriaInput) => categoriasApi.update(id, dto),
     onSuccess: item => {
       qc.setQueryData(categoriaKeys.detail(id), item)
@@ -103,6 +108,7 @@ export function useDeleteCategoria() {
   const qc = useQueryClient()
   const invalidate = useInvalidateCategorias()
   return useMutation({
+    meta: { successToast: t.deleted },
     mutationFn: (id: number) => categoriasApi.remove(id),
     onSuccess: (_, id) => {
       qc.removeQueries({ queryKey: categoriaKeys.detail(id) })
@@ -115,6 +121,7 @@ export function useRestoreCategoria() {
   const qc = useQueryClient()
   const invalidate = useInvalidateCategorias()
   return useMutation({
+    meta: { successToast: t.restored, errorToast: true },
     mutationFn: (id: number) => categoriasApi.restore(id),
     onSuccess: item => {
       qc.setQueryData(categoriaKeys.detail(item.id), item)
@@ -127,6 +134,7 @@ export function useForceDeleteCategoria() {
   const qc = useQueryClient()
   const invalidate = useInvalidateCategorias()
   return useMutation({
+    meta: { successToast: t.forceDeleted, errorToast: true },
     mutationFn: (id: number) => categoriasApi.forceDelete(id),
     onSuccess: (_, id) => {
       qc.removeQueries({ queryKey: categoriaKeys.detail(id) })
@@ -140,6 +148,7 @@ export function useBulkCategorias() {
   const qc = useQueryClient()
   const invalidate = useInvalidateCategorias()
   return useMutation({
+    meta: { successToast: bulkToast },
     mutationFn: ({ action, ids }: { action: BulkCategoriaAction; ids: number[] }) => categoriasApi.bulk(action, ids),
     onSuccess: (_, { ids }) => {
       ids.forEach(id => qc.removeQueries({ queryKey: categoriaKeys.detail(id) }))

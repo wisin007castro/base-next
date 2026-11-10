@@ -18,3 +18,5 @@ pre-push:
       run: npm run typecheck
     lint:
       run: npm run lint
+    test:
+      run: npm test

@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'crypto'
+import { env } from '@/lib/env'
 
-const SECRET = process.env.AUTH_SECRET ?? 'dev-secret'
+const SECRET = env.AUTH_SECRET
 const SEPARATOR = '.'
 
 /** Genera un token firmado con HMAC-SHA256: `userId.expiresAt.signature` */

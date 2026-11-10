@@ -1,5 +1,6 @@
 import type { User, CreateUserDto, UpdateUserDto, PaginatedResponse, UserFilters } from '@/lib/types/user.types'
-import type { Permission } from '@/lib/types/rbac.types'
+import type { UserPrivileges } from '@/lib/types/rbac.types'
+import type { PrivilegeInput } from '@/lib/api/schemas/privilege.schema'
 import type { BulkUserAction } from '@/lib/api/schemas/user.schema'
 import { request, toQueryString } from './http'
 
@@ -48,16 +49,12 @@ export const usersApi = {
   /** Verificar correo manualmente (sin envío de email) */
   verify: (id: number) => request<User>(`/users/${id}/verify`, { method: 'POST' }),
 
-  /** Lista los permisos directos del usuario */
-  getDirectPermissions: (id: number, signal?: AbortSignal) =>
-    request<Permission[]>(`/users/${id}/permissions`, { signal }),
+  /** Privilegios del usuario (conceder/denegar) y sus permisos efectivos */
+  getPrivileges: (id: number, signal?: AbortSignal) => request<UserPrivileges>(`/users/${id}/permissions`, { signal }),
 
-  /** Asigna un permiso directo al usuario */
-  givePermission: (id: number, permissionId: number) =>
-    request<void>(`/users/${id}/permissions`, {
-      method: 'POST',
-      body: JSON.stringify({ permission_id: permissionId }),
-    }),
+  /** Concede o deniega un permiso (reemplaza el privilegio previo sobre ese permiso) */
+  setPrivilege: (id: number, dto: PrivilegeInput) =>
+    request<UserPrivileges>(`/users/${id}/permissions`, { method: 'POST', body: JSON.stringify(dto) }),
 
   /** Aplica una acción a varios usuarios a la vez */
   bulk: (action: BulkUserAction, ids: number[]) =>
@@ -66,7 +63,7 @@ export const usersApi = {
       body: JSON.stringify({ action, ids }),
     }),
 
-  /** Revoca un permiso directo del usuario */
-  revokePermission: (id: number, permissionId: number) =>
+  /** Quita el privilegio (vuelve a valer lo que den sus roles) */
+  removePrivilege: (id: number, permissionId: number) =>
     request<void>(`/users/${id}/permissions/${permissionId}`, { method: 'DELETE' }),
 }
